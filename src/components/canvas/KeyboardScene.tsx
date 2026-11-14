@@ -9,6 +9,7 @@ import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { useKeyboardStore } from '@/store/useKeyboardStore';
 import { KeyboardModel } from './KeyboardModel';
 import { CanvasLoader } from './CanvasLoader';
+import { CameraFraming } from './CameraFraming';
 
 // Bộ điều khiển vị trí Camera theo Preset mượt mà
 const CameraController: React.FC = () => {
@@ -73,6 +74,9 @@ export const KeyboardScene: React.FC = () => {
           toneMappingExposure: 1.1,
         }}
       >
+        {/* Lens shift: đặt mô hình vào giữa vùng không bị panel UI che */}
+        <CameraFraming />
+
         <Suspense fallback={<CanvasLoader />}>
           {/* Hệ thống Ánh sáng Studio Cinematic */}
           <ambientLight intensity={0.6} color="#94a3b8" />

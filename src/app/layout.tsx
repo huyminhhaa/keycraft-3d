@@ -1,21 +1,31 @@
-import type { Metadata } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
+import type { Metadata, Viewport } from 'next';
+import { Geist, Geist_Mono, Inter_Tight } from 'next/font/google';
 import './globals.css';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
-  subsets: ['latin'],
+  subsets: ['latin', 'vietnamese'],
 });
 
 const geistMono = Geist_Mono({
   variable: '--font-geist-mono',
-  subsets: ['latin'],
+  subsets: ['latin', 'vietnamese'],
+});
+
+// Font hiển thị cho tiêu đề: nét chặt, tracking âm đẹp ở cỡ lớn
+const interTight = Inter_Tight({
+  variable: '--font-inter-tight',
+  subsets: ['latin', 'vietnamese'],
 });
 
 export const metadata: Metadata = {
   title: 'KeyCraft 3D — Custom Mechanical Keyboard Studio & AI Acoustic Architect',
   description:
-    'Interactive 3D custom mechanical keyboard studio featuring real-time acoustic simulation, AI architect, and cinematic liquid glass UI inspired by MotionSites.ai.',
+    'Studio 3D tuỳ biến bàn phím cơ: xoay, tách 7 lớp phần cứng và xem hồ sơ âm học thay đổi theo thời gian thực.',
+};
+
+export const viewport: Viewport = {
+  themeColor: '#09090b',
 };
 
 export default function RootLayout({
@@ -24,10 +34,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}>
-      <body className="min-h-full bg-[#09090b] text-[#f4f4f5] overflow-x-hidden selection:bg-cyan-500/30 selection:text-white">
-        {children}
-      </body>
+    <html
+      lang="vi"
+      className={`${geistSans.variable} ${geistMono.variable} ${interTight.variable} dark h-full antialiased`}
+    >
+      <body className="min-h-full bg-background text-foreground overflow-x-hidden">{children}</body>
     </html>
   );
 }

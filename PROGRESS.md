@@ -9,6 +9,7 @@
 
 ## Chặng 2: AI Build Architect điều khiển 3D (Dùng Claude Code Pro chốt luồng + Antigravity code)
 - [x] **2.1-ai-tools:** Cài đặt `ai`, `@ai-sdk/google`, `zod`. Xây dựng API route `src/app/api/chat/route.ts` định nghĩa Tool Calling (`updateKeyboardConfig`, `toggleExplodedView`) để AI điều khiển trực tiếp 3D Canvas. Viết unit test kiểm tra schema validation của các tool.
+- [x] **2.1b-ui-redesign:** Đại tu toàn bộ UI theo phong cách Cinematic Dark Luxury (MotionSites.ai vibe): Frosted Liquid Glass, ambient mesh glow + film grain, kinetic typography, bento-grid controls & telemetry, font Inter Tight/Geist, lens shift camera để panel không che mô hình 3D.
 - [ ] **2.2-chat-ui:** Dựng giao diện AI Acoustic Architect dạng MotionSites.ai Cinematic Floating Glassmorphism panel (spring-physics qua Framer Motion, glowing reactive borders, sound wave visualizer) đồng bộ thời gian thực với Zustand store và hiển thị trạng thái trực quan mỗi khi AI thực thi lệnh biến đổi bàn phím 3D.
 
 ## Chặng 3: Docker, PostgreSQL (`pgvector`), Redis, Authentication & Web Audio (Dùng Codex Plus)
@@ -94,3 +95,18 @@
     - `PROGRESS.md`: Đánh dấu `[x]` Task 2.1.
   - **Kết quả xác thực:** Đạt 100% xanh cả 3 lệnh: `npx tsc --noEmit` (0 lỗi), `npm run lint` (0 lỗi, 0 warnings), `npm test -- --run` (42/42 test passed).
   - **Next Step:** Sẵn sàng cho Task **2.2-chat-ui** (Dựng giao diện AI Acoustic Architect dạng MotionSites.ai Cinematic Floating Glassmorphism panel, spring physics qua Framer Motion, glowing reactive borders, sound wave visualizer đồng bộ 2 chiều với Zustand store).
+
+- **[Task 2.1b-ui-redesign] Hoàn thành ngày 14/11/2026:**
+  - **Mô tả:** Đại tu UI sang Cinematic Dark Luxury. Giữ nguyên 100% `useKeyboardStore` và `KeyboardModel` 7 lớp. Thêm hệ thống token và tấm kính `.glass-liquid` (backdrop-blur 40px, hairline `white/10`, inner highlight), ambient mesh glow cyan/indigo/purple `blur-3xl`, light leak `mix-blend-screen`, vignette và film grain SVG. Motion language dùng chung (springs, stagger, kinetic word reveal, `layoutId` indicators, `MotionConfig reducedMotion="user"`). Panel điều khiển và thẻ Acoustic dựng lại theo bento grid. Font Inter Tight (tiêu đề) + Geist (nội dung) với subset tiếng Việt, phụ đề `#94a3b8`. `CameraFraming` dùng `setViewOffset` (lens shift) để mô hình nằm giữa vùng trống, không bị panel/hero che; breakpoint lấy từ `matchMedia` cho khớp với Tailwind `lg`. Navbar trên mobile chỉ hiện icon (có `aria-label`).
+  - **File đã tạo:**
+    - `src/lib/ui/motion.ts` (+ `motion.test.ts`): SPRINGS, EASE_OUT_EXPO, splitWords, stagger variants, kineticWord, fadeRise.
+    - `src/lib/ui/meter.ts` (+ `meter.test.ts`): computeAcousticRanges, toMeterPercent, describeTone, buildWaveform.
+    - `src/components/canvas/CameraFraming.tsx` (+ `CameraFraming.test.ts`): computeFraming, computeViewOffset, applyFraming/resetFraming.
+    - `src/components/ui/AmbientBackdrop.tsx`, `HeroOverlay.tsx`, `KineticHeadline.tsx` (+ `KineticHeadline.test.tsx`).
+    - `src/components/ui/studio/BentoCard.tsx`, `OptionTile.tsx`, `ColorSwatch.tsx`, `Controls.tsx` (GlowToggle role=switch, LuxeRange).
+    - `docs/theory/06-ui-redesign-motion-glass.md`.
+  - **File đã sửa:** `src/app/globals.css`, `src/app/layout.tsx` (Inter Tight, `lang="vi"`, viewport themeColor), `src/app/page.tsx`, `src/components/canvas/KeyboardScene.tsx` (chỉ gắn `<CameraFraming />`), `src/components/canvas/CanvasLoader.tsx`, `src/components/ui/StudioNavbar.tsx`, `src/components/ui/AcousticBadge.tsx`, `src/components/ui/StudioControls.tsx`, `src/components/ui/StudioControls.test.tsx`, `PROGRESS.md`.
+  - **Biến môi trường mới:** Không có.
+  - **Kết quả xác thực:** `npx tsc --noEmit` (0 lỗi), `npm run lint` (0 lỗi, 0 warning), `npm test -- --run` (68/68 test passed), `npm run build` thành công. Đã chụp headless ở 1440×900 và 1024×768 để kiểm tra bố cục.
+  - **Ghi chú cho AI tiếp theo:** Panel AI chat (2.2) nên dùng lại `.glass-liquid`, `BentoCard`, `SPRINGS` và chừa chỗ trong `CameraFraming` (`DESKTOP_PANEL_SPACE`) nếu panel chiếm thêm cạnh màn hình. Ảnh chụp headless có một đường ngang ở nửa dưới sàn studio (thuộc scene, không đổi trong task này), cần xem lại trên trình duyệt thật.
+  - **Next Step:** Task **2.2-chat-ui**.
