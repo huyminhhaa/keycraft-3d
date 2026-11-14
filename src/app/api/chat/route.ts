@@ -31,8 +31,10 @@ export async function POST(req: Request) {
       apiKey,
     });
 
+    const modelName = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
+
     const result = streamText({
-      model: google('gemini-2.0-flash'),
+      model: google(modelName),
       system: KEYBOARD_ARCHITECT_SYSTEM_PROMPT,
       messages,
       tools: keyboardTools,
