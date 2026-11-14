@@ -97,8 +97,15 @@ Khi ứng dụng khởi chạy hoàn chỉnh, dòng chảy dữ liệu (Data Flo
    - Khi nhận sự kiện bàn phím thật (`keydown`), hệ thống đọc cấu hình hiện tại trong Zustand (Plate loại gì? Foam dày bao nhiêu? Switch clicky hay linear?) để tính toán bộ lọc BiquadFilter (tần số cắt, Q-factor) và kích hoạt AudioBuffer giả lập tiếng gõ "Thock" (trầm ấm) hoặc "Clack" (đanh giòn) với độ trễ dưới 15ms.
 
 6. **Lớp lưu trữ và bộ đệm (`src/db/` & Redis):**
-   - `PostgreSQL 17 + pgvector`: Lưu trữ toàn vẹn thông tin các bản build dưới dạng `JSONB` linh hoạt, kết hợp đánh index vector HNSW/IVFFlat cho dữ liệu âm học.
-   - `Redis`: Đóng vai trò 2 nhiệm vụ: (1) Cache danh sách các bản build đang "Hot" (Trending Builds) giảm tải cho DB; (2) Giới hạn tần suất gọi AI (Rate Limiting với thuật toán Sliding Window hoặc Token Bucket).
+   - `PostgreSQL 17 + pgvector`: Lưu trữ toàn vẹn thông tin các bản build dưới dạng `JSONB` linh hoạt, tài khoản người dùng (`users`), kết hợp đánh index vector HNSW/IVFFlat cho dữ liệu âm học.
+   - `Redis`: Đóng vai trò đa nhiệm vụ:
+     - (1) Cache danh sách các bản build đang "Hot" (Trending Builds) giảm tải cho DB;
+     - (2) Giới hạn tần suất gọi AI (Rate Limiting với thuật toán Sliding Window);
+     - (3) **Bảo vệ Brute-force & Anti-bot:** Đếm số lần đăng nhập sai theo IP/Email. Nếu sai quá 3 lần, kích hoạt cơ chế bắt buộc giải CAPTCHA (Turnstile / Security Challenge) và khóa tài khoản tạm thời nếu tiếp tục tái phạm.
+
+7. **Lớp thiết kế & Chuyển động (Design System chuẩn MotionSites.ai):**
+   - **Visual Vibe:** Phong cách Cinematic Dark Luxury, Frosted Liquid Glass (`backdrop-blur-xl`, nền slate-950 kết hợp gradient radial sâu, viền phát quang phản chiếu ánh kim `border-white/10`).
+   - **Chuyển động & Tương tác:** Tận dụng tối đa `framer-motion` cho các hiệu ứng spring physics tự nhiên, staggered text reveal cho typography, bento-grid modular layouts, và tương tác 3D chân thực thời gian thực như studio phần cứng cao cấp.
 
 ---
 
