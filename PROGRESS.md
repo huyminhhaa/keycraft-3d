@@ -4,7 +4,7 @@
 - [x] **1.0-blueprint:** Chưa cần tạo app Next.js. Hãy tạo file `docs/theory/00-architecture-overview.md` giải thích bức tranh toàn cảnh kiến trúc hệ thống KeyCraft 3D (cách Frontend 3D, Zustand, AI Tool Calling, PostgreSQL `pgvector` và Redis phối hợp với nhau) bằng ngôn ngữ dễ hiểu cho người mới từ số 0, kèm sơ đồ luồng dữ liệu ASCII và tạo file `.env.example` chuẩn bị sẵn các biến môi trường cần thiết.
 - [x] **1.1-init:** Khởi tạo Next.js (TypeScript, Tailwind, ESLint, App Router, `src/` directory) trực tiếp vào thư mục hiện tại (LƯU Ý: giữ nguyên `CLAUDE.md`, `AGENTS.md`, `PROGRESS.md`, `docs/`, `.claude/`, `.agents/`, `.codex/`, `scripts/`). Cài đặt bộ thư viện 3D & UI: `three`, `@types/three`, `@react-three/fiber`, `@react-three/drei`, `@react-three/postprocessing`, `postprocessing`, `zustand`, `lucide-react`, `framer-motion`, và bộ Auto-Test: `vitest`, `@vitejs/plugin-react`, `jsdom`, `@testing-library/react`. Cấu hình script `"test": "vitest"` trong `package.json`.
 - [x] **1.2-store:** Tạo Zustand store (`src/store/useKeyboardStore.ts`) quản lý layout (`65%`, `75%`, `TKL`), chế độ tách lớp (`isExploded`), chất liệu case/plate (`aluminum`, `polycarbonate`, `pom`, `fr4`), màu sắc keycap/underglow và camera preset. Viết bộ unit test đầy đủ (`src/store/useKeyboardStore.test.ts`) kiểm tra mọi action đổi trạng thái.
-- [ ] **1.3-3d-scene:** Dựng 3D Canvas (`src/components/canvas/KeyboardScene.tsx`) với phong cách MotionSites.ai (Cinematic Dark Luxury, Frosted Liquid Glass `backdrop-blur-xl`, ambient glow, `<Suspense>` loader), ánh sáng studio, Environment map, hiệu ứng đèn gầm RGB Bloom (`EffectComposer`), OrbitControls và mô hình bàn phím cơ 7 lớp chi tiết dựng bằng procedural geometry sắc nét (Bottom Case, PCB, Poron Foam, Switch Plate, Switches, Keycaps, Top Case) kèm bảng điều khiển UI Glassmorphism tối giản.
+- [x] **1.3-3d-scene:** Dựng 3D Canvas (`src/components/canvas/KeyboardScene.tsx`) với phong cách MotionSites.ai (Cinematic Dark Luxury, Frosted Liquid Glass `backdrop-blur-xl`, ambient glow, `<Suspense>` loader), ánh sáng studio, Environment map, hiệu ứng đèn gầm RGB Bloom (`EffectComposer`), OrbitControls và mô hình bàn phím cơ 7 lớp chi tiết dựng bằng procedural geometry sắc nét (Bottom Case, PCB, Poron Foam, Switch Plate, Switches, Keycaps, Top Case) kèm bảng điều khiển UI Glassmorphism tối giản.
 - [ ] **1.4-exploded-view:** Lập trình animation tách lớp phần cứng mượt mà bằng `useFrame` + `MathUtils.lerp` khi bật/tắt `isExploded`, kèm nhãn chú thích (`Html` từ `@react-three/drei`) chỉ rõ từng lớp linh kiện khi bung ra.
 
 ## Chặng 2: AI Build Architect điều khiển 3D (Dùng Claude Code Pro chốt luồng + Antigravity code)
@@ -53,4 +53,21 @@
     - `docs/theory/02-zustand-state-management.md`: Bài học lý thuyết 4 phần theo chuẩn Dual-Output Learning Mode (Transient updates, Trade-offs vs Redux/Context, 2 thử thách tự sửa code, 3 câu hỏi phỏng vấn thực chiến).
     - `PROGRESS.md`: Đánh dấu `[x]` Task 1.2.
   - **Kết quả xác thực:** Đạt 100% xanh cả 3 lệnh: `npx tsc --noEmit` (0 lỗi), `npm run lint` (0 lỗi), `npm test -- --run` (16/16 test passed).
-  - **Next Step:** Sẵn sàng cho Task **1.3-3d-scene** (Dựng 3D Canvas `KeyboardScene.tsx` phong cách MotionSites.ai Cinematic Glassmorphism, ánh sáng studio, Bloom RGB, OrbitControls và mô hình bàn phím 7 lớp).
+  - **Next Step:** Đã xong Task 1.3-3d-scene.
+
+- **[Task 1.3-3d-scene] Hoàn thành ngày 14/11/2026:**
+  - **Mô tả:** Xây dựng thành công toàn bộ không gian 3D Studio Cinematic và mô hình bàn phím cơ 7 lớp bằng Procedural Geometry kết hợp hệ thống giao diện chuẩn 100% MotionSites.ai Aesthetic (Frosted Liquid Glass, Radial Ambient Mesh Gradients, Noise Film Grain, Hairline Borders, Spring Physics).
+  - **File đã tạo/sửa:**
+    - `src/components/canvas/KeyboardScene.tsx`: 3D Canvas, Three-point studio lighting, ContactShadows, OrbitControls giới hạn góc quay, CameraController theo 5 góc preset, EffectComposer với Bloom shader cho đèn LED RGB, Suspense loader.
+    - `src/components/canvas/KeyboardModel.tsx`: Mô hình 7 lớp linh kiện cơ học (Bottom Case có chân cao su & thanh LED gầm, PCB mạch in mạ vàng, Poron foam tiêu âm, Switch plate, Switches gồm housing trong suốt & stem màu theo loại switch, Keycaps với phím chính và accent, Top Case viền kim loại vát cạnh).
+    - `src/components/canvas/CanvasLoader.tsx`: Loader 3D vòng xoay neon kép hiển thị % tiến độ nạp tài nguyên shader.
+    - `src/components/ui/StudioNavbar.tsx`: Navbar kính mờ `backdrop-blur-xl`, live pill badge radar, nút Tách lớp và Reset.
+    - `src/components/ui/AcousticBadge.tsx`: Thẻ hiển thị đo đạc telemetry âm học realtime (Pitch, Resonance, Damping) kèm biểu đồ cột sóng âm chuyển động hoạt họa.
+    - `src/components/ui/StudioControls.tsx`: Bento drawer điều khiển mượt mà: Layouts (65%, 75%, TKL), Switch Plates, Switches, Case Materials & Colors, Keycaps, RGB Underglow (đổi màu, bật/tắt, độ sáng 0-100%), Camera Presets.
+    - `src/components/ui/StudioControls.test.tsx`: Bộ 6 unit tests kiểm tra tương tác UI cho cả 3 component UI.
+    - `src/app/page.tsx`: Ghép nối toàn bộ trải nghiệm Studio đa góc độ bằng Dynamic Import (`ssr: false`), chống lỗi Hydration.
+    - `src/app/globals.css`: Bộ utility classes chuẩn MotionSites.ai (glass-panel, glow-cyan, bg-noise, custom sleek scrollbar).
+    - `docs/theory/03-3d-scene-procedural-keyboard.md`: Tài liệu lý thuyết 4 phần (Procedural 3D vs GLTF, Three-point lighting, Bloom shader, Trade-offs, Thử thách tự sửa code 5 phút, 3 câu hỏi phỏng vấn thực chiến).
+    - `PROGRESS.md`: Đánh dấu `[x]` Task 1.3.
+  - **Kết quả xác thực:** Đạt 100% xanh cả 3 lệnh: `npx tsc --noEmit` (0 lỗi), `npm run lint` (0 lỗi, 0 warnings), `npm test -- --run` (22/22 test passed).
+  - **Next Step:** Sẵn sàng cho Task **1.4-exploded-view** (Lập trình animation tách lớp phần cứng mượt mà bằng `useFrame` + `MathUtils.lerp` khi bật/tắt `isExploded`, kèm nhãn chú thích `Html` từ `@react-three/drei` chỉ rõ từng lớp linh kiện khi bung ra).
