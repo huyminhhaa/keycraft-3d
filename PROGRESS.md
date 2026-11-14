@@ -2,7 +2,7 @@
 
 ## Chặng 1: Nền tảng, Không gian 3D & State (Dùng Antigravity Pro)
 - [x] **1.0-blueprint:** Chưa cần tạo app Next.js. Hãy tạo file `docs/theory/00-architecture-overview.md` giải thích bức tranh toàn cảnh kiến trúc hệ thống KeyCraft 3D (cách Frontend 3D, Zustand, AI Tool Calling, PostgreSQL `pgvector` và Redis phối hợp với nhau) bằng ngôn ngữ dễ hiểu cho người mới từ số 0, kèm sơ đồ luồng dữ liệu ASCII và tạo file `.env.example` chuẩn bị sẵn các biến môi trường cần thiết.
-- [ ] **1.1-init:** Khởi tạo Next.js (TypeScript, Tailwind, ESLint, App Router, `src/` directory) trực tiếp vào thư mục hiện tại (LƯU Ý: giữ nguyên `CLAUDE.md`, `AGENTS.md`, `PROGRESS.md`, `docs/`, `.claude/`, `.agents/`, `.codex/`, `scripts/`). Cài đặt bộ thư viện 3D & UI: `three`, `@types/three`, `@react-three/fiber`, `@react-three/drei`, `@react-three/postprocessing`, `postprocessing`, `zustand`, `lucide-react`, `framer-motion`, và bộ Auto-Test: `vitest`, `@vitejs/plugin-react`, `jsdom`, `@testing-library/react`. Cấu hình script `"test": "vitest"` trong `package.json`.
+- [x] **1.1-init:** Khởi tạo Next.js (TypeScript, Tailwind, ESLint, App Router, `src/` directory) trực tiếp vào thư mục hiện tại (LƯU Ý: giữ nguyên `CLAUDE.md`, `AGENTS.md`, `PROGRESS.md`, `docs/`, `.claude/`, `.agents/`, `.codex/`, `scripts/`). Cài đặt bộ thư viện 3D & UI: `three`, `@types/three`, `@react-three/fiber`, `@react-three/drei`, `@react-three/postprocessing`, `postprocessing`, `zustand`, `lucide-react`, `framer-motion`, và bộ Auto-Test: `vitest`, `@vitejs/plugin-react`, `jsdom`, `@testing-library/react`. Cấu hình script `"test": "vitest"` trong `package.json`.
 - [ ] **1.2-store:** Tạo Zustand store (`src/store/useKeyboardStore.ts`) quản lý layout (`65%`, `75%`, `TKL`), chế độ tách lớp (`isExploded`), chất liệu case/plate (`aluminum`, `polycarbonate`, `pom`, `fr4`), màu sắc keycap/underglow và camera preset. Viết bộ unit test đầy đủ (`src/store/useKeyboardStore.test.ts`) kiểm tra mọi action đổi trạng thái.
 - [ ] **1.3-3d-scene:** Dựng 3D Canvas (`src/components/canvas/KeyboardScene.tsx`) với `<Suspense>` loader, ánh sáng studio, Environment map, hiệu ứng đèn gầm RGB Bloom (`EffectComposer`), OrbitControls và mô hình bàn phím cơ 7 lớp chi tiết dựng bằng procedural geometry sắc nét (Bottom Case, PCB, Poron Foam, Switch Plate, Switches, Keycaps, Top Case) kèm bảng điều khiển UI Glassmorphism tối giản.
 - [ ] **1.4-exploded-view:** Lập trình animation tách lớp phần cứng mượt mà bằng `useFrame` + `MathUtils.lerp` khi bật/tắt `isExploded`, kèm nhãn chú thích (`Html` từ `@react-three/drei`) chỉ rõ từng lớp linh kiện khi bung ra.
@@ -29,4 +29,16 @@
     - `.env.example`: Cấu hình mẫu sẵn sàng cho Google Gemini AI, PostgreSQL 17 (pgvector), Redis (Cache & Rate Limiting), Next.js App.
     - `PROGRESS.md`: Cập nhật trạng thái task 1.0 sang `[x]`.
   - **Biến môi trường mới:** `NODE_ENV`, `NEXT_PUBLIC_APP_URL`, `GOOGLE_GENERATIVE_AI_API_KEY`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `POSTGRES_PORT`, `POSTGRES_HOST`, `DATABASE_URL`, `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`, `REDIS_URL`, `AI_RATE_LIMIT_MAX_REQUESTS`, `AI_RATE_LIMIT_WINDOW_SECONDS`.
-  - **Next Step:** Sẵn sàng cho Task **1.1-init** (Khởi tạo Next.js App Router, Tailwind, TypeScript, cài đặt các package 3D, UI và Vitest test runner trực tiếp vào thư mục gốc).
+  - **Next Step:** Đã xong Task 1.1-init.
+
+- **[Task 1.1-init] Hoàn thành ngày 14/11/2026:**
+  - **Mô tả:** Khởi tạo thành công cấu trúc Next.js App Router (TypeScript, Tailwind CSS v4, ESLint), cài đặt đầy đủ bộ thư viện 3D (`three`, `@react-three/fiber`, `@react-three/drei`, `@react-three/postprocessing`, `postprocessing`), UI (`zustand`, `lucide-react`, `framer-motion`) và thiết lập bộ Auto-Test Vitest (`vitest`, `@vitejs/plugin-react`, `jsdom`, `@testing-library/react`). Giữ an toàn toàn bộ file hướng dẫn và workflow của dự án.
+  - **File đã tạo/sửa:**
+    - `package.json`: Cấu hình dependencies, devDependencies và script `"test": "vitest"`.
+    - `vitest.config.mts`: Cấu hình Vitest với `@vitejs/plugin-react`, môi trường `jsdom`, alias `@/*`.
+    - `src/app/page.test.tsx`: Unit test smoke test kiểm tra môi trường render component.
+    - `docs/theory/01-nextjs-3d-test-setup.md`: Tài liệu lý thuyết 4 phần (RSC vs 3D Canvas, Trade-offs, Thử thách tự sửa code 5 phút, 3 câu hỏi phỏng vấn thực chiến).
+    - `.gitignore`: Bổ sung rule bỏ qua node_modules, .next và giữ lại `.env.example`.
+    - `PROGRESS.md`: Đánh dấu `[x]` cho Task 1.1.
+  - **Kết quả xác thực:** Đạt 100% xanh cả 3 lệnh: `npx tsc --noEmit` (0 lỗi), `npm run lint` (0 lỗi), `npm test -- --run` (1/1 test passed).
+  - **Next Step:** Sẵn sàng cho Task **1.2-store** (Tạo Zustand store `src/store/useKeyboardStore.ts` quản lý layout, chất liệu, tách lớp và bộ unit test `src/store/useKeyboardStore.test.ts`).
