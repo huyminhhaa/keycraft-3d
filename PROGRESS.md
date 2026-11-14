@@ -8,7 +8,7 @@
 - [x] **1.4-exploded-view:** Lập trình animation tách lớp phần cứng mượt mà bằng `useFrame` + `MathUtils.lerp` khi bật/tắt `isExploded`, kèm nhãn chú thích (`Html` từ `@react-three/drei`) chỉ rõ từng lớp linh kiện khi bung ra.
 
 ## Chặng 2: AI Build Architect điều khiển 3D (Dùng Claude Code Pro chốt luồng + Antigravity code)
-- [ ] **2.1-ai-tools:** Cài đặt `ai`, `@ai-sdk/google`, `zod`. Xây dựng API route `src/app/api/chat/route.ts` định nghĩa Tool Calling (`updateKeyboardConfig`, `toggleExplodedView`) để AI điều khiển trực tiếp 3D Canvas. Viết unit test kiểm tra schema validation của các tool.
+- [x] **2.1-ai-tools:** Cài đặt `ai`, `@ai-sdk/google`, `zod`. Xây dựng API route `src/app/api/chat/route.ts` định nghĩa Tool Calling (`updateKeyboardConfig`, `toggleExplodedView`) để AI điều khiển trực tiếp 3D Canvas. Viết unit test kiểm tra schema validation của các tool.
 - [ ] **2.2-chat-ui:** Dựng giao diện AI Acoustic Architect dạng MotionSites.ai Cinematic Floating Glassmorphism panel (spring-physics qua Framer Motion, glowing reactive borders, sound wave visualizer) đồng bộ thời gian thực với Zustand store và hiển thị trạng thái trực quan mỗi khi AI thực thi lệnh biến đổi bàn phím 3D.
 
 ## Chặng 3: Docker, PostgreSQL (`pgvector`), Redis, Authentication & Web Audio (Dùng Codex Plus)
@@ -80,4 +80,17 @@
     - `docs/theory/04-exploded-view-frame-interpolation.md`: Tài liệu lý thuyết 4 phần (Cơ chế Matrix Projection của Drei Html, Toán học lerp và Frame-rate independence, Trade-offs, 2 bài tập thực hành 5 phút, 3 câu hỏi phỏng vấn thực chiến).
     - `PROGRESS.md`: Đánh dấu `[x]` Task 1.4 (Hoàn tất 100% Chặng 1).
   - **Kết quả xác thực:** Đạt 100% xanh cả 3 lệnh: `npx tsc --noEmit` (0 lỗi), `npm run lint` (0 lỗi, 0 warnings), `npm test -- --run` (28/28 test passed).
-  - **Next Step:** Sẵn sàng cho **Chặng 2: AI Build Architect điều khiển 3D**, bắt đầu từ Task **2.1-ai-tools** (Cài đặt `ai`, `@ai-sdk/google`, `zod`, xây dựng API route `src/app/api/chat/route.ts` với Tool Calling `updateKeyboardConfig`, `toggleExplodedView` để AI trực tiếp điều khiển không gian 3D).
+  - **Next Step:** Đã xong Task 2.1-ai-tools.
+
+- **[Task 2.1-ai-tools] Hoàn thành ngày 14/11/2026:**
+  - **Mô tả:** Khởi tạo thành công bộ não AI Acoustic Architect và hệ thống Agentic Tool Calling sử dụng Vercel AI SDK (`ai`), Google Gemini 2.0 Flash (`@ai-sdk/google`) và lá chắn thẩm định tham số Zod (`zod`). Xây dựng API route `/api/chat` hỗ trợ suy luận đa bước (`stepCountIs(5)`) cùng 3 công cụ cốt lõi: `updateKeyboardConfig` (điều khiển trực tiếp 3D layout, vật liệu, màu sắc, RGB), `toggleExplodedView` (bung/gộp 7 tầng phần cứng), và `getAcousticRecommendation` (phân tích âm học Thock/Clack/Creamy/Silent).
+  - **File đã tạo/sửa:**
+    - `src/lib/ai/keyboardTools.ts`: Định nghĩa Zod Schemas và 3 AI Tools chuẩn Vercel AI SDK.
+    - `src/lib/ai/prompts.ts`: System Prompt chuyên gia âm học bàn phím cơ thế giới (KeyCraft AI Acoustic Architect).
+    - `src/app/api/chat/route.ts`: API route POST xử lý Streaming phản hồi kết nối Google Gemini với cơ chế fallback an toàn khi thiếu API key.
+    - `src/lib/ai/keyboardTools.test.ts`: Bộ 12 unit tests kiểm tra chặt chẽ Zod validation (layout, regex HEX, phạm vi độ sáng) và các hàm execute.
+    - `src/app/api/chat/route.test.ts`: Bộ 2 unit tests kiểm tra API route HTTP 401 khi thiếu key và HTTP 500 khi payload hỏng.
+    - `docs/theory/05-ai-tools-streamtext-zod.md`: Tài liệu bách khoa công nghệ chuyên sâu (phân tích chi tiết Vercel AI SDK, Google Gemini Provider, Zod, luồng Agentic UI, Trade-offs, 2 bài thực hành 5 phút, 3 câu hỏi phỏng vấn thực chiến).
+    - `PROGRESS.md`: Đánh dấu `[x]` Task 2.1.
+  - **Kết quả xác thực:** Đạt 100% xanh cả 3 lệnh: `npx tsc --noEmit` (0 lỗi), `npm run lint` (0 lỗi, 0 warnings), `npm test -- --run` (42/42 test passed).
+  - **Next Step:** Sẵn sàng cho Task **2.2-chat-ui** (Dựng giao diện AI Acoustic Architect dạng MotionSites.ai Cinematic Floating Glassmorphism panel, spring physics qua Framer Motion, glowing reactive borders, sound wave visualizer đồng bộ 2 chiều với Zustand store).

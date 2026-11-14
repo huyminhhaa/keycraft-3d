@@ -25,8 +25,9 @@
 ## 3. Quy tắc vận hành bắt buộc (Mandatory Rules)
 1. **Shared State Handoff:** Luôn đọc `PROGRESS.md` (đặc biệt mục **Handoff Log** ở cuối file) trước khi làm. Sau khi xong task, đánh dấu `[x]` và ghi lại các file đã sửa + biến môi trường mới (nếu có) vào **Handoff Log**.
 2. **Self-Verification & Auto-Test Loop:** Mọi logic quan trọng (Store, API, RAG, Audio math, Auth/Security utils) BẮT BUỘC phải có file test `*.test.ts`. Trước khi báo hoàn thành, AI phải chạy đủ 3 lệnh: `npx tsc --noEmit`, `npm run lint`, và `npm test -- --run` cho đến khi xanh 100%.
-3. **Dual-Output Learning Mode (Học từ số 0):** Sau mỗi task hoàn thành, BẮT BUỘC tạo file `docs/theory/<task-id>-<ten-chu-de>.md` bằng tiếng Việt dễ hiểu gồm 4 phần:
-   - **Bản chất hoạt động (Under the hood):** Luồng dữ liệu đi qua các file nào, giải thích từng khái niệm cho người mới bắt đầu.
+3. **Dual-Output Learning Mode (Học từ số 0):** Sau mỗi task hoàn thành, BẮT BUỘC tạo file `docs/theory/<task-id>-<ten-chu-de>.md` bằng tiếng Việt dễ hiểu gồm các phần chi tiết:
+   - **Bách khoa công nghệ sử dụng trong task:** Đối với từng công nghệ/thư viện mới được áp dụng, phân tích sâu: Định nghĩa (là gì?), Tác dụng trong dự án, Cách sử dụng (syntax chuẩn), Điểm mạnh (Pros) & Điểm yếu/Hạn chế (Cons).
+   - **Bản chất hoạt động (Under the hood):** Luồng dữ liệu đi qua các file nào, giải thích từng khái niệm từ số 0.
    - **Tại sao chọn cách này (Trade-offs):** So sánh ngắn gọn với cách làm thông thường.
    - **Thử thách tự tay sửa code (5 phút):** Đưa ra 1–2 gợi ý cụ thể (chỉ rõ tên file và dòng code) để chủ dự án tự sửa thử thông số và thấy kết quả thay đổi trên web.
    - **3 câu hỏi phỏng vấn thực chiến** kèm đáp án súc tích xoay quanh đoạn code vừa viết.

@@ -10,10 +10,12 @@
     "test": "vitest"
   },
   "dependencies": {
+    "@ai-sdk/google": "^4.0.121",
     "@react-three/drei": "^10.7.9",
     "@react-three/fiber": "^9.8.2",
     "@react-three/postprocessing": "^3.2.2",
     "@types/three": "^0.187.0",
+    "ai": "^7.0.173",
     "framer-motion": "^14.14.0",
     "lucide-react": "^1.73.0",
     "next": "16.4.6",
@@ -21,6 +23,7 @@
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "three": "^0.187.0",
+    "zod": "^4.6.7",
     "zustand": "^5.1.0"
   },
   "devDependencies": {
