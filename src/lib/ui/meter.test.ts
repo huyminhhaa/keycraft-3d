@@ -4,7 +4,6 @@ import {
   ACOUSTIC_RANGES,
   PLATE_MATERIALS,
   SWITCH_TYPES,
-  buildWaveform,
   describeTone,
   toMeterPercent,
 } from './meter';
@@ -33,23 +32,5 @@ describe('acoustic meter math', () => {
     expect(describeTone(calculateSoundProfile('polycarbonate', 'linear'))).toBe('Thock');
     expect(describeTone(calculateSoundProfile('aluminum', 'linear'))).toBe('Clack');
     expect(describeTone(calculateSoundProfile('fr4', 'linear'))).toBe('Balanced');
-  });
-
-  it('buildWaveform trả về đúng số cột, giá trị trong [0.12, 1] và tất định', () => {
-    const profile = calculateSoundProfile('aluminum', 'clicky');
-    const wave = buildWaveform(profile, 14);
-    expect(wave).toHaveLength(14);
-    wave.forEach((v) => {
-      expect(v).toBeGreaterThanOrEqual(0.12);
-      expect(v).toBeLessThanOrEqual(1);
-    });
-    expect(buildWaveform(profile, 14)).toEqual(wave);
-    expect(buildWaveform(profile, 0)).toHaveLength(1);
-  });
-
-  it('plate khác nhau cho dạng sóng khác nhau', () => {
-    const alu = buildWaveform(calculateSoundProfile('aluminum', 'linear'));
-    const pc = buildWaveform(calculateSoundProfile('polycarbonate', 'linear'));
-    expect(alu).not.toEqual(pc);
   });
 });

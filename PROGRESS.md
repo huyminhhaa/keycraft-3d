@@ -10,7 +10,9 @@
 ## Chặng 2: AI Build Architect điều khiển 3D (Dùng Claude Code Pro chốt luồng + Antigravity code)
 - [x] **2.1-ai-tools:** Cài đặt `ai`, `@ai-sdk/google`, `zod`. Xây dựng API route `src/app/api/chat/route.ts` định nghĩa Tool Calling (`updateKeyboardConfig`, `toggleExplodedView`) để AI điều khiển trực tiếp 3D Canvas. Viết unit test kiểm tra schema validation của các tool.
 - [x] **2.1b-ui-redesign:** Đại tu toàn bộ UI theo phong cách Cinematic Dark Luxury (MotionSites.ai vibe): Frosted Liquid Glass, ambient mesh glow + film grain, kinetic typography, bento-grid controls & telemetry, font Inter Tight/Geist, lens shift camera để panel không che mô hình 3D.
-- [ ] **2.2-chat-ui:** Dựng giao diện AI Acoustic Architect dạng MotionSites.ai Cinematic Floating Glassmorphism panel (spring-physics qua Framer Motion, glowing reactive borders, sound wave visualizer) đồng bộ thời gian thực với Zustand store và hiển thị trạng thái trực quan mỗi khi AI thực thi lệnh biến đổi bàn phím 3D.
+- [x] **2.1c-ui-tool-redesign:** Làm lại UI theo hướng công cụ cấu hình (sidebar phẳng + sân khấu 3D), bỏ phong cách kính mờ/glow. Dựng lại mô hình theo TKL vỏ nhôm đỏ thật: layout ANSI 65%/75%/TKL, keycap profile Cherry có ký tự, keycap 3 tông, tạ đồng, LED hông, gõ phím thật thì phím 3D nhấn theo.
+- [x] **2.1d-cinematic-stage:** Giữ bố cục 2.1c, thêm lớp hoàn thiện kiểu trang sản phẩm Apple/Sony: camera lướt vào khi mở trang, bàn xoay 360° (theo thời gian, có nút dừng), sàn phản chiếu mờ dần, ambient occlusion, màu vỏ/keycap đổi dần, tiêu đề sản phẩm chữ lớn, thanh công cụ kính mờ bo tròn, tự hạ chất lượng trên máy yếu.
+- [x] **2.2-chat-ui:** Dựng giao diện AI Acoustic Architect dạng MotionSites.ai Cinematic Floating Glassmorphism panel (spring-physics qua Framer Motion, glowing reactive borders, sound wave visualizer) đồng bộ thời gian thực với Zustand store và hiển thị trạng thái trực quan mỗi khi AI thực thi lệnh biến đổi bàn phím 3D.
 
 ## Chặng 3: Docker, PostgreSQL (`pgvector`), Redis, Authentication & Web Audio (Dùng Codex Plus)
 - [ ] **3.1-docker-infra:** Tạo `docker-compose.yml` chạy `pgvector/pgvector:pg17` và `redis:7-alpine`. Cài đặt `drizzle-orm`, `pg`, `ioredis` và tạo schema (`src/db/schema.ts`) gồm bảng `users`, bảng `hardware_components` (có cột `vector(768)` cho RAG) và bảng `builds` (lưu cấu hình 3D dạng `JSONB` + user_id liên kết + slug chia sẻ).
@@ -110,3 +112,50 @@
   - **Kết quả xác thực:** `npx tsc --noEmit` (0 lỗi), `npm run lint` (0 lỗi, 0 warning), `npm test -- --run` (68/68 test passed), `npm run build` thành công. Đã chụp headless ở 1440×900 và 1024×768 để kiểm tra bố cục.
   - **Ghi chú cho AI tiếp theo:** Panel AI chat (2.2) nên dùng lại `.glass-liquid`, `BentoCard`, `SPRINGS` và chừa chỗ trong `CameraFraming` (`DESKTOP_PANEL_SPACE`) nếu panel chiếm thêm cạnh màn hình. Ảnh chụp headless có một đường ngang ở nửa dưới sàn studio (thuộc scene, không đổi trong task này), cần xem lại trên trình duyệt thật.
   - **Next Step:** Task **2.2-chat-ui**.
+
+- **[Task 2.1c-ui-tool-redesign] Hoàn thành ngày 14/11/2026:**
+  - **Mô tả:** Người dùng thấy UI 2.1b "quá AI" và yêu cầu dùng taste skill. Đổi sang bố cục công cụ: sidebar 360px trái (tab Thiết kế / Âm thanh) và sân khấu 3D phải (mobile: sân khấu trên, sidebar dưới). UI đơn sắc than chì, nhãn tiếng Việt viết thường, không kính mờ, không glow, không chữ gradient. `copy-lint` của taste skill: 0 FAIL, 0 WARN. Mô hình dựng lại: layout ANSI thật có `KeyboardEvent.code`, keycap Cherry (biến dạng đỉnh, cache geometry), ký tự bằng CanvasTexture, vỏ ExtrudeGeometry vát cạnh, tạ đồng, LED hông, switch InstancedMesh, ánh sáng Lightformer (không tải HDR). Gõ phím thật hoặc bấm chuột lên keycap thì phím lún. Camera tự canh khung theo sân khấu, lùi ra và nâng tâm nhìn khi tách lớp. Nhãn lớp xếp so le hai bên.
+  - **Store/AI thay đổi:** thêm `keycapModifierColor` + `setKeycapModifierColor`. Mặc định mới: TKL, vỏ nhôm `#b3141f`, plate FR4, keycap đỏ hai tông, LED `#ff9a3c`. Zod schema `updateKeyboardConfig` nhận thêm `keycapModifierColor`.
+  - **File đã tạo:** `src/lib/keyboard/layouts.ts`, `keycapSets.ts`, `pressedKeys.ts` (+ 3 file test), `src/components/canvas/geometry/keyboardGeometry.ts`, `legendTexture.ts` (+ `keyboardGeometry.test.ts`), `src/components/ui/controls.tsx`, `DesignPanel.tsx`, `SoundPanel.tsx`, `Sidebar.tsx`, `StageOverlay.tsx` (+ `Sidebar.test.tsx`), `docs/theory/07-ui-tool-redesign-real-keyboard.md`.
+  - **File đã sửa:** `src/components/canvas/KeyboardModel.tsx` (+ test), `KeyboardScene.tsx`, `CameraFraming.tsx` (+ test, giờ là fit-zoom thay cho lens shift), `CanvasLoader.tsx`, `src/app/page.tsx`, `layout.tsx` (bỏ Inter Tight), `globals.css`, `src/types/keyboard.ts`, `src/store/useKeyboardStore.ts` (+ test), `src/lib/ai/keyboardTools.ts` (+ test), `src/lib/ui/meter.ts` (+ test, bỏ `buildWaveform`), `PROGRESS.md`.
+  - **File đã xoá:** `AmbientBackdrop.tsx`, `HeroOverlay.tsx`, `KineticHeadline.tsx` (+ test), `AcousticBadge.tsx`, `StudioNavbar.tsx`, `StudioControls.tsx` (+ test), thư mục `src/components/ui/studio/`, `src/lib/ui/motion.ts` (+ test).
+  - **Biến môi trường mới:** Không có.
+  - **Kết quả xác thực:** `npx tsc --noEmit` (0 lỗi), `npm run lint` (0 lỗi), `npm test -- --run` (76/76 test passed), `npm run build` thành công. Đã chụp headless qua CDP ở 1440×900 (mặc định, tách lớp, gõ phím + đổi bộ keycap), 1024×768 (tab Âm thanh) và 390×844 (giả lập mobile).
+  - **Ghi chú cho AI tiếp theo:** Panel chat 2.2 nên là một tab hoặc một khối trong sidebar (dùng `Section`, `ListOption` trong `controls.tsx`), không nổi đè lên sân khấu. Màu UI chỉ dùng token `canvas/surface/line/ink/muted/faint`, không thêm tím/cyan. Phím `Fn` không phát sinh `KeyboardEvent` nên không nhấn theo được (chỉ bấm chuột được).
+  - **Next Step:** Task **2.2-chat-ui**.
+
+- **[Task 2.1d-cinematic-stage] Hoàn thành ngày 14/11/2026:**
+  - **Mô tả:** Người dùng muốn "sang trọng kiểu Apple/Sony, như motionsites.ai" nhưng giữ nguyên giao diện. Không lấy code hay mẫu của motionsites.ai (sản phẩm trả phí, taste skill cấm sao chép). Đã thêm:
+    - Cảnh mở đầu: camera lướt vòng 1.8s, chạy một lần.
+    - Bàn xoay 360° tính theo thời gian (0.12 rad/s, kẹp delta 0.25s), tự dừng khi người dùng kéo; nút Dừng/Xoay trên thanh công cụ.
+    - Sàn `MeshReflectorMaterial` với alphaMap gradient tròn (không lộ mép).
+    - `N8AO` ambient occlusion.
+    - `PerformanceMonitor`: FPS thấp thì tắt sàn phản chiếu và AO.
+    - Màu vỏ và keycap đổi dần (~0.4s) qua 3 vật liệu keycap dùng chung.
+    - Tiêu đề sân khấu "KeyCraft TKL" chữ lớn kèm một dòng mô tả cấu hình, chữ trồi lên một lần, ẩn khi tách lớp, ẩn dưới 1024px.
+    - Thanh công cụ kính mờ bo tròn (blur 20px, viền 0.5px, không glow); phông sân khấu có thêm đèn rọi; tab sidebar chuyển mềm.
+    - Tôn trọng `prefers-reduced-motion`.
+  - **File đã tạo:** `src/store/useStageStore.ts`, `src/lib/ui/cinematic.ts` (+ `cinematic.test.ts`, gồm test store), `src/components/canvas/geometry/floorTexture.ts` (+ test), `docs/theory/08-cinematic-product-stage.md`.
+  - **File đã sửa:** `src/components/canvas/KeyboardScene.tsx`, `KeyboardModel.tsx` (vật liệu keycap dùng chung, nội suy màu), `src/components/ui/StageOverlay.tsx` (`buildStageTitle` thay `describeBuild`, nút xoay 360°), `Sidebar.tsx` (tab chuyển mềm), `Sidebar.test.tsx`, `src/app/globals.css`, `PROGRESS.md`.
+  - **Biến môi trường mới:** Không có.
+  - **Kết quả xác thực:** `npx tsc --noEmit` (0 lỗi), `npm run lint` (0 lỗi), `npm test -- --run` (92/92 test passed), `npm run build` thành công. Chụp headless 1440×900 ở 8s và 32s xác nhận bàn xoay chạy. Lưu ý: Chrome headless render bằng CPU chỉ đạt khoảng 0.4 FPS với sàn phản chiếu + AO, nên chưa đo được FPS trên GPU thật.
+  - **Ghi chú cho AI tiếp theo:** `next dev` tự chèn một khối "nextjs-agent-rules" vào `AGENTS.md`. Lần này đã khôi phục file; nếu chủ dự án muốn giữ khối đó thì commit nó.
+  - **Next Step:** Đã xong Task **2.2-chat-ui**.
+
+- **[Task 2.2-chat-ui] Hoàn thành ngày 14/11/2026:**
+  - **Mô tả:** Xây dựng thành công toàn diện giao diện AI Acoustic Architect và hệ thống đồng bộ 2 chiều thời gian thực (Agentic UI) kết nối trực tiếp với 3D Canvas. Tích hợp gọn gàng vào Sidebar thành Tab thứ 3 ("Trợ lý AI") kèm nút "Hỏi AI" nhanh trên thanh công cụ Stage 3D, không che khuất mô hình. Tích hợp bộ giải mã luồng Server-Sent Events (SSE) line-buffered chống lỗi phân mảnh TCP (`parseSSELines`), custom hook `useAIAssistant` quản lý vòng đời streaming và nút Hủy (`AbortController`), widget đo lường âm học 12 thanh (`AcousticWaveform`) hoạt họa CSS GPU-accelerated theo thời gian thực, hiển thị thẻ Tool Execution trực quan khi AI biến đổi phần cứng 3D (đổi vỏ, plate, switch, bung tầng tách lớp) và hỗ trợ chế độ Demo biến đổi 3D ngay cả khi chưa cấu hình API key.
+  - **File đã tạo:**
+    - `src/lib/ai/chatStream.ts` (+ `chatStream.test.ts`): Bộ phân giải SSE stream, tóm tắt tool call tiếng Việt và hàm `applyToolToStore` đồng bộ trực tiếp vào Zustand store.
+    - `src/lib/ai/useAIAssistant.ts` (+ `useAIAssistant.test.ts`): Custom React hook quản lý tin nhắn, streaming, abort stream và gọi tool thời gian thực.
+    - `src/components/ui/AcousticWaveform.tsx` (+ `AcousticWaveform.test.tsx`): Component 12 thanh phổ sóng âm chuyển động theo nhịp đập của `pitchMultiplier`, `resonance`, `damping` và hoạt họa `@keyframes sound-wave` khi AI suy luận.
+    - `src/components/ui/AIChatPanel.tsx` (+ `AIChatPanel.test.tsx`): Giao diện chat chuyên gia âm học, 4 chip gợi ý nhanh, bubble chat, thẻ trạng thái Tool Execution và Demo mode fallback.
+    - `docs/theory/09-ai-chat-streaming-agentic-ui.md`: Tài liệu bách khoa công nghệ chuyên sâu (SSE, Web Streams API, Agentic UI 2-way sync, AbortController, Procedural Acoustic Waveform, Trade-offs, Thử thách 5 phút, 3 câu hỏi phỏng vấn thực chiến).
+  - **File đã sửa:**
+    - `src/store/useStageStore.ts`: Bổ sung `activeTab: 'design' | 'sound' | 'ai'` và `setActiveTab`.
+    - `src/components/ui/Sidebar.tsx` (+ `Sidebar.test.tsx`): Bổ sung Tab "Trợ lý AI", kết nối `useStageStore` và render `AIChatPanel`.
+    - `src/components/ui/StageOverlay.tsx`: Bổ sung nút "Trợ lý AI" nhanh trên thanh công cụ sân khấu.
+    - `src/app/globals.css`: Bổ sung `@keyframes sound-wave` và class `.animate-sound-wave`.
+    - `PROGRESS.md`: Đánh dấu `[x]` Task 2.2 (Hoàn tất 100% Chặng 2).
+  - **Biến môi trường mới:** Không có (dùng `GOOGLE_GENERATIVE_AI_API_KEY` từ `.env.example`).
+  - **Kết quả xác thực:** Đạt 100% xanh cả 3 lệnh: `npx tsc --noEmit` (0 lỗi), `npm run lint` (0 lỗi, 0 warnings), `npm test -- --run` (**115/115 tests passed** trên 18 file test suites), `npm run build` biên dịch thành công.
+  - **Next Step:** Sẵn sàng cho **Chặng 3: Task 3.1-docker-infra** (Tạo `docker-compose.yml` chạy `pgvector/pgvector:pg17` và `redis:7-alpine`, cài đặt `drizzle-orm`, `pg`, `ioredis` và tạo schema database).

@@ -28,6 +28,8 @@ export interface KeyboardState {
 
   // Màu sắc & Thẩm mỹ (Aesthetics & RGB)
   keycapColor: string;
+  /** Màu phím chức năng (Tab, Shift, Ctrl, cụm điều hướng, phím mũi tên…) */
+  keycapModifierColor: string;
   keycapAccentColor: string;
   caseColor: string;
   underglowColor: string;
@@ -50,6 +52,7 @@ export interface KeyboardActions {
   setCaseMaterial: (material: CaseMaterial) => void;
   setSwitchType: (switchType: SwitchType) => void;
   setKeycapColor: (color: string) => void;
+  setKeycapModifierColor: (color: string) => void;
   setKeycapAccentColor: (color: string) => void;
   setCaseColor: (color: string) => void;
   setUnderglowColor: (color: string) => void;

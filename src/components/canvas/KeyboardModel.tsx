@@ -1,35 +1,28 @@
 'use client';
 
-import React, { useMemo, useRef } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useKeyboardStore } from '@/store/useKeyboardStore';
-import { KeyboardLayout } from '@/types/keyboard';
+import { getLayout, type PlacedKey } from '@/lib/keyboard/layouts';
+import { legendColorFor } from '@/lib/keyboard/keycapSets';
+import { isKeyPressed, pressKey, releaseKey } from '@/lib/keyboard/pressedKeys';
+import { prefersReducedMotion, stepColorToward } from '@/lib/ui/cinematic';
+import type { CaseMaterial, PlateMaterial, SwitchType } from '@/types/keyboard';
+import {
+  KEY_UNIT,
+  createCaseGeometry,
+  createKeycapGeometry,
+  getCaseDimensions,
+  getKeycapShape,
+  keyCenter,
+} from './geometry/keyboardGeometry';
+import { createLegendTexture } from './geometry/legendTexture';
 
-// Cấu hình kích thước và phím theo từng Layout
-export interface LayoutSpecs {
-  width: number;
-  depth: number;
-  rows: number;
-  cols: number;
-  keySize: number;
-  gap: number;
-}
-
-export const getLayoutSpecs = (layout: KeyboardLayout): LayoutSpecs => {
-  switch (layout) {
-    case '65%':
-      return { width: 6.2, depth: 2.2, rows: 5, cols: 15, keySize: 0.36, gap: 0.04 };
-    case '75%':
-      return { width: 6.6, depth: 2.6, rows: 6, cols: 15, keySize: 0.36, gap: 0.04 };
-    case 'TKL':
-      return { width: 7.8, depth: 2.6, rows: 6, cols: 18, keySize: 0.36, gap: 0.04 };
-  }
-};
-
-// Hàm tính toán vị trí trục Y cho 7 lớp linh kiện (Export để chạy Unit Test)
+/* -------------------------------------------------------------------------- */
+/* Vị trí trục Y của 7 lớp (export để unit test)                              */
+/* -------------------------------------------------------------------------- */
 export interface LayerPositions {
   bottomCase: number;
   pcb: number;
@@ -44,92 +37,294 @@ export const calculateLayerPositions = (offset: number): LayerPositions => ({
   bottomCase: 0,
   pcb: Number((0.28 + offset * 0.35).toFixed(3)),
   foam: Number((0.34 + offset * 0.7).toFixed(3)),
-  plate: Number((0.40 + offset * 1.05).toFixed(3)),
+  plate: Number((0.4 + offset * 1.05).toFixed(3)),
   switches: Number((0.52 + offset * 1.4).toFixed(3)),
   keycaps: Number((0.74 + offset * 1.8).toFixed(3)),
   topCase: Number((0.44 + offset * 2.15).toFixed(3)),
 });
 
-// Component Thẻ chú thích 3D HTML nổi phong cách MotionSites.ai
-interface LayerAnnotationProps {
-  layerIndex: string;
+/** Độ lún của keycap khi nhấn (đơn vị thế giới ≈ 4mm hành trình switch) */
+export const KEY_TRAVEL = 0.07;
+
+/* -------------------------------------------------------------------------- */
+/* Vật liệu                                                                   */
+/* -------------------------------------------------------------------------- */
+type PhysicalProps = Partial<THREE.MeshPhysicalMaterialParameters>;
+
+export const getCaseMaterialProps = (material: CaseMaterial, color: string): PhysicalProps => {
+  switch (material) {
+    case 'polycarbonate':
+      return { color, roughness: 0.45, metalness: 0, transmission: 0.6, thickness: 0.4, transparent: true, opacity: 0.92 };
+    case 'acrylic':
+      return { color, roughness: 0.08, metalness: 0, transmission: 0.85, thickness: 0.4, transparent: true, opacity: 0.95 };
+    case 'wood':
+      return { color: '#6b4226', roughness: 0.72, metalness: 0, clearcoat: 0.25, clearcoatRoughness: 0.6 };
+    case 'aluminum':
+    default:
+      // Nhôm anodized: kim loại có màu, hơi nhám, phủ lớp bóng mỏng để bắt highlight của đèn studio
+      return { color, roughness: 0.34, metalness: 0.75, clearcoat: 0.35, clearcoatRoughness: 0.25 };
+  }
+};
+
+const getPlateMaterialProps = (material: PlateMaterial): PhysicalProps => {
+  switch (material) {
+    case 'fr4':
+      return { color: '#1c1f1a', roughness: 0.6, metalness: 0.15 };
+    case 'pom':
+      return { color: '#e7e4dc', roughness: 0.55, metalness: 0 };
+    case 'polycarbonate':
+      return { color: '#d8dbdf', roughness: 0.3, metalness: 0, transparent: true, opacity: 0.6 };
+    case 'aluminum':
+    default:
+      return { color: '#a9adb3', roughness: 0.3, metalness: 0.9 };
+  }
+};
+
+const SWITCH_STEM: Record<SwitchType, string> = {
+  linear: '#d9342b',
+  tactile: '#a0612f',
+  clicky: '#2f6bd9',
+  silent_linear: '#5c5f66',
+};
+
+/* -------------------------------------------------------------------------- */
+/* Nhãn chú thích khi tách lớp                                                */
+/* -------------------------------------------------------------------------- */
+interface LayerLabelProps {
+  index: string;
   name: string;
-  subname: string;
-  detail: string;
+  /** Hai lớp trên cùng bung rộng nhất trong khung hình nên chỉ ghi tên */
+  detail?: string;
   visible: boolean;
-  xOffset: number;
+  /** Khoảng cách từ tâm tới mép vỏ + lề */
+  x: number;
 }
 
-const LayerAnnotation: React.FC<LayerAnnotationProps> = ({
-  layerIndex,
-  name,
-  subname,
-  detail,
-  visible,
-  xOffset,
-}) => {
-  return (
-    <Html
-      position={[xOffset, 0, 0]}
-      center={false}
-      distanceFactor={9}
-      zIndexRange={[100, 0]}
-    >
-      <AnimatePresence>
-        {visible && (
-          <motion.div
-            initial={{ opacity: 0, x: -15, scale: 0.9 }}
-            animate={{ opacity: 1, x: 0, scale: 1 }}
-            exit={{ opacity: 0, x: -10, scale: 0.95 }}
-            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-            className="flex items-center gap-2 pointer-events-auto select-none"
-          >
-            {/* Chấm tròn chỉ vị trí & Đường nối phát sáng */}
-            <div className="flex items-center">
-              <span className="relative flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-cyan-400 shadow-[0_0_8px_rgba(0,240,255,0.8)]" />
-              </span>
-              <div className="w-6 h-[1px] bg-gradient-to-r from-cyan-400/80 to-white/20" />
-            </div>
+/** Lớp lẻ ghi chú bên phải, lớp chẵn bên trái: hai lớp sát nhau không bao giờ đè chữ lên nhau. */
+export const labelSide = (index: string): 'left' | 'right' => (Number(index) % 2 === 0 ? 'left' : 'right');
 
-            {/* Thẻ Kính Mờ Frosted Liquid Glass */}
-            <div className="px-3 py-1.5 rounded-xl glass-panel border border-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.5)] min-w-[150px]">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[11px] font-bold text-white tracking-tight flex items-center gap-1.5">
-                  <span className="text-cyan-400 font-mono text-[10px]">{layerIndex}</span>
-                  {name}
-                </span>
-                <span className="text-[9px] text-zinc-400 font-mono uppercase">{subname}</span>
-              </div>
-              <div className="text-[9px] text-zinc-400 font-mono mt-0.5 border-t border-white/5 pt-0.5">
-                {detail}
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+const LayerLabel: React.FC<LayerLabelProps> = ({ index, name, detail, visible, x }) => {
+  if (!visible) return null;
+  const side = labelSide(index);
+  return (
+    <Html position={[side === 'left' ? -x : x, 0, 0]} distanceFactor={7.5} zIndexRange={[20, 0]}>
+      <div className={`layer-label layer-label--${side}`}>
+        <span className="layer-label__line" aria-hidden />
+        <span className="layer-label__index">{index}</span>
+        <span className="layer-label__name">{name}</span>
+        {detail && <span className="layer-label__detail">{detail}</span>}
+      </div>
     </Html>
   );
 };
 
+/* -------------------------------------------------------------------------- */
+/* Một keycap                                                                 */
+/* -------------------------------------------------------------------------- */
+interface KeycapProps {
+  keyDef: PlacedKey;
+  position: [number, number, number];
+  /** Vật liệu dùng chung theo vai trò phím (đổi màu dần cho cả nhóm cùng lúc) */
+  material: THREE.Material;
+  legendColor: string;
+  registerRef: (code: string, group: THREE.Group | null) => void;
+}
+
+const Keycap: React.FC<KeycapProps> = ({ keyDef, position, material, legendColor, registerRef }) => {
+  const shape = getKeycapShape(keyDef.w, keyDef.profileRow);
+  const geometry = createKeycapGeometry(keyDef.w, keyDef.profileRow);
+  const legendWidth = shape.topWidth - 0.03;
+  const legendDepth = shape.topDepth - 0.03;
+  const texture = useMemo(
+    () => createLegendTexture(keyDef.legend, legendWidth, legendDepth),
+    [keyDef.legend, legendWidth, legendDepth]
+  );
+
+  const onDown = (event: ThreeEvent<PointerEvent>) => {
+    event.stopPropagation();
+    pressKey(keyDef.code);
+  };
+  const onUp = () => releaseKey(keyDef.code);
+
+  return (
+    <group ref={(group) => registerRef(keyDef.code, group)} position={position}>
+      <mesh
+        geometry={geometry}
+        material={material}
+        castShadow
+        receiveShadow
+        onPointerDown={onDown}
+        onPointerUp={onUp}
+        onPointerLeave={onUp}
+      />
+      {texture && (
+        <mesh position={[0, shape.height + 0.0015, 0]} rotation={[-Math.PI / 2 + shape.tilt, 0, 0]}>
+          <planeGeometry args={[legendWidth, legendDepth]} />
+          <meshStandardMaterial
+            map={texture}
+            color={legendColor}
+            transparent
+            roughness={0.6}
+            polygonOffset
+            polygonOffsetFactor={-2}
+          />
+        </mesh>
+      )}
+    </group>
+  );
+};
+
+/* -------------------------------------------------------------------------- */
+/* Switch: dùng InstancedMesh (3 draw call cho cả bàn phím)                   */
+/* -------------------------------------------------------------------------- */
+interface SwitchesProps {
+  centers: [number, number][];
+  stemColor: string;
+}
+
+const SWITCH_PARTS = [
+  { size: [0.26, 0.08, 0.26] as const, y: -0.05, color: '#18181a', transparent: false },
+  { size: [0.25, 0.07, 0.25] as const, y: 0.025, color: '#c9c3b6', transparent: true },
+];
+
+const Switches: React.FC<SwitchesProps> = ({ centers, stemColor }) => {
+  const bottomRef = useRef<THREE.InstancedMesh>(null);
+  const topRef = useRef<THREE.InstancedMesh>(null);
+  const stemRef = useRef<THREE.InstancedMesh>(null);
+
+  useLayoutEffect(() => {
+    const matrix = new THREE.Matrix4();
+    const place = (mesh: THREE.InstancedMesh | null, y: number) => {
+      if (!mesh) return;
+      centers.forEach(([x, z], i) => {
+        matrix.makeTranslation(x, y, z);
+        mesh.setMatrixAt(i, matrix);
+      });
+      mesh.instanceMatrix.needsUpdate = true;
+      mesh.computeBoundingSphere();
+    };
+    place(bottomRef.current, SWITCH_PARTS[0].y);
+    place(topRef.current, SWITCH_PARTS[1].y);
+    place(stemRef.current, 0.09);
+  }, [centers]);
+
+  return (
+    <>
+      <instancedMesh ref={bottomRef} args={[undefined, undefined, centers.length]} castShadow>
+        <boxGeometry args={[...SWITCH_PARTS[0].size]} />
+        <meshStandardMaterial color={SWITCH_PARTS[0].color} roughness={0.5} />
+      </instancedMesh>
+      <instancedMesh ref={topRef} args={[undefined, undefined, centers.length]}>
+        <boxGeometry args={[...SWITCH_PARTS[1].size]} />
+        <meshStandardMaterial color={SWITCH_PARTS[1].color} roughness={0.25} transparent opacity={0.55} />
+      </instancedMesh>
+      <instancedMesh ref={stemRef} args={[undefined, undefined, centers.length]}>
+        <boxGeometry args={[0.09, 0.07, 0.09]} />
+        <meshStandardMaterial color={stemColor} roughness={0.4} />
+      </instancedMesh>
+    </>
+  );
+};
+
+/* -------------------------------------------------------------------------- */
+/* Mô hình bàn phím                                                           */
+/* -------------------------------------------------------------------------- */
+// Vỏ cao tổng 0.64 (≈ 32mm quy đổi): nửa dưới mỏng, nửa trên ôm sát tới chân keycap
+const BOTTOM_CASE = { yBottom: -0.08, height: 0.2 };
+const TOP_CASE = { yBottom: -0.32, height: 0.44 }; // tương đối với gốc lớp top case (0.44) → mép trên ở 0.56
+const KEYCAP_BASE_Y = -0.17; // đáy keycap so với gốc lớp keycap (0.74)
+/** Tốc độ chuyển màu: ~0.4s để đổi gần hết màu */
+const COLOR_SPEED = 7;
+
+type KeycapMaterials = Record<PlacedKey['role'], THREE.MeshPhysicalMaterial>;
+
+const createKeycapMaterials = (colors: Record<PlacedKey['role'], string>): KeycapMaterials => {
+  const make = (hex: string) =>
+    new THREE.MeshPhysicalMaterial({ color: hex, roughness: 0.55, metalness: 0, sheen: 0.2, sheenRoughness: 0.8 });
+  return { alpha: make(colors.alpha), modifier: make(colors.modifier), accent: make(colors.accent) };
+};
+
+/** Đưa màu của các vật liệu dần về màu đích (thao tác imperative trên đối tượng Three.js). */
+const stepMaterials = (
+  pairs: [THREE.Material & { color: THREE.Color } | null | undefined, THREE.Color][],
+  step: number
+): void => {
+  pairs.forEach(([material, target]) => {
+    if (material) stepColorToward(material.color, target, step);
+  });
+};
+
 export const KeyboardModel: React.FC = () => {
-  const layout = useKeyboardStore((s) => s.layout);
+  const layoutId = useKeyboardStore((s) => s.layout);
   const isExploded = useKeyboardStore((s) => s.isExploded);
   const explosionOffset = useKeyboardStore((s) => s.explosionOffset);
   const plateMaterial = useKeyboardStore((s) => s.plateMaterial);
   const caseMaterial = useKeyboardStore((s) => s.caseMaterial);
   const switchType = useKeyboardStore((s) => s.switchType);
   const keycapColor = useKeyboardStore((s) => s.keycapColor);
+  const keycapModifierColor = useKeyboardStore((s) => s.keycapModifierColor);
   const keycapAccentColor = useKeyboardStore((s) => s.keycapAccentColor);
   const caseColor = useKeyboardStore((s) => s.caseColor);
-  const underglowColor = useKeyboardStore((s) => s.underglowColor);
-  const underglowBrightness = useKeyboardStore((s) => s.underglowBrightness);
-  const underglowEnabled = useKeyboardStore((s) => s.underglowEnabled);
+  const ledColor = useKeyboardStore((s) => s.underglowColor);
+  const ledBrightness = useKeyboardStore((s) => s.underglowBrightness);
+  const ledEnabled = useKeyboardStore((s) => s.underglowEnabled);
 
-  const specs = useMemo(() => getLayoutSpecs(layout), [layout]);
+  const layout = useMemo(() => getLayout(layoutId), [layoutId]);
+  const dims = useMemo(() => getCaseDimensions(layout.width, layout.depth), [layout]);
 
-  // Tham chiếu DOM 3D cho 7 tầng linh kiện
+  const keyPositions = useMemo(
+    () => layout.keys.map((key) => keyCenter(key, layout.width, layout.depth)),
+    [layout]
+  );
+
+  const bottomCaseGeometry = useMemo(
+    () => createCaseGeometry(dims.outerWidth, dims.outerDepth, BOTTOM_CASE.height, BOTTOM_CASE.yBottom),
+    [dims]
+  );
+  const topCaseGeometry = useMemo(
+    () =>
+      createCaseGeometry(dims.outerWidth, dims.outerDepth, TOP_CASE.height, TOP_CASE.yBottom, {
+        width: dims.keysWidth + 0.06,
+        depth: dims.keysDepth + 0.06,
+      }),
+    [dims]
+  );
+
+  const caseMaterialProps = useMemo(() => getCaseMaterialProps(caseMaterial, caseColor), [caseMaterial, caseColor]);
+  const plateMaterialProps = useMemo(() => getPlateMaterialProps(plateMaterial), [plateMaterial]);
+
+  /* ---------------- Màu đổi dần (không nhảy cụt) ---------------- */
+  // Màu ban đầu chỉ đặt một lần; sau đó useFrame kéo màu dần về đích
+  const [initialCaseColor] = useState(() => caseMaterialProps.color as string);
+  const [reduceMotion] = useState(prefersReducedMotion);
+  const caseRestProps = useMemo(() => {
+    const rest = { ...caseMaterialProps };
+    delete rest.color;
+    return rest;
+  }, [caseMaterialProps]);
+  const caseTarget = useMemo(() => new THREE.Color(caseMaterialProps.color as string), [caseMaterialProps.color]);
+  const keycapMaterials = useMemo(
+    () =>
+      createKeycapMaterials({
+        alpha: useKeyboardStore.getState().keycapColor,
+        modifier: useKeyboardStore.getState().keycapModifierColor,
+        accent: useKeyboardStore.getState().keycapAccentColor,
+      }),
+    []
+  );
+  useEffect(() => () => Object.values(keycapMaterials).forEach((m) => m.dispose()), [keycapMaterials]);
+  const keycapTargets = useMemo(
+    () => ({
+      alpha: new THREE.Color(keycapColor),
+      modifier: new THREE.Color(keycapModifierColor),
+      accent: new THREE.Color(keycapAccentColor),
+    }),
+    [keycapColor, keycapModifierColor, keycapAccentColor]
+  );
+  const bottomCaseMaterialRef = useRef<THREE.MeshPhysicalMaterial>(null);
+  const topCaseMaterialRef = useRef<THREE.MeshPhysicalMaterial>(null);
+
+  /* ---------------- Refs cho 7 lớp và từng keycap ---------------- */
   const bottomCaseRef = useRef<THREE.Group>(null);
   const pcbRef = useRef<THREE.Group>(null);
   const foamRef = useRef<THREE.Group>(null);
@@ -137,381 +332,187 @@ export const KeyboardModel: React.FC = () => {
   const switchesRef = useRef<THREE.Group>(null);
   const keycapsRef = useRef<THREE.Group>(null);
   const topCaseRef = useRef<THREE.Group>(null);
+  const keyGroups = useRef(new Map<string, THREE.Group>());
+  const registerKey = (code: string, group: THREE.Group | null) => {
+    if (group) keyGroups.current.set(code, group);
+    else keyGroups.current.delete(code);
+  };
 
-  // Giá trị offset nội suy thời gian thực
   const currentOffset = useRef(isExploded ? explosionOffset : 0);
 
-  // Vòng lặp Render 60/120 FPS: MathUtils.lerp mượt mà không gây re-render React
   useFrame((_, delta) => {
-    const targetOffset = isExploded ? explosionOffset : 0;
-    // Nội suy mượt mà theo delta time (tốc độ lerp = 8)
-    currentOffset.current = THREE.MathUtils.lerp(
-      currentOffset.current,
-      targetOffset,
-      Math.min(1, delta * 8)
+    // Tách lớp: nội suy mượt theo delta (không re-render React)
+    const target = isExploded ? explosionOffset : 0;
+    currentOffset.current = THREE.MathUtils.lerp(currentOffset.current, target, Math.min(1, delta * 8));
+    const positions = calculateLayerPositions(currentOffset.current);
+    const layers: [THREE.Group | null, number][] = [
+      [bottomCaseRef.current, positions.bottomCase],
+      [pcbRef.current, positions.pcb],
+      [foamRef.current, positions.foam],
+      [plateRef.current, positions.plate],
+      [switchesRef.current, positions.switches],
+      [keycapsRef.current, positions.keycaps],
+      [topCaseRef.current, positions.topCase],
+    ];
+    layers.forEach(([group, y]) => {
+      if (group) group.position.y = y;
+    });
+
+    // Đổi màu vỏ và keycap dần trong ~0.4s
+    const colorStep = reduceMotion ? 1 : Math.min(1, delta * COLOR_SPEED);
+    stepMaterials(
+      [
+        [bottomCaseMaterialRef.current, caseTarget],
+        [topCaseMaterialRef.current, caseTarget],
+        [keycapMaterials.alpha, keycapTargets.alpha],
+        [keycapMaterials.modifier, keycapTargets.modifier],
+        [keycapMaterials.accent, keycapTargets.accent],
+      ],
+      colorStep
     );
 
-    const o = currentOffset.current;
-    const positions = calculateLayerPositions(o);
-
-    if (bottomCaseRef.current) bottomCaseRef.current.position.y = positions.bottomCase;
-    if (pcbRef.current) pcbRef.current.position.y = positions.pcb;
-    if (foamRef.current) foamRef.current.position.y = positions.foam;
-    if (plateRef.current) plateRef.current.position.y = positions.plate;
-    if (switchesRef.current) switchesRef.current.position.y = positions.switches;
-    if (keycapsRef.current) keycapsRef.current.position.y = positions.keycaps;
-    if (topCaseRef.current) topCaseRef.current.position.y = positions.topCase;
+    // Nhấn phím: keycap lún xuống nhanh, bật lên chậm hơn một chút như switch thật
+    keyGroups.current.forEach((group, code) => {
+      const down = isKeyPressed(code);
+      const goal = down ? KEYCAP_BASE_Y - KEY_TRAVEL : KEYCAP_BASE_Y;
+      group.position.y = THREE.MathUtils.lerp(group.position.y, goal, Math.min(1, delta * (down ? 40 : 22)));
+    });
   });
 
-  // Tọa độ X để gắn thẻ chú thích ở cạnh phải bàn phím
-  const annotationX = specs.width / 2 + 0.3;
+  const initial = calculateLayerPositions(isExploded ? explosionOffset : 0);
+  const labelX = dims.outerWidth / 2 + 0.15;
+  const legendColors: Record<PlacedKey['role'], string> = {
+    alpha: legendColorFor(keycapColor),
+    modifier: legendColorFor(keycapModifierColor),
+    accent: legendColorFor(keycapAccentColor),
+  };
 
-  // Cấu hình vật liệu Case theo lựa chọn
-  const caseMaterialProps = useMemo(() => {
-    switch (caseMaterial) {
-      case 'polycarbonate':
-        return {
-          color: caseColor,
-          roughness: 0.25,
-          metalness: 0.05,
-          transmission: 0.75,
-          transparent: true,
-          opacity: 0.85,
-        };
-      case 'acrylic':
-        return {
-          color: caseColor,
-          roughness: 0.15,
-          metalness: 0.05,
-          transmission: 0.9,
-          transparent: true,
-          opacity: 0.9,
-        };
-      case 'wood':
-        return {
-          color: '#573318',
-          roughness: 0.8,
-          metalness: 0.05,
-        };
-      case 'aluminum':
-      default:
-        return {
-          color: caseColor,
-          roughness: 0.22,
-          metalness: 0.85,
-        };
-    }
-  }, [caseMaterial, caseColor]);
-
-  // Cấu hình vật liệu Plate theo lựa chọn
-  const plateMaterialProps = useMemo(() => {
-    switch (plateMaterial) {
-      case 'fr4':
-        return { color: '#181e29', roughness: 0.65, metalness: 0.4 };
-      case 'pom':
-        return { color: '#090d16', roughness: 0.45, metalness: 0.1 };
-      case 'polycarbonate':
-        return { color: '#cbd5e1', roughness: 0.3, metalness: 0.1, transparent: true, opacity: 0.7 };
-      case 'aluminum':
-      default:
-        return { color: '#94a3b8', roughness: 0.25, metalness: 0.9 };
-    }
-  }, [plateMaterial]);
-
-  // Màu Stem của switch
-  const switchStemColor = useMemo(() => {
-    switch (switchType) {
-      case 'tactile':
-        return '#d97706';
-      case 'clicky':
-        return '#0284c7';
-      case 'silent_linear':
-        return '#f43f5e';
-      case 'linear':
-      default:
-        return '#dc2626';
-    }
-  }, [switchType]);
-
-  // Danh sách vị trí phím bấm procedural
-  const keyGrid = useMemo(() => {
-    const keys: Array<{ x: number; z: number; isAccent: boolean; widthRatio: number }> = [];
-    const stepX = specs.keySize + specs.gap;
-    const stepZ = specs.keySize + specs.gap;
-    const startX = -((specs.cols - 1) * stepX) / 2;
-    const startZ = -((specs.rows - 1) * stepZ) / 2;
-
-    for (let r = 0; r < specs.rows; r++) {
-      for (let c = 0; c < specs.cols; c++) {
-        const isEsc = r === 0 && c === 0;
-        const isEnter = r === specs.rows - 3 && c === specs.cols - 1;
-        const isSpace = r === specs.rows - 1 && c >= 4 && c <= 8;
-
-        if (r === specs.rows - 1 && c > 4 && c <= 8) {
-          continue;
-        }
-
-        const widthRatio = isSpace ? 5 : 1;
-        const xOffset = isSpace ? 2 * stepX : 0;
-
-        keys.push({
-          x: startX + c * stepX + xOffset,
-          z: startZ + r * stepZ,
-          isAccent: isEsc || isEnter || isSpace,
-          widthRatio,
-        });
-      }
-    }
-    return keys;
-  }, [specs]);
-
-  const initialPositions = calculateLayerPositions(isExploded ? explosionOffset : 0);
+  const ledIntensity = ledEnabled ? 1.5 + ledBrightness * 5 : 0;
+  const ledLength = dims.outerDepth * 0.62;
 
   return (
-    <group position={[0, -0.3, 0]}>
-      {/* ------------------------------------------------------------------ */}
-      {/* LỚP 1: BOTTOM CASE (Đế nhôm CNC vát cạnh & Đèn gầm Underglow)      */}
-      {/* ------------------------------------------------------------------ */}
-      <group ref={bottomCaseRef} position={[0, initialPositions.bottomCase, 0]}>
-        <mesh receiveShadow castShadow>
-          <boxGeometry args={[specs.width + 0.25, 0.24, specs.depth + 0.25]} />
-          <meshPhysicalMaterial {...caseMaterialProps} />
+    // Nghiêng nhẹ về phía người gõ như góc gõ thật của vỏ
+    <group rotation={[0.05, 0, 0]}>
+      {/* LỚP 1: BOTTOM CASE + tạ đồng bên trong + LED hông */}
+      <group ref={bottomCaseRef} position={[0, initial.bottomCase, 0]}>
+        <mesh geometry={bottomCaseGeometry} castShadow receiveShadow>
+          <meshPhysicalMaterial ref={bottomCaseMaterialRef} {...caseRestProps} color={initialCaseColor} />
         </mesh>
 
-        {/* Đèn gầm Underglow RGB Emissive Bar */}
-        {underglowEnabled && (
-          <mesh position={[0, -0.11, 0]}>
-            <boxGeometry args={[specs.width + 0.2, 0.04, specs.depth + 0.2]} />
-            <meshStandardMaterial
-              color={underglowColor}
-              emissive={underglowColor}
-              emissiveIntensity={underglowBrightness * 3}
-              toneMapped={false}
-            />
-          </mesh>
-        )}
-
-        {/* 4 Chân đệm cao su chống trượt */}
-        {[
-          [-specs.width / 2.2, -0.13, -specs.depth / 2.3],
-          [specs.width / 2.2, -0.13, -specs.depth / 2.3],
-          [-specs.width / 2.2, -0.13, specs.depth / 2.3],
-          [specs.width / 2.2, -0.13, specs.depth / 2.3],
-        ].map(([x, y, z], idx) => (
-          <mesh key={idx} position={[x, y, z]}>
-            <cylinderGeometry args={[0.12, 0.12, 0.03, 16]} />
-            <meshStandardMaterial color="#18181b" roughness={0.9} />
-          </mesh>
-        ))}
-
-        {/* Nhãn chú thích 3D Lớp 01 */}
-        <LayerAnnotation
-          layerIndex="01"
-          name="Bottom Case"
-          subname="Đế Vỏ"
-          detail={`${caseMaterial.toUpperCase()} CNC • RGB LED`}
-          visible={isExploded}
-          xOffset={annotationX}
-        />
-      </group>
-
-      {/* ------------------------------------------------------------------ */}
-      {/* LỚP 2: PCB (Bảng mạch in điện tử đen nhám với viền mạ vàng)        */}
-      {/* ------------------------------------------------------------------ */}
-      <group ref={pcbRef} position={[0, initialPositions.pcb, 0]}>
-        <mesh receiveShadow castShadow>
-          <boxGeometry args={[specs.width - 0.05, 0.03, specs.depth - 0.05]} />
-          <meshStandardMaterial color="#0f172a" roughness={0.6} metalness={0.2} />
-        </mesh>
-        <mesh position={[0, 0.016, 0]}>
-          <boxGeometry args={[specs.width - 0.08, 0.005, specs.depth - 0.08]} />
-          <meshStandardMaterial color="#f59e0b" roughness={0.3} metalness={0.9} />
+        {/* Tạ đồng chải xước nằm trong lòng vỏ */}
+        <mesh position={[0, BOTTOM_CASE.yBottom + BOTTOM_CASE.height + 0.012, 0]} receiveShadow>
+          <boxGeometry args={[dims.keysWidth * 0.72, 0.024, dims.keysDepth * 0.62]} />
+          <meshPhysicalMaterial color="#c79a45" metalness={1} roughness={0.32} clearcoat={0.2} />
         </mesh>
 
-        {/* Nhãn chú thích 3D Lớp 02 */}
-        <LayerAnnotation
-          layerIndex="02"
-          name="PCB"
-          subname="Bạch Mạch"
-          detail="Hotswap 5-Pin • Gold Plated"
-          visible={isExploded}
-          xOffset={annotationX}
-        />
-      </group>
-
-      {/* ------------------------------------------------------------------ */}
-      {/* LỚP 3: PORON FOAM (Mút tiêu âm giảm cộng hưởng)                    */}
-      {/* ------------------------------------------------------------------ */}
-      <group ref={foamRef} position={[0, initialPositions.foam, 0]}>
-        <mesh receiveShadow>
-          <boxGeometry args={[specs.width - 0.1, 0.04, specs.depth - 0.1]} />
-          <meshStandardMaterial color="#111827" roughness={0.95} metalness={0.05} />
-        </mesh>
-
-        {/* Nhãn chú thích 3D Lớp 03 */}
-        <LayerAnnotation
-          layerIndex="03"
-          name="Poron Foam"
-          subname="Tiêu Âm"
-          detail="Poron 3.5mm High Density"
-          visible={isExploded}
-          xOffset={annotationX}
-        />
-      </group>
-
-      {/* ------------------------------------------------------------------ */}
-      {/* LỚP 4: SWITCH PLATE (Tấm định vị Switch: Alu / Brass / PC / FR4)   */}
-      {/* ------------------------------------------------------------------ */}
-      <group ref={plateRef} position={[0, initialPositions.plate, 0]}>
-        <mesh receiveShadow castShadow>
-          <boxGeometry args={[specs.width, 0.05, specs.depth]} />
-          <meshStandardMaterial {...plateMaterialProps} />
-        </mesh>
-
-        {/* Nhãn chú thích 3D Lớp 04 */}
-        <LayerAnnotation
-          layerIndex="04"
-          name="Switch Plate"
-          subname="Định Vị"
-          detail={`${plateMaterial.toUpperCase()} • Gasket Mount`}
-          visible={isExploded}
-          xOffset={annotationX}
-        />
-      </group>
-
-      {/* ------------------------------------------------------------------ */}
-      {/* LỚP 5: SWITCHES (Hệ thống switch cơ học gồm Housing + Stem)        */}
-      {/* ------------------------------------------------------------------ */}
-      <group ref={switchesRef} position={[0, initialPositions.switches, 0]}>
-        {keyGrid.map((key, i) => (
-          <group key={`sw-${i}`} position={[key.x, 0, key.z]}>
-            <mesh castShadow receiveShadow>
-              <boxGeometry args={[0.26 * key.widthRatio, 0.12, 0.26]} />
-              <meshStandardMaterial color="#1c1917" roughness={0.4} />
-            </mesh>
-            <mesh position={[0, 0.08, 0]}>
-              <boxGeometry args={[0.24 * key.widthRatio, 0.08, 0.24]} />
-              <meshPhysicalMaterial
-                color="#ffffff"
-                roughness={0.2}
-                transmission={0.8}
-                transparent
-                opacity={0.7}
-              />
-            </mesh>
-            <mesh position={[0, 0.14, 0]}>
-              <boxGeometry args={[0.1, 0.08, 0.1]} />
-              <meshStandardMaterial color={switchStemColor} roughness={0.3} />
-            </mesh>
-          </group>
-        ))}
-
-        {/* Nhãn chú thích 3D Lớp 05 */}
-        <LayerAnnotation
-          layerIndex="05"
-          name="Switches"
-          subname="Công Tắc"
-          detail={`${switchType.toUpperCase().replace('_', ' ')} Mechanical`}
-          visible={isExploded}
-          xOffset={annotationX}
-        />
-      </group>
-
-      {/* ------------------------------------------------------------------ */}
-      {/* LỚP 6: KEYCAPS (Bộ nút phím với màu chính và phím điểm nhấn)       */}
-      {/* ------------------------------------------------------------------ */}
-      <group ref={keycapsRef} position={[0, initialPositions.keycaps, 0]}>
-        {keyGrid.map((key, i) => (
+        {/* Dải LED hai bên hông, ngay đường ghép vỏ trên/dưới */}
+        {[-1, 1].map((side) => (
           <mesh
-            key={`kc-${i}`}
-            position={[key.x, 0, key.z]}
-            castShadow
-            receiveShadow
+            key={side}
+            position={[side * (dims.outerWidth / 2 + 0.024), BOTTOM_CASE.yBottom + BOTTOM_CASE.height - 0.035, 0.12]}
           >
-            <boxGeometry
-              args={[
-                (specs.keySize - 0.04) * key.widthRatio,
-                0.16,
-                specs.keySize - 0.04,
-              ]}
-            />
+            <boxGeometry args={[0.012, 0.05, ledLength]} />
             <meshStandardMaterial
-              color={key.isAccent ? keycapAccentColor : keycapColor}
-              roughness={0.4}
-              metalness={0.1}
+              color={ledEnabled ? ledColor : '#2a2a2c'}
+              emissive={ledColor}
+              emissiveIntensity={ledIntensity}
+              toneMapped={!ledEnabled}
             />
           </mesh>
         ))}
 
-        {/* Nhãn chú thích 3D Lớp 06 */}
-        <LayerAnnotation
-          layerIndex="06"
-          name="Keycaps"
-          subname="Nút Phím"
-          detail="Cherry Profile • Double-shot PBT"
-          visible={isExploded}
-          xOffset={annotationX}
-        />
+        {/* Chân cao su */}
+        {[
+          [-1, -1],
+          [1, -1],
+          [-1, 1],
+          [1, 1],
+        ].map(([sx, sz], i) => (
+          <mesh key={i} position={[sx * (dims.outerWidth / 2 - 0.35), BOTTOM_CASE.yBottom - 0.015, sz * (dims.outerDepth / 2 - 0.3)]}>
+            <cylinderGeometry args={[0.13, 0.13, 0.03, 24]} />
+            <meshStandardMaterial color="#121214" roughness={0.95} />
+          </mesh>
+        ))}
+
+        <LayerLabel index="01" name="Vỏ dưới" detail="Tạ đồng" visible={isExploded} x={labelX} />
       </group>
 
-      {/* ------------------------------------------------------------------ */}
-      {/* LỚP 7: TOP CASE (Khung viền trên bao bọc sang trọng)               */}
-      {/* ------------------------------------------------------------------ */}
-      <group ref={topCaseRef} position={[0, initialPositions.topCase, 0]}>
-        <mesh
-          position={[-(specs.width / 2 + 0.08), 0, 0]}
-          castShadow
-          receiveShadow
-        >
-          <boxGeometry args={[0.16, 0.2, specs.depth + 0.32]} />
-          <meshPhysicalMaterial {...caseMaterialProps} />
+      {/* LỚP 2: PCB */}
+      <group ref={pcbRef} position={[0, initial.pcb, 0]}>
+        <mesh castShadow receiveShadow>
+          <boxGeometry args={[dims.keysWidth - 0.02, 0.03, dims.keysDepth - 0.02]} />
+          <meshStandardMaterial color="#14211a" roughness={0.55} metalness={0.2} />
         </mesh>
-        <mesh
-          position={[specs.width / 2 + 0.08, 0, 0]}
-          castShadow
-          receiveShadow
-        >
-          <boxGeometry args={[0.16, 0.2, specs.depth + 0.32]} />
-          <meshPhysicalMaterial {...caseMaterialProps} />
-        </mesh>
-        <mesh
-          position={[0, 0, -(specs.depth / 2 + 0.08)]}
-          castShadow
-          receiveShadow
-        >
-          <boxGeometry args={[specs.width + 0.32, 0.2, 0.16]} />
-          <meshPhysicalMaterial {...caseMaterialProps} />
-        </mesh>
-        <mesh
-          position={[0, 0, specs.depth / 2 + 0.08]}
-          castShadow
-          receiveShadow
-        >
-          <boxGeometry args={[specs.width + 0.32, 0.2, 0.16]} />
-          <meshPhysicalMaterial {...caseMaterialProps} />
-        </mesh>
-
-        {/* Nhãn chú thích 3D Lớp 07 */}
-        <LayerAnnotation
-          layerIndex="07"
-          name="Top Case"
-          subname="Khung Trên"
-          detail={`${caseMaterial.toUpperCase()} CNC Beveled`}
-          visible={isExploded}
-          xOffset={annotationX}
-        />
+        <LayerLabel index="02" name="PCB" detail="Hotswap 5 chân" visible={isExploded} x={labelX} />
       </group>
 
-      {/* Ánh sáng đèn gầm phản chiếu realtime */}
-      {underglowEnabled && (
-        <pointLight
-          position={[0, -0.4, 0]}
-          color={underglowColor}
-          intensity={underglowBrightness * 15}
-          distance={8}
-          decay={2}
-        />
-      )}
+      {/* LỚP 3: FOAM */}
+      <group ref={foamRef} position={[0, initial.foam, 0]}>
+        <mesh receiveShadow>
+          <boxGeometry args={[dims.keysWidth - 0.04, 0.035, dims.keysDepth - 0.04]} />
+          <meshStandardMaterial color="#d6cfc0" roughness={1} />
+        </mesh>
+        <LayerLabel index="03" name="Foam Poron" detail="Dày 3.5mm" visible={isExploded} x={labelX} />
+      </group>
+
+      {/* LỚP 4: PLATE */}
+      <group ref={plateRef} position={[0, initial.plate, 0]}>
+        <mesh castShadow receiveShadow>
+          <boxGeometry args={[dims.keysWidth + 0.02, 0.04, dims.keysDepth + 0.02]} />
+          <meshPhysicalMaterial {...plateMaterialProps} />
+        </mesh>
+        <LayerLabel index="04" name="Plate" detail={plateMaterial.toUpperCase()} visible={isExploded} x={labelX} />
+      </group>
+
+      {/* LỚP 5: SWITCHES */}
+      <group ref={switchesRef} position={[0, initial.switches, 0]}>
+        <Switches centers={keyPositions} stemColor={SWITCH_STEM[switchType]} />
+        <LayerLabel index="05" name="Switch" detail={switchType.replace('_', ' ')} visible={isExploded} x={labelX} />
+      </group>
+
+      {/* LỚP 6: KEYCAPS */}
+      <group ref={keycapsRef} position={[0, initial.keycaps, 0]}>
+        {layout.keys.map((key, i) => (
+          <Keycap
+            key={`${layoutId}-${key.code}`}
+            keyDef={key}
+            position={[keyPositions[i][0], KEYCAP_BASE_Y, keyPositions[i][1]]}
+            material={keycapMaterials[key.role]}
+            legendColor={legendColors[key.role]}
+            registerRef={registerKey}
+          />
+        ))}
+        <LayerLabel index="06" name="Keycap" visible={isExploded} x={labelX} />
+      </group>
+
+      {/* LỚP 7: TOP CASE (khung) */}
+      <group ref={topCaseRef} position={[0, initial.topCase, 0]}>
+        <mesh geometry={topCaseGeometry} castShadow receiveShadow>
+          <meshPhysicalMaterial ref={topCaseMaterialRef} {...caseRestProps} color={initialCaseColor} />
+        </mesh>
+        <LayerLabel index="07" name="Vỏ trên" visible={isExploded} x={labelX} />
+      </group>
+
+      {/* Ánh LED hắt xuống mặt bàn hai bên */}
+      {ledEnabled &&
+        [-1, 1].map((side) => (
+          <pointLight
+            key={side}
+            position={[side * (dims.outerWidth / 2 + 0.3), -0.05, 0.1]}
+            color={ledColor}
+            intensity={ledBrightness * 2.2}
+            distance={2.4}
+            decay={2}
+          />
+        ))}
     </group>
   );
 };
+
+/** Bề rộng ngoài của vỏ theo layout — dùng để camera tự canh khung. */
+export const getModelWidth = (layoutId: Parameters<typeof getLayout>[0]): number => {
+  const layout = getLayout(layoutId);
+  return getCaseDimensions(layout.width, layout.depth).outerWidth + 0.06;
+};
+
+export { KEY_UNIT };

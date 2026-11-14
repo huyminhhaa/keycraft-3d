@@ -33,17 +33,22 @@ export const updateKeyboardConfigSchema = z.object({
     .string()
     .regex(hexColorRegex, 'Mã màu Keycap phải là mã HEX hợp lệ (ví dụ: #1e293b)')
     .optional()
-    .describe('Mã màu HEX cho bộ nút phím chính'),
+    .describe('Mã màu HEX cho các phím chữ và số (alpha)'),
+  keycapModifierColor: z
+    .string()
+    .regex(hexColorRegex, 'Mã màu phím chức năng phải là mã HEX hợp lệ (ví dụ: #c41f2d)')
+    .optional()
+    .describe('Mã màu HEX cho phím chức năng: Tab, Caps, Shift, Ctrl, Alt, cụm điều hướng, phím mũi tên'),
   keycapAccentColor: z
     .string()
     .regex(hexColorRegex, 'Mã màu Accent phải là mã HEX hợp lệ (ví dụ: #3b82f6)')
     .optional()
-    .describe('Mã màu HEX cho các phím điểm nhấn như Esc, Enter, Spacebar'),
+    .describe('Mã màu HEX cho các phím nhấn Esc và Enter'),
   underglowColor: z
     .string()
     .regex(hexColorRegex, 'Mã màu Underglow phải là mã HEX hợp lệ (ví dụ: #00f0ff)')
     .optional()
-    .describe('Mã màu HEX của đèn LED gầm RGB'),
+    .describe('Mã màu HEX của dải đèn LED hai bên hông vỏ'),
   underglowBrightness: z
     .number()
     .min(0, 'Độ sáng tối thiểu là 0')

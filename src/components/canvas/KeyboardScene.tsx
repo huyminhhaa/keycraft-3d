@@ -1,155 +1,215 @@
 'use client';
 
-import React, { Suspense, useEffect, useRef } from 'react';
-import { Canvas, useThree } from '@react-three/fiber';
-import { OrbitControls, ContactShadows } from '@react-three/drei';
-import { EffectComposer, Bloom } from '@react-three/postprocessing';
+import React, { Suspense, useEffect, useMemo, useRef } from 'react';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import {
+  ContactShadows,
+  Environment,
+  Lightformer,
+  MeshReflectorMaterial,
+  OrbitControls,
+  PerformanceMonitor,
+} from '@react-three/drei';
+import { Bloom, EffectComposer, N8AO } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { useKeyboardStore } from '@/store/useKeyboardStore';
+import { useStageStore } from '@/store/useStageStore';
+import { attachKeyboardListeners } from '@/lib/keyboard/pressedKeys';
+import { INTRO, introPose, orbitAroundY, posedPosition, prefersReducedMotion, turntableStep } from '@/lib/ui/cinematic';
+import type { CameraPreset } from '@/types/keyboard';
 import { KeyboardModel } from './KeyboardModel';
 import { CanvasLoader } from './CanvasLoader';
-import { CameraFraming } from './CameraFraming';
+import { BASE_TARGET_Y, CAMERA_FOV, CameraFraming, explodedTargetY } from './CameraFraming';
+import { createRadialFadeTexture } from './geometry/floorTexture';
 
-// Bộ điều khiển vị trí Camera theo Preset mượt mà
+const TARGET: [number, number, number] = [0, BASE_TARGET_Y, 0];
+/** Mặt bàn: ngay dưới chân cao su (tính cả độ nghiêng của vỏ) */
+const FLOOR_Y = -0.19;
+
+export const CAMERA_POSITIONS: Record<CameraPreset, [number, number, number]> = {
+  perspective: [0, 6.7, 6.3],
+  top: [0, 9.6, 0.01],
+  front: [0, 1.8, 9.1],
+  side: [8.8, 2.8, 0],
+  isometric: [6.2, 5.4, 6.2],
+};
+
+/**
+ * Camera: đưa về đúng góc preset, chạy cảnh mở đầu một lần khi mô hình vừa tải xong,
+ * và bàn xoay 360° (tự dừng khi người dùng tự kéo xoay).
+ */
 const CameraController: React.FC = () => {
   const cameraPreset = useKeyboardStore((s) => s.cameraPreset);
-  const { camera } = useThree();
+  const introDone = useStageStore((s) => s.introDone);
+  const camera = useThree((s) => s.camera);
   const controlsRef = useRef<OrbitControlsImpl>(null);
+  const introStart = useRef<number | null>(null);
+  const goal = useMemo(() => new THREE.Vector3(...CAMERA_POSITIONS.perspective), []);
+  const target = useMemo(() => new THREE.Vector3(...TARGET), []);
+
+  // Người bật "giảm chuyển động": bỏ cảnh mở đầu và bàn xoay
+  useEffect(() => {
+    if (prefersReducedMotion()) {
+      useStageStore.getState().setAutoRotate(false);
+      useStageStore.getState().setIntroDone(true);
+    }
+  }, []);
 
   useEffect(() => {
-    let targetPos: [number, number, number] = [0, 5, 6.5];
-
-    switch (cameraPreset) {
-      case 'top':
-        targetPos = [0, 9, 0.01];
-        break;
-      case 'front':
-        targetPos = [0, 2, 6];
-        break;
-      case 'side':
-        targetPos = [7, 2.5, 0];
-        break;
-      case 'isometric':
-        targetPos = [5.5, 5, 5.5];
-        break;
-      case 'perspective':
-      default:
-        targetPos = [0, 5, 6.5];
-        break;
-    }
-
-    camera.position.set(targetPos[0], targetPos[1], targetPos[2]);
-    camera.lookAt(0, 0, 0);
-
-    if (controlsRef.current) {
-      controlsRef.current.target.set(0, 0, 0);
-      controlsRef.current.update();
-    }
+    if (!useStageStore.getState().introDone) return;
+    // Giữ độ nâng tâm nhìn hiện tại (nếu đang tách lớp) khi đổi góc
+    const { isExploded, explosionOffset } = useKeyboardStore.getState();
+    const lift = explodedTargetY(isExploded, explosionOffset) - BASE_TARGET_Y;
+    const [x, y, z] = CAMERA_POSITIONS[cameraPreset];
+    camera.position.set(x, y + lift, z);
+    camera.lookAt(0, BASE_TARGET_Y + lift, 0);
+    controlsRef.current?.target.set(0, BASE_TARGET_Y + lift, 0);
+    controlsRef.current?.update();
   }, [cameraPreset, camera]);
+
+  useFrame((state, delta) => {
+    const stage = useStageStore.getState();
+    if (stage.introDone) {
+      // Bàn xoay theo thời gian thực (rad/giây), không theo số khung hình như autoRotate của OrbitControls
+      const controls = controlsRef.current;
+      if (stage.autoRotate && controls) {
+        orbitAroundY(state.camera.position, controls.target, turntableStep(delta));
+        controls.update();
+      }
+      return;
+    }
+    if (introStart.current === null) introStart.current = state.clock.elapsedTime;
+    const elapsed = state.clock.elapsedTime - introStart.current;
+    posedPosition(goal, target, introPose(elapsed), state.camera.position);
+    state.camera.lookAt(target);
+    if (elapsed >= INTRO.duration) useStageStore.getState().setIntroDone(true);
+  });
 
   return (
     <OrbitControls
       ref={controlsRef}
+      makeDefault
+      target={TARGET}
+      enabled={introDone}
       enableDamping
-      dampingFactor={0.06}
-      maxPolarAngle={Math.PI / 2.15} // Không cho camera chui xuống dưới đáy bàn
-      minDistance={3.5}
-      maxDistance={14}
+      dampingFactor={0.08}
+      enablePan={false}
+      onStart={() => useStageStore.getState().setAutoRotate(false)}
+      maxPolarAngle={Math.PI / 2.1}
+      minDistance={4}
+      maxDistance={15}
     />
   );
 };
 
-export const KeyboardScene: React.FC = () => {
+/** Gõ phím thật → phím 3D nhấn theo. */
+const KeyboardListener: React.FC = () => {
+  useEffect(() => attachKeyboardListeners(window), []);
+  return null;
+};
+
+/**
+ * Ánh sáng studio chụp sản phẩm: softbox trên đầu, dải sáng hai bên và một viền sáng phía sau
+ * để mép nhôm vát bắt highlight. Chỉ dùng Lightformer, không tải file HDR nào từ mạng.
+ */
+const StudioLighting: React.FC = () => (
+  <>
+    <Environment resolution={256} frames={1} environmentIntensity={0.95}>
+      <Lightformer form="rect" intensity={2.6} position={[0, 6, 1]} rotation-x={Math.PI / 2} scale={[12, 5, 1]} />
+      <Lightformer form="rect" intensity={1.7} position={[-7, 2.5, 2]} rotation-y={Math.PI / 2} scale={[7, 2.2, 1]} />
+      <Lightformer form="rect" intensity={1.2} position={[7, 3, -3]} rotation-y={-Math.PI / 2} scale={[7, 1.4, 1]} />
+      <Lightformer form="rect" intensity={1.4} position={[0, 2.2, -7]} scale={[14, 0.8, 1]} />
+      <Lightformer form="rect" intensity={0.5} position={[0, 1.2, 9]} rotation-y={Math.PI} scale={[12, 1.2, 1]} />
+    </Environment>
+    <ambientLight intensity={0.1} />
+    <directionalLight
+      position={[3.5, 8, 5]}
+      intensity={1.15}
+      castShadow
+      shadow-mapSize={[2048, 2048]}
+      shadow-bias={-0.0004}
+      shadow-normalBias={0.02}
+      shadow-camera-left={-6}
+      shadow-camera-right={6}
+      shadow-camera-top={4}
+      shadow-camera-bottom={-4}
+    />
+  </>
+);
+
+/** Mặt bàn bóng phản chiếu mờ, tan dần ra mép như phông chụp sản phẩm. */
+const ReflectiveFloor: React.FC = () => {
+  const fade = useMemo(() => createRadialFadeTexture(), []);
+  useEffect(() => () => fade?.dispose(), [fade]);
+  if (!fade) return null;
+
   return (
-    <div className="relative w-full h-full min-h-[500px]">
-      <Canvas
-        shadows
-        camera={{ position: [0, 5, 6.5], fov: 42 }}
-        gl={{
-          antialias: true,
-          alpha: true,
-          powerPreference: 'high-performance',
-          toneMapping: THREE.ACESFilmicToneMapping,
-          toneMappingExposure: 1.1,
-        }}
-      >
-        {/* Lens shift: đặt mô hình vào giữa vùng không bị panel UI che */}
-        <CameraFraming />
-
-        <Suspense fallback={<CanvasLoader />}>
-          {/* Hệ thống Ánh sáng Studio Cinematic */}
-          <ambientLight intensity={0.6} color="#94a3b8" />
-          
-          {/* Key Light (Ánh sáng chính góc trên trái phía trước) */}
-          <directionalLight
-            position={[6, 9, 6]}
-            intensity={2.2}
-            color="#ffffff"
-            castShadow
-            shadow-mapSize={[2048, 2048]}
-            shadow-camera-near={1}
-            shadow-camera-far={25}
-            shadow-bias={-0.0001}
-          />
-
-          {/* Rim Light (Ánh sáng ven tạo viền phản quang kim loại phía sau) */}
-          <directionalLight
-            position={[-7, 6, -7]}
-            intensity={1.8}
-            color="#38bdf8"
-          />
-
-          {/* Fill Light (Ánh sáng phụ dịu nhẹ) */}
-          <directionalLight
-            position={[0, -2, 5]}
-            intensity={0.4}
-            color="#a855f7"
-          />
-
-          {/* Mô hình bàn phím cơ 7 lớp procedural */}
-          <KeyboardModel />
-
-          {/* Đổ bóng tiếp xúc thực tế dưới đáy bàn phím */}
-          <ContactShadows
-            position={[0, -0.44, 0]}
-            opacity={0.85}
-            scale={14}
-            blur={1.8}
-            far={4}
-            resolution={1024}
-            color="#000000"
-          />
-
-          {/* Sàn Studio phản chiếu mờ cao cấp */}
-          <mesh
-            rotation={[-Math.PI / 2, 0, 0]}
-            position={[0, -0.45, 0]}
-            receiveShadow
-          >
-            <planeGeometry args={[40, 40]} />
-            <meshStandardMaterial
-              color="#07090e"
-              roughness={0.25}
-              metalness={0.8}
-            />
-          </mesh>
-
-          {/* Điều khiển Camera & Tương tác xoay 3D */}
-          <CameraController />
-
-          {/* Hiệu ứng Hậu kỳ Bloom phát sáng cho RGB Underglow */}
-          <EffectComposer>
-            <Bloom
-              luminanceThreshold={0.75}
-              luminanceSmoothing={0.9}
-              intensity={1.1}
-              mipmapBlur
-            />
-          </EffectComposer>
-        </Suspense>
-      </Canvas>
-    </div>
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, FLOOR_Y, 0]}>
+      <planeGeometry args={[22, 22]} />
+      <MeshReflectorMaterial
+        alphaMap={fade}
+        transparent
+        depthWrite={false}
+        color="#202024"
+        metalness={0.4}
+        roughness={0.9}
+        resolution={512}
+        blur={[300, 90]}
+        mixBlur={1}
+        mixStrength={1.4}
+        mixContrast={1}
+        mirror={0.55}
+        depthScale={1}
+        minDepthThreshold={0.4}
+        maxDepthThreshold={1.3}
+      />
+    </mesh>
   );
 };
+
+/** Hiệu ứng hậu kỳ; ambient occlusion chỉ chạy khi máy đủ khoẻ. */
+const PostEffects: React.FC<{ highQuality: boolean }> = ({ highQuality }) =>
+  highQuality ? (
+    <EffectComposer>
+      {/* Bóng tối ở khe giữa các phím và chân keycap: thêm chiều sâu như ảnh chụp thật */}
+      <N8AO halfRes aoRadius={0.35} distanceFalloff={0.5} intensity={1.6} quality="performance" />
+      {/* Chỉ dải LED vượt ngưỡng sáng mới toả glow */}
+      <Bloom luminanceThreshold={1} luminanceSmoothing={0.2} intensity={0.55} mipmapBlur />
+    </EffectComposer>
+  ) : (
+    <EffectComposer>
+      <Bloom luminanceThreshold={1} luminanceSmoothing={0.2} intensity={0.55} mipmapBlur />
+    </EffectComposer>
+  );
+
+export const KeyboardScene: React.FC = () => {
+  const highQuality = useStageStore((s) => s.highQuality);
+  const setHighQuality = useStageStore((s) => s.setHighQuality);
+
+  return (
+  <div className="relative h-full w-full">
+    <Canvas
+      shadows={{ type: THREE.PCFShadowMap }}
+      dpr={[1, 2]}
+      camera={{ position: CAMERA_POSITIONS.perspective, fov: CAMERA_FOV }}
+      gl={{ antialias: true, alpha: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1 }}
+    >
+      <CameraFraming />
+      <KeyboardListener />
+      {/* FPS tụt dưới ngưỡng → tắt hẳn hiệu ứng nặng (không bật lại để tránh nhấp nháy) */}
+      <PerformanceMonitor onDecline={() => setHighQuality(false)} onFallback={() => setHighQuality(false)} />
+      <Suspense fallback={<CanvasLoader />}>
+        <StudioLighting />
+        <KeyboardModel />
+        {highQuality && <ReflectiveFloor />}
+        <ContactShadows position={[0, FLOOR_Y + 0.004, 0]} opacity={0.6} scale={16} blur={2.4} far={2.5} resolution={1024} color="#000000" />
+        <CameraController />
+        <PostEffects highQuality={highQuality} />
+      </Suspense>
+    </Canvas>
+  </div>
+  );
+};
+
 export default KeyboardScene;

@@ -2,9 +2,9 @@ import { calculateSoundProfile } from '@/store/useKeyboardStore';
 import type { PlateMaterial, SoundProfile, SwitchType } from '@/types/keyboard';
 
 /**
- * Bộ toán hiển thị cho bảng Acoustic Telemetry:
- * quy đổi chỉ số âm học thô (pitch, resonance, damping) thành % thanh đo,
- * nhãn tính cách âm thanh và dạng sóng minh hoạ.
+ * Bộ toán hiển thị cho phần "Hồ sơ âm thanh":
+ * quy đổi chỉ số âm học thô (pitch, resonance, damping) thành % thanh đo
+ * và nhãn tính cách âm thanh.
  */
 
 export const PLATE_MATERIALS: readonly PlateMaterial[] = ['aluminum', 'polycarbonate', 'pom', 'fr4'];
@@ -57,18 +57,4 @@ export const describeTone = (profile: SoundProfile): ToneCharacter => {
   if (profile.pitchMultiplier < 0.95) return 'Thock';
   if (profile.pitchMultiplier >= 1.2) return 'Clack';
   return 'Balanced';
-};
-
-/**
- * Dạng sóng minh hoạ (0.12–1) suy ra từ hồ sơ âm học:
- * pitch quyết định tần số dao động, damping quyết định độ tắt dần, resonance quyết định biên độ.
- */
-export const buildWaveform = (profile: SoundProfile, count = 14): number[] => {
-  const safeCount = Math.max(1, Math.floor(count));
-  return Array.from({ length: safeCount }, (_, i) => {
-    const oscillation = 0.5 + 0.5 * Math.sin((i + 1) * profile.pitchMultiplier * 1.3);
-    const envelope = Math.exp(-(i / safeCount) * profile.damping * 2);
-    const amplitude = 0.18 + oscillation * envelope * profile.resonance * 0.6;
-    return Number(Math.min(1, Math.max(0.12, amplitude)).toFixed(2));
-  });
 };

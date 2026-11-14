@@ -21,6 +21,7 @@ describe('AI Tools & Zod Schema Validation', () => {
         switchType: 'linear' as const,
         caseColor: '#0f172a',
         keycapColor: '#1e293b',
+        keycapModifierColor: '#c41f2d',
         keycapAccentColor: '#3b82f6',
         underglowColor: '#00f0ff',
         underglowBrightness: 0.85,

@@ -72,21 +72,23 @@ export const calculateSoundProfile = (
   };
 };
 
+// Cấu hình mặc định: TKL vỏ nhôm đỏ, plate FR4, keycap đỏ hai tông, đèn hông màu hổ phách
 export const INITIAL_KEYBOARD_STATE: KeyboardState = {
-  layout: '75%',
+  layout: 'TKL',
   isExploded: false,
   explosionOffset: 1.5,
-  plateMaterial: 'aluminum',
+  plateMaterial: 'fr4',
   caseMaterial: 'aluminum',
   switchType: 'linear',
-  keycapColor: '#1e293b',
-  keycapAccentColor: '#3b82f6',
-  caseColor: '#0f172a',
-  underglowColor: '#00f0ff',
-  underglowBrightness: 0.8,
+  keycapColor: '#7c1521',
+  keycapModifierColor: '#c41f2d',
+  keycapAccentColor: '#efebe3',
+  caseColor: '#b3141f',
+  underglowColor: '#ff9a3c',
+  underglowBrightness: 0.7,
   underglowEnabled: true,
   cameraPreset: 'perspective',
-  soundProfile: calculateSoundProfile('aluminum', 'linear'),
+  soundProfile: calculateSoundProfile('fr4', 'linear'),
 };
 
 export const useKeyboardStore = create<KeyboardStore>((set) => ({
@@ -121,6 +123,8 @@ export const useKeyboardStore = create<KeyboardStore>((set) => ({
     })),
 
   setKeycapColor: (color) => set({ keycapColor: color }),
+
+  setKeycapModifierColor: (color) => set({ keycapModifierColor: color }),
 
   setKeycapAccentColor: (color) => set({ keycapAccentColor: color }),
 

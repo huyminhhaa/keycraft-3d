@@ -10,18 +10,19 @@ describe('useKeyboardStore', () => {
     useKeyboardStore.getState().resetConfig();
   });
 
-  it('khởi tạo với cấu hình mặc định chính xác', () => {
+  it('khởi tạo với cấu hình mặc định chính xác (TKL nhôm đỏ, plate FR4)', () => {
     const state = useKeyboardStore.getState();
-    expect(state.layout).toBe('75%');
+    expect(state.layout).toBe('TKL');
     expect(state.isExploded).toBe(false);
     expect(state.explosionOffset).toBe(1.5);
-    expect(state.plateMaterial).toBe('aluminum');
+    expect(state.plateMaterial).toBe('fr4');
     expect(state.caseMaterial).toBe('aluminum');
     expect(state.switchType).toBe('linear');
+    expect(state.keycapModifierColor).toBe('#c41f2d');
     expect(state.underglowEnabled).toBe(true);
-    expect(state.underglowBrightness).toBe(0.8);
+    expect(state.underglowBrightness).toBe(0.7);
     expect(state.cameraPreset).toBe('perspective');
-    expect(state.soundProfile.pitchMultiplier).toBeGreaterThan(1.0);
+    expect(state.soundProfile.pitchMultiplier).toBe(1.0);
   });
 
   it('đổi layout sang 65% và TKL thành công', () => {
@@ -104,12 +105,14 @@ describe('useKeyboardStore', () => {
     const store = useKeyboardStore.getState();
 
     store.setKeycapColor('#ffffff');
+    store.setKeycapModifierColor('#9b9ea4');
     store.setKeycapAccentColor('#ff0055');
     store.setCaseColor('#111827');
     store.setUnderglowColor('#a855f7');
 
     const updated = useKeyboardStore.getState();
     expect(updated.keycapColor).toBe('#ffffff');
+    expect(updated.keycapModifierColor).toBe('#9b9ea4');
     expect(updated.keycapAccentColor).toBe('#ff0055');
     expect(updated.caseColor).toBe('#111827');
     expect(updated.underglowColor).toBe('#a855f7');
@@ -148,7 +151,7 @@ describe('useKeyboardStore', () => {
 
   it('resetConfig đưa toàn bộ trạng thái về ban đầu', () => {
     const store = useKeyboardStore.getState();
-    store.setLayout('TKL');
+    store.setLayout('65%');
     store.setExploded(true);
     store.setPlateMaterial('pom');
     store.setKeycapColor('#ff0000');
