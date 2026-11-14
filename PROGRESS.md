@@ -5,7 +5,7 @@
 - [x] **1.1-init:** Khởi tạo Next.js (TypeScript, Tailwind, ESLint, App Router, `src/` directory) trực tiếp vào thư mục hiện tại (LƯU Ý: giữ nguyên `CLAUDE.md`, `AGENTS.md`, `PROGRESS.md`, `docs/`, `.claude/`, `.agents/`, `.codex/`, `scripts/`). Cài đặt bộ thư viện 3D & UI: `three`, `@types/three`, `@react-three/fiber`, `@react-three/drei`, `@react-three/postprocessing`, `postprocessing`, `zustand`, `lucide-react`, `framer-motion`, và bộ Auto-Test: `vitest`, `@vitejs/plugin-react`, `jsdom`, `@testing-library/react`. Cấu hình script `"test": "vitest"` trong `package.json`.
 - [x] **1.2-store:** Tạo Zustand store (`src/store/useKeyboardStore.ts`) quản lý layout (`65%`, `75%`, `TKL`), chế độ tách lớp (`isExploded`), chất liệu case/plate (`aluminum`, `polycarbonate`, `pom`, `fr4`), màu sắc keycap/underglow và camera preset. Viết bộ unit test đầy đủ (`src/store/useKeyboardStore.test.ts`) kiểm tra mọi action đổi trạng thái.
 - [x] **1.3-3d-scene:** Dựng 3D Canvas (`src/components/canvas/KeyboardScene.tsx`) với phong cách MotionSites.ai (Cinematic Dark Luxury, Frosted Liquid Glass `backdrop-blur-xl`, ambient glow, `<Suspense>` loader), ánh sáng studio, Environment map, hiệu ứng đèn gầm RGB Bloom (`EffectComposer`), OrbitControls và mô hình bàn phím cơ 7 lớp chi tiết dựng bằng procedural geometry sắc nét (Bottom Case, PCB, Poron Foam, Switch Plate, Switches, Keycaps, Top Case) kèm bảng điều khiển UI Glassmorphism tối giản.
-- [ ] **1.4-exploded-view:** Lập trình animation tách lớp phần cứng mượt mà bằng `useFrame` + `MathUtils.lerp` khi bật/tắt `isExploded`, kèm nhãn chú thích (`Html` từ `@react-three/drei`) chỉ rõ từng lớp linh kiện khi bung ra.
+- [x] **1.4-exploded-view:** Lập trình animation tách lớp phần cứng mượt mà bằng `useFrame` + `MathUtils.lerp` khi bật/tắt `isExploded`, kèm nhãn chú thích (`Html` từ `@react-three/drei`) chỉ rõ từng lớp linh kiện khi bung ra.
 
 ## Chặng 2: AI Build Architect điều khiển 3D (Dùng Claude Code Pro chốt luồng + Antigravity code)
 - [ ] **2.1-ai-tools:** Cài đặt `ai`, `@ai-sdk/google`, `zod`. Xây dựng API route `src/app/api/chat/route.ts` định nghĩa Tool Calling (`updateKeyboardConfig`, `toggleExplodedView`) để AI điều khiển trực tiếp 3D Canvas. Viết unit test kiểm tra schema validation của các tool.
@@ -70,4 +70,14 @@
     - `docs/theory/03-3d-scene-procedural-keyboard.md`: Tài liệu lý thuyết 4 phần (Procedural 3D vs GLTF, Three-point lighting, Bloom shader, Trade-offs, Thử thách tự sửa code 5 phút, 3 câu hỏi phỏng vấn thực chiến).
     - `PROGRESS.md`: Đánh dấu `[x]` Task 1.3.
   - **Kết quả xác thực:** Đạt 100% xanh cả 3 lệnh: `npx tsc --noEmit` (0 lỗi), `npm run lint` (0 lỗi, 0 warnings), `npm test -- --run` (22/22 test passed).
-  - **Next Step:** Sẵn sàng cho Task **1.4-exploded-view** (Lập trình animation tách lớp phần cứng mượt mà bằng `useFrame` + `MathUtils.lerp` khi bật/tắt `isExploded`, kèm nhãn chú thích `Html` từ `@react-three/drei` chỉ rõ từng lớp linh kiện khi bung ra).
+  - **Next Step:** Đã xong Task 1.4-exploded-view.
+
+- **[Task 1.4-exploded-view] Hoàn thành ngày 14/11/2026:**
+  - **Mô tả:** Hoàn thành toàn diện tính năng hoạt họa tách lớp 3D 7 phần cứng (Exploded View) sử dụng `useFrame` + `THREE.MathUtils.lerp` mượt mà ở 60/120 FPS không gây re-render React (Direct Imperative Mutation qua React Ref). Tích hợp hệ thống nhãn chú thích 3D HTML nổi (`@react-three/drei` `Html` + Framer Motion `AnimatePresence`) phong cách MotionSites.ai với chấm tròn radar phát quang và thẻ kính mờ hiển thị chi tiết 7 linh kiện: 01 Bottom Case, 02 PCB, 03 Poron Foam, 04 Switch Plate, 05 Switches, 06 Keycaps, 07 Top Case.
+  - **File đã tạo/sửa:**
+    - `src/components/canvas/KeyboardModel.tsx`: Nâng cấp với `useFrame` lerp nội suy theo `delta * 8`, hệ thống thẻ `LayerAnnotation` 3D HTML, và hàm xuất `calculateLayerPositions`.
+    - `src/components/canvas/KeyboardModel.test.ts`: Bộ 6 unit tests kiểm tra độ cao trục Y khi gộp, bung lớp và kích thước theo layout.
+    - `docs/theory/04-exploded-view-frame-interpolation.md`: Tài liệu lý thuyết 4 phần (Cơ chế Matrix Projection của Drei Html, Toán học lerp và Frame-rate independence, Trade-offs, 2 bài tập thực hành 5 phút, 3 câu hỏi phỏng vấn thực chiến).
+    - `PROGRESS.md`: Đánh dấu `[x]` Task 1.4 (Hoàn tất 100% Chặng 1).
+  - **Kết quả xác thực:** Đạt 100% xanh cả 3 lệnh: `npx tsc --noEmit` (0 lỗi), `npm run lint` (0 lỗi, 0 warnings), `npm test -- --run` (28/28 test passed).
+  - **Next Step:** Sẵn sàng cho **Chặng 2: AI Build Architect điều khiển 3D**, bắt đầu từ Task **2.1-ai-tools** (Cài đặt `ai`, `@ai-sdk/google`, `zod`, xây dựng API route `src/app/api/chat/route.ts` với Tool Calling `updateKeyboardConfig`, `toggleExplodedView` để AI trực tiếp điều khiển không gian 3D).

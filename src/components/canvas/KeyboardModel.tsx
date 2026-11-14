@@ -1,11 +1,15 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef } from 'react';
+import * as THREE from 'three';
+import { useFrame } from '@react-three/fiber';
+import { Html } from '@react-three/drei';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useKeyboardStore } from '@/store/useKeyboardStore';
 import { KeyboardLayout } from '@/types/keyboard';
 
 // Cấu hình kích thước và phím theo từng Layout
-interface LayoutSpecs {
+export interface LayoutSpecs {
   width: number;
   depth: number;
   rows: number;
@@ -14,7 +18,7 @@ interface LayoutSpecs {
   gap: number;
 }
 
-const getLayoutSpecs = (layout: KeyboardLayout): LayoutSpecs => {
+export const getLayoutSpecs = (layout: KeyboardLayout): LayoutSpecs => {
   switch (layout) {
     case '65%':
       return { width: 6.2, depth: 2.2, rows: 5, cols: 15, keySize: 0.36, gap: 0.04 };
@@ -23,6 +27,90 @@ const getLayoutSpecs = (layout: KeyboardLayout): LayoutSpecs => {
     case 'TKL':
       return { width: 7.8, depth: 2.6, rows: 6, cols: 18, keySize: 0.36, gap: 0.04 };
   }
+};
+
+// Hàm tính toán vị trí trục Y cho 7 lớp linh kiện (Export để chạy Unit Test)
+export interface LayerPositions {
+  bottomCase: number;
+  pcb: number;
+  foam: number;
+  plate: number;
+  switches: number;
+  keycaps: number;
+  topCase: number;
+}
+
+export const calculateLayerPositions = (offset: number): LayerPositions => ({
+  bottomCase: 0,
+  pcb: Number((0.28 + offset * 0.35).toFixed(3)),
+  foam: Number((0.34 + offset * 0.7).toFixed(3)),
+  plate: Number((0.40 + offset * 1.05).toFixed(3)),
+  switches: Number((0.52 + offset * 1.4).toFixed(3)),
+  keycaps: Number((0.74 + offset * 1.8).toFixed(3)),
+  topCase: Number((0.44 + offset * 2.15).toFixed(3)),
+});
+
+// Component Thẻ chú thích 3D HTML nổi phong cách MotionSites.ai
+interface LayerAnnotationProps {
+  layerIndex: string;
+  name: string;
+  subname: string;
+  detail: string;
+  visible: boolean;
+  xOffset: number;
+}
+
+const LayerAnnotation: React.FC<LayerAnnotationProps> = ({
+  layerIndex,
+  name,
+  subname,
+  detail,
+  visible,
+  xOffset,
+}) => {
+  return (
+    <Html
+      position={[xOffset, 0, 0]}
+      center={false}
+      distanceFactor={9}
+      zIndexRange={[100, 0]}
+    >
+      <AnimatePresence>
+        {visible && (
+          <motion.div
+            initial={{ opacity: 0, x: -15, scale: 0.9 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: -10, scale: 0.95 }}
+            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+            className="flex items-center gap-2 pointer-events-auto select-none"
+          >
+            {/* Chấm tròn chỉ vị trí & Đường nối phát sáng */}
+            <div className="flex items-center">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-cyan-400 shadow-[0_0_8px_rgba(0,240,255,0.8)]" />
+              </span>
+              <div className="w-6 h-[1px] bg-gradient-to-r from-cyan-400/80 to-white/20" />
+            </div>
+
+            {/* Thẻ Kính Mờ Frosted Liquid Glass */}
+            <div className="px-3 py-1.5 rounded-xl glass-panel border border-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.5)] min-w-[150px]">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[11px] font-bold text-white tracking-tight flex items-center gap-1.5">
+                  <span className="text-cyan-400 font-mono text-[10px]">{layerIndex}</span>
+                  {name}
+                </span>
+                <span className="text-[9px] text-zinc-400 font-mono uppercase">{subname}</span>
+              </div>
+              <div className="text-[9px] text-zinc-400 font-mono mt-0.5 border-t border-white/5 pt-0.5">
+                {detail}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </Html>
+  );
 };
 
 export const KeyboardModel: React.FC = () => {
@@ -41,15 +129,42 @@ export const KeyboardModel: React.FC = () => {
 
   const specs = useMemo(() => getLayoutSpecs(layout), [layout]);
 
-  // Độ dịch chuyển theo trục Y khi bung lớp (Exploded View)
-  const offsetMultiplier = isExploded ? explosionOffset : 0;
-  const bottomCaseY = 0;
-  const pcbY = 0.28 + offsetMultiplier * 0.35;
-  const foamY = 0.34 + offsetMultiplier * 0.7;
-  const plateY = 0.40 + offsetMultiplier * 1.05;
-  const switchesY = 0.52 + offsetMultiplier * 1.4;
-  const keycapsY = 0.74 + offsetMultiplier * 1.8;
-  const topCaseY = 0.44 + offsetMultiplier * 2.15;
+  // Tham chiếu DOM 3D cho 7 tầng linh kiện
+  const bottomCaseRef = useRef<THREE.Group>(null);
+  const pcbRef = useRef<THREE.Group>(null);
+  const foamRef = useRef<THREE.Group>(null);
+  const plateRef = useRef<THREE.Group>(null);
+  const switchesRef = useRef<THREE.Group>(null);
+  const keycapsRef = useRef<THREE.Group>(null);
+  const topCaseRef = useRef<THREE.Group>(null);
+
+  // Giá trị offset nội suy thời gian thực
+  const currentOffset = useRef(isExploded ? explosionOffset : 0);
+
+  // Vòng lặp Render 60/120 FPS: MathUtils.lerp mượt mà không gây re-render React
+  useFrame((_, delta) => {
+    const targetOffset = isExploded ? explosionOffset : 0;
+    // Nội suy mượt mà theo delta time (tốc độ lerp = 8)
+    currentOffset.current = THREE.MathUtils.lerp(
+      currentOffset.current,
+      targetOffset,
+      Math.min(1, delta * 8)
+    );
+
+    const o = currentOffset.current;
+    const positions = calculateLayerPositions(o);
+
+    if (bottomCaseRef.current) bottomCaseRef.current.position.y = positions.bottomCase;
+    if (pcbRef.current) pcbRef.current.position.y = positions.pcb;
+    if (foamRef.current) foamRef.current.position.y = positions.foam;
+    if (plateRef.current) plateRef.current.position.y = positions.plate;
+    if (switchesRef.current) switchesRef.current.position.y = positions.switches;
+    if (keycapsRef.current) keycapsRef.current.position.y = positions.keycaps;
+    if (topCaseRef.current) topCaseRef.current.position.y = positions.topCase;
+  });
+
+  // Tọa độ X để gắn thẻ chú thích ở cạnh phải bàn phím
+  const annotationX = specs.width / 2 + 0.3;
 
   // Cấu hình vật liệu Case theo lựa chọn
   const caseMaterialProps = useMemo(() => {
@@ -107,14 +222,14 @@ export const KeyboardModel: React.FC = () => {
   const switchStemColor = useMemo(() => {
     switch (switchType) {
       case 'tactile':
-        return '#d97706'; // Hổ phách Boba U4T
+        return '#d97706';
       case 'clicky':
-        return '#0284c7'; // Xanh lam Cherry MX Blue
+        return '#0284c7';
       case 'silent_linear':
-        return '#f43f5e'; // Hồng nhạt Silent
+        return '#f43f5e';
       case 'linear':
       default:
-        return '#dc2626'; // Đỏ Gateron / Oil King
+        return '#dc2626';
     }
   }, [switchType]);
 
@@ -132,7 +247,6 @@ export const KeyboardModel: React.FC = () => {
         const isEnter = r === specs.rows - 3 && c === specs.cols - 1;
         const isSpace = r === specs.rows - 1 && c >= 4 && c <= 8;
 
-        // Bỏ qua các ô phím con nằm trong khu vực phím cách
         if (r === specs.rows - 1 && c > 4 && c <= 8) {
           continue;
         }
@@ -151,12 +265,14 @@ export const KeyboardModel: React.FC = () => {
     return keys;
   }, [specs]);
 
+  const initialPositions = calculateLayerPositions(isExploded ? explosionOffset : 0);
+
   return (
     <group position={[0, -0.3, 0]}>
       {/* ------------------------------------------------------------------ */}
       {/* LỚP 1: BOTTOM CASE (Đế nhôm CNC vát cạnh & Đèn gầm Underglow)      */}
       {/* ------------------------------------------------------------------ */}
-      <group position={[0, bottomCaseY, 0]}>
+      <group ref={bottomCaseRef} position={[0, initialPositions.bottomCase, 0]}>
         <mesh receiveShadow castShadow>
           <boxGeometry args={[specs.width + 0.25, 0.24, specs.depth + 0.25]} />
           <meshPhysicalMaterial {...caseMaterialProps} />
@@ -187,55 +303,92 @@ export const KeyboardModel: React.FC = () => {
             <meshStandardMaterial color="#18181b" roughness={0.9} />
           </mesh>
         ))}
+
+        {/* Nhãn chú thích 3D Lớp 01 */}
+        <LayerAnnotation
+          layerIndex="01"
+          name="Bottom Case"
+          subname="Đế Vỏ"
+          detail={`${caseMaterial.toUpperCase()} CNC • RGB LED`}
+          visible={isExploded}
+          xOffset={annotationX}
+        />
       </group>
 
       {/* ------------------------------------------------------------------ */}
       {/* LỚP 2: PCB (Bảng mạch in điện tử đen nhám với viền mạ vàng)        */}
       {/* ------------------------------------------------------------------ */}
-      <group position={[0, pcbY, 0]}>
+      <group ref={pcbRef} position={[0, initialPositions.pcb, 0]}>
         <mesh receiveShadow castShadow>
           <boxGeometry args={[specs.width - 0.05, 0.03, specs.depth - 0.05]} />
           <meshStandardMaterial color="#0f172a" roughness={0.6} metalness={0.2} />
         </mesh>
-        {/* Đường viền mạ vàng trên PCB */}
         <mesh position={[0, 0.016, 0]}>
           <boxGeometry args={[specs.width - 0.08, 0.005, specs.depth - 0.08]} />
           <meshStandardMaterial color="#f59e0b" roughness={0.3} metalness={0.9} />
         </mesh>
+
+        {/* Nhãn chú thích 3D Lớp 02 */}
+        <LayerAnnotation
+          layerIndex="02"
+          name="PCB"
+          subname="Bạch Mạch"
+          detail="Hotswap 5-Pin • Gold Plated"
+          visible={isExploded}
+          xOffset={annotationX}
+        />
       </group>
 
       {/* ------------------------------------------------------------------ */}
       {/* LỚP 3: PORON FOAM (Mút tiêu âm giảm cộng hưởng)                    */}
       {/* ------------------------------------------------------------------ */}
-      <group position={[0, foamY, 0]}>
+      <group ref={foamRef} position={[0, initialPositions.foam, 0]}>
         <mesh receiveShadow>
           <boxGeometry args={[specs.width - 0.1, 0.04, specs.depth - 0.1]} />
           <meshStandardMaterial color="#111827" roughness={0.95} metalness={0.05} />
         </mesh>
+
+        {/* Nhãn chú thích 3D Lớp 03 */}
+        <LayerAnnotation
+          layerIndex="03"
+          name="Poron Foam"
+          subname="Tiêu Âm"
+          detail="Poron 3.5mm High Density"
+          visible={isExploded}
+          xOffset={annotationX}
+        />
       </group>
 
       {/* ------------------------------------------------------------------ */}
       {/* LỚP 4: SWITCH PLATE (Tấm định vị Switch: Alu / Brass / PC / FR4)   */}
       {/* ------------------------------------------------------------------ */}
-      <group position={[0, plateY, 0]}>
+      <group ref={plateRef} position={[0, initialPositions.plate, 0]}>
         <mesh receiveShadow castShadow>
           <boxGeometry args={[specs.width, 0.05, specs.depth]} />
           <meshStandardMaterial {...plateMaterialProps} />
         </mesh>
+
+        {/* Nhãn chú thích 3D Lớp 04 */}
+        <LayerAnnotation
+          layerIndex="04"
+          name="Switch Plate"
+          subname="Định Vị"
+          detail={`${plateMaterial.toUpperCase()} • Gasket Mount`}
+          visible={isExploded}
+          xOffset={annotationX}
+        />
       </group>
 
       {/* ------------------------------------------------------------------ */}
       {/* LỚP 5: SWITCHES (Hệ thống switch cơ học gồm Housing + Stem)        */}
       {/* ------------------------------------------------------------------ */}
-      <group position={[0, switchesY, 0]}>
+      <group ref={switchesRef} position={[0, initialPositions.switches, 0]}>
         {keyGrid.map((key, i) => (
           <group key={`sw-${i}`} position={[key.x, 0, key.z]}>
-            {/* Vỏ Switch dưới (Bottom Housing) */}
             <mesh castShadow receiveShadow>
               <boxGeometry args={[0.26 * key.widthRatio, 0.12, 0.26]} />
               <meshStandardMaterial color="#1c1917" roughness={0.4} />
             </mesh>
-            {/* Vỏ Switch trong suốt (Top Housing) */}
             <mesh position={[0, 0.08, 0]}>
               <boxGeometry args={[0.24 * key.widthRatio, 0.08, 0.24]} />
               <meshPhysicalMaterial
@@ -246,19 +399,28 @@ export const KeyboardModel: React.FC = () => {
                 opacity={0.7}
               />
             </mesh>
-            {/* Chân Stem chữ thập mang màu đặc trưng của Switch */}
             <mesh position={[0, 0.14, 0]}>
               <boxGeometry args={[0.1, 0.08, 0.1]} />
               <meshStandardMaterial color={switchStemColor} roughness={0.3} />
             </mesh>
           </group>
         ))}
+
+        {/* Nhãn chú thích 3D Lớp 05 */}
+        <LayerAnnotation
+          layerIndex="05"
+          name="Switches"
+          subname="Công Tắc"
+          detail={`${switchType.toUpperCase().replace('_', ' ')} Mechanical`}
+          visible={isExploded}
+          xOffset={annotationX}
+        />
       </group>
 
       {/* ------------------------------------------------------------------ */}
       {/* LỚP 6: KEYCAPS (Bộ nút phím với màu chính và phím điểm nhấn)       */}
       {/* ------------------------------------------------------------------ */}
-      <group position={[0, keycapsY, 0]}>
+      <group ref={keycapsRef} position={[0, initialPositions.keycaps, 0]}>
         {keyGrid.map((key, i) => (
           <mesh
             key={`kc-${i}`}
@@ -280,13 +442,22 @@ export const KeyboardModel: React.FC = () => {
             />
           </mesh>
         ))}
+
+        {/* Nhãn chú thích 3D Lớp 06 */}
+        <LayerAnnotation
+          layerIndex="06"
+          name="Keycaps"
+          subname="Nút Phím"
+          detail="Cherry Profile • Double-shot PBT"
+          visible={isExploded}
+          xOffset={annotationX}
+        />
       </group>
 
       {/* ------------------------------------------------------------------ */}
       {/* LỚP 7: TOP CASE (Khung viền trên bao bọc sang trọng)               */}
       {/* ------------------------------------------------------------------ */}
-      <group position={[0, topCaseY, 0]}>
-        {/* Viền trái */}
+      <group ref={topCaseRef} position={[0, initialPositions.topCase, 0]}>
         <mesh
           position={[-(specs.width / 2 + 0.08), 0, 0]}
           castShadow
@@ -295,7 +466,6 @@ export const KeyboardModel: React.FC = () => {
           <boxGeometry args={[0.16, 0.2, specs.depth + 0.32]} />
           <meshPhysicalMaterial {...caseMaterialProps} />
         </mesh>
-        {/* Viền phải */}
         <mesh
           position={[specs.width / 2 + 0.08, 0, 0]}
           castShadow
@@ -304,7 +474,6 @@ export const KeyboardModel: React.FC = () => {
           <boxGeometry args={[0.16, 0.2, specs.depth + 0.32]} />
           <meshPhysicalMaterial {...caseMaterialProps} />
         </mesh>
-        {/* Viền trên */}
         <mesh
           position={[0, 0, -(specs.depth / 2 + 0.08)]}
           castShadow
@@ -313,7 +482,6 @@ export const KeyboardModel: React.FC = () => {
           <boxGeometry args={[specs.width + 0.32, 0.2, 0.16]} />
           <meshPhysicalMaterial {...caseMaterialProps} />
         </mesh>
-        {/* Viền dưới */}
         <mesh
           position={[0, 0, specs.depth / 2 + 0.08]}
           castShadow
@@ -322,11 +490,19 @@ export const KeyboardModel: React.FC = () => {
           <boxGeometry args={[specs.width + 0.32, 0.2, 0.16]} />
           <meshPhysicalMaterial {...caseMaterialProps} />
         </mesh>
+
+        {/* Nhãn chú thích 3D Lớp 07 */}
+        <LayerAnnotation
+          layerIndex="07"
+          name="Top Case"
+          subname="Khung Trên"
+          detail={`${caseMaterial.toUpperCase()} CNC Beveled`}
+          visible={isExploded}
+          xOffset={annotationX}
+        />
       </group>
 
-      {/* ------------------------------------------------------------------ */}
-      {/* ÁNH SÁNG ĐÈN GẦM REALTIME (PointLight phản chiếu xuống mặt bàn)    */}
-      {/* ------------------------------------------------------------------ */}
+      {/* Ánh sáng đèn gầm phản chiếu realtime */}
       {underglowEnabled && (
         <pointLight
           position={[0, -0.4, 0]}
