@@ -29,7 +29,7 @@ export const Sidebar: React.FC = () => {
   const resetConfig = useKeyboardStore((s) => s.resetConfig);
 
   return (
-    <aside aria-label="Cấu hình bàn phím" className="flex min-h-0 flex-col border-line bg-canvas lg:h-dvh lg:border-r">
+    <aside id="config-sidebar" aria-label="Cấu hình bàn phím" className="flex min-h-0 flex-col border-line bg-canvas lg:h-dvh lg:border-r">
       <header className="px-5 pb-4 pt-5">
         <div className="flex items-center gap-2 text-ink">
           <BrandMark />

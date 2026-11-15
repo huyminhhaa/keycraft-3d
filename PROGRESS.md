@@ -13,9 +13,10 @@
 - [x] **2.1c-ui-tool-redesign:** Làm lại UI theo hướng công cụ cấu hình (sidebar phẳng + sân khấu 3D), bỏ phong cách kính mờ/glow. Dựng lại mô hình theo TKL vỏ nhôm đỏ thật: layout ANSI 65%/75%/TKL, keycap profile Cherry có ký tự, keycap 3 tông, tạ đồng, LED hông, gõ phím thật thì phím 3D nhấn theo.
 - [x] **2.1d-cinematic-stage:** Giữ bố cục 2.1c, thêm lớp hoàn thiện kiểu trang sản phẩm Apple/Sony: camera lướt vào khi mở trang, bàn xoay 360° (theo thời gian, có nút dừng), sàn phản chiếu mờ dần, ambient occlusion, màu vỏ/keycap đổi dần, tiêu đề sản phẩm chữ lớn, thanh công cụ kính mờ bo tròn, tự hạ chất lượng trên máy yếu.
 - [x] **2.2-chat-ui:** Dựng giao diện AI Acoustic Architect dạng MotionSites.ai Cinematic Floating Glassmorphism panel (spring-physics qua Framer Motion, glowing reactive borders, sound wave visualizer) đồng bộ thời gian thực với Zustand store và hiển thị trạng thái trực quan mỗi khi AI thực thi lệnh biến đổi bàn phím 3D.
+- [x] **2.2b-stage-fill:** Nút thu/mở thanh cấu hình, bệ trưng bày tròn thay sàn phản chiếu lộ mép, điểm chú thích "+" gắn trên mô hình, luồng đèn rọi.
 
 ## Chặng 3: Docker, PostgreSQL (`pgvector`), Redis, Authentication & Web Audio (Dùng Codex Plus)
-- [ ] **3.1-docker-infra:** Tạo `docker-compose.yml` chạy `pgvector/pgvector:pg17` và `redis:7-alpine`. Cài đặt `drizzle-orm`, `pg`, `ioredis` và tạo schema (`src/db/schema.ts`) gồm bảng `users`, bảng `hardware_components` (có cột `vector(768)` cho RAG) và bảng `builds` (lưu cấu hình 3D dạng `JSONB` + user_id liên kết + slug chia sẻ).
+- [x] **3.1-docker-infra:** Tạo `docker-compose.yml` chạy `pgvector/pgvector:pg17` và `redis:7-alpine`. Cài đặt `drizzle-orm`, `pg`, `ioredis` và tạo schema (`src/db/schema.ts`) gồm bảng `users`, bảng `hardware_components` (có cột `vector(768)` cho RAG) và bảng `builds` (lưu cấu hình 3D dạng `JSONB` + user_id liên kết + slug chia sẻ).
 - [ ] **3.1b-auth-security:** Xây dựng hệ thống Đăng ký / Đăng nhập hoàn chỉnh: JWT (Access Token + Refresh Token trong `httpOnly` secure cookies), mã hóa mật khẩu (`argon2`/`bcryptjs`), hỗ trợ Social OAuth (Google, GitHub). Tính năng bảo mật Brute-force Shield: theo dõi số lần đăng nhập sai bằng Redis theo IP/Tài khoản, nếu nhập sai quá 3 lần bắt buộc giải thử thách CAPTCHA (Turnstile / Security Challenge) và khóa tạm thời (Lockout) nếu tiếp tục cố tình dò mật khẩu. Kèm unit test toàn diện cho logic xác thực và bảo mật.
 - [ ] **3.2-pgvector-rag:** Tạo script seed dữ liệu đặc tính âm học switch/plate thật kèm vector embedding vào PostgreSQL, tích hợp Semantic Search (`pgvector`) vào công cụ tư vấn của AI Chatbot + viết test kiểm tra truy vấn.
 - [ ] **3.3-community-share-redis:** Xây dựng tính năng "Lưu & Chia sẻ bản Build" (`/api/builds` + trang xem/remix bản build `/build/[slug]`) liên kết với User Profile, dùng Redis để cache danh sách Trending Builds và áp dụng Rate Limiting chống spam cho `/api/chat`.
@@ -159,3 +160,33 @@
   - **Biến môi trường mới:** Không có (dùng `GOOGLE_GENERATIVE_AI_API_KEY` từ `.env.example`).
   - **Kết quả xác thực:** Đạt 100% xanh cả 3 lệnh: `npx tsc --noEmit` (0 lỗi), `npm run lint` (0 lỗi, 0 warnings), `npm test -- --run` (**115/115 tests passed** trên 18 file test suites), `npm run build` biên dịch thành công.
   - **Next Step:** Sẵn sàng cho **Chặng 3: Task 3.1-docker-infra** (Tạo `docker-compose.yml` chạy `pgvector/pgvector:pg17` và `redis:7-alpine`, cài đặt `drizzle-orm`, `pg`, `ioredis` và tạo schema database).
+- **[Task 2.2b-stage-fill] Hoàn thành ngày 15/11/2026:**
+  - **Mô tả:** Giữ nguyên giao diện, thêm:
+    - Nút thu/mở thanh cấu hình (desktop), lưu ở `useStageStore.sidebarOpen`; `setActiveTab` tự mở lại thanh.
+    - Bệ trưng bày tròn (bán kính 3.7, mặt `MeshReflectorMaterial` khi máy đủ khoẻ, viền sáng mảnh cùng màu LED), thay cho sàn phẳng có `alphaMap`. Sàn cũ lộ mép hình thang trên GPU thật vì reflector bỏ qua alphaMap.
+    - 4 điểm chú thích "+" (`drei Html`) trên Esc, Space, góc vỏ, hông LED; nội dung lấy đúng cấu hình, ẩn khi mở đầu hoặc tách lớp.
+    - Luồng đèn rọi bằng CSS (token `--beam`).
+  - **File đã tạo:** `src/components/canvas/Hotspots.tsx` (+ `Hotspots.test.ts`), `docs/theory/09-display-plinth-hotspots.md`.
+  - **File đã sửa:** `src/components/canvas/KeyboardScene.tsx`, `src/store/useStageStore.ts`, `src/app/page.tsx`, `src/components/ui/StageOverlay.tsx`, `src/components/ui/Sidebar.tsx` (thêm `id`), `src/components/ui/Sidebar.test.tsx`, `src/app/globals.css`, `PROGRESS.md`.
+  - **File đã xoá:** `src/components/canvas/geometry/floorTexture.ts` (+ test).
+  - **Biến môi trường mới:** Không có.
+  - **Kết quả xác thực:** `npx tsc --noEmit` (0 lỗi), `npm run lint` (0 lỗi), `npm test -- --run` (116/116), `npm run build` OK. Đã chụp headless 1440×900 cả hai trạng thái thanh mở/thu gọn, và trạng thái focus vào điểm chú thích.
+  - **Ghi chú:** Điểm chú thích không tự ẩn khi bộ phận quay ra phía sau (ghi `shortcut:` trong `Hotspots.tsx`).
+- **[Task 3.1-docker-infra] Hoàn thành ngày 15/11/2026:**
+  - **Mô tả:** Thiết lập hoàn chỉnh hạ tầng Docker Compose chạy đồng thời 2 dịch vụ container: `keycraft-postgres` (image `pgvector/pgvector:pg17` với extension `vector` kích hoạt tự động qua `docker/init-db.sql`) và `keycraft-redis` (image `redis:7-alpine` với cơ chế lưu RDB tự động). Cài đặt và tích hợp `drizzle-orm`, `drizzle-kit`, `pg`, `ioredis`. Xây dựng database schema (`src/db/schema.ts`) gồm 3 bảng quan hệ: `users` (hỗ trợ lưu hash mật khẩu và theo dõi brute-force), `hardware_components` (có cột vector 768 chiều cho AI Semantic RAG), và `builds` (lưu cấu hình 3D toàn vẹn dạng `JSONB` có liên kết khóa ngoại với users và slug định danh chia sẻ). Cấu hình connection pooling (`src/db/index.ts`) và singleton Redis client (`src/lib/redis.ts`) kèm các hàm tạo key chuẩn cho bảo mật và caching.
+  - **File đã tạo:**
+    - `docker/init-db.sql`: Kích hoạt extension `vector` và `uuid-ossp`.
+    - `docker-compose.yml`: Cấu hình 2 service `postgres` và `redis`, port mapping, persistent volumes và healthcheck.
+    - `drizzle.config.ts`: Cấu hình Drizzle Kit cho PostgreSQL dialect.
+    - `src/db/schema.ts`: Định nghĩa 3 bảng dữ liệu quan hệ, type inference, và cột vector 768 chiều.
+    - `src/db/index.ts`: Singleton PostgreSQL connection pool và Drizzle client.
+    - `src/lib/redis.ts`: Singleton Redis client và tiền tố key cho Auth/Brute-force/RateLimit/Cache.
+    - `src/db/schema.test.ts`: Bộ 4 unit tests kiểm tra bảng, cột vector và quan hệ 1-N.
+    - `src/lib/redis.test.ts`: Bộ 4 unit tests kiểm tra key generators và redis client.
+    - `docs/theory/10-docker-compose-postgres-pgvector-redis.md`: Bài học lý thuyết bách khoa công nghệ chuyên sâu theo chuẩn Dual-Output Learning Mode.
+  - **File đã sửa:**
+    - `package.json`: Cài đặt `drizzle-orm`, `pg`, `ioredis` và devDependencies `drizzle-kit`, `@types/pg`, `@types/ioredis`.
+    - `PROGRESS.md`: Đánh dấu `[x]` Task 3.1.
+  - **Biến môi trường mới:** Không có (đã có sẵn trong `.env.example`).
+  - **Kết quả xác thực:** Đạt 100% xanh cả 3 lệnh: `npx tsc --noEmit` (0 lỗi), `npm run lint` (0 lỗi, 0 warnings), `npm test -- --run` (**124/124 tests passed** trên 20 test suites), `npm run build` thành công.
+  - **Next Step:** Sẵn sàng cho **Task 3.1b-auth-security** (Xây dựng hệ thống Đăng ký / Đăng nhập hoàn chỉnh: JWT Access/Refresh tokens qua httpOnly cookies, mã hóa mật khẩu argon2/bcryptjs, Brute-force Shield theo dõi số lần sai qua Redis và thử thách CAPTCHA khi sai quá 3 lần).

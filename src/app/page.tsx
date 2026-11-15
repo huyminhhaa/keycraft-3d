@@ -4,6 +4,7 @@ import React from 'react';
 import dynamic from 'next/dynamic';
 import { Sidebar } from '@/components/ui/Sidebar';
 import { StageOverlay } from '@/components/ui/StageOverlay';
+import { useStageStore } from '@/store/useStageStore';
 
 const SceneFallback: React.FC = () => (
   <div className="grid h-full w-full place-items-center">
@@ -20,15 +21,22 @@ const KeyboardScene = dynamic(() => import('@/components/canvas/KeyboardScene'),
 });
 
 export default function Home() {
+  const sidebarOpen = useStageStore((s) => s.sidebarOpen);
+
   return (
-    <main className="flex h-dvh flex-col bg-canvas lg:grid lg:grid-cols-[360px_minmax(0,1fr)]">
+    <main
+      className={`flex h-dvh flex-col bg-canvas lg:grid ${
+        sidebarOpen ? 'lg:grid-cols-[360px_minmax(0,1fr)]' : 'lg:grid-cols-[minmax(0,1fr)]'
+      }`}
+    >
       {/* Sân khấu: trên cùng ở mobile, bên phải ở desktop */}
       <section aria-label="Mô hình bàn phím 3D" className="stage relative h-[46svh] shrink-0 lg:order-2 lg:h-dvh">
         <KeyboardScene />
         <StageOverlay />
       </section>
 
-      <div className="min-h-0 flex-1 overflow-y-auto lg:order-1 lg:overflow-visible">
+      {/* Thu gọn chỉ áp dụng desktop; trên mobile thanh cấu hình luôn nằm dưới sân khấu */}
+      <div className={`min-h-0 flex-1 overflow-y-auto lg:order-1 lg:overflow-visible ${sidebarOpen ? '' : 'lg:hidden'}`}>
         <Sidebar />
       </div>
     </main>

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Keyboard, Layers, Pause, Play, Sparkles } from 'lucide-react';
+import { Keyboard, Layers, PanelLeftClose, PanelLeftOpen, Pause, Play, Sparkles } from 'lucide-react';
 import { useKeyboardStore } from '@/store/useKeyboardStore';
 import { useStageStore } from '@/store/useStageStore';
 import { findKeycapSet } from '@/lib/keyboard/keycapSets';
@@ -64,6 +64,8 @@ export const StageOverlay: React.FC = () => {
   const toggleAutoRotate = useStageStore((s) => s.toggleAutoRotate);
   const activeTab = useStageStore((s) => s.activeTab);
   const setActiveTab = useStageStore((s) => s.setActiveTab);
+  const sidebarOpen = useStageStore((s) => s.sidebarOpen);
+  const toggleSidebar = useStageStore((s) => s.toggleSidebar);
 
   const title = buildStageTitle({
     layout,
@@ -77,7 +79,19 @@ export const StageOverlay: React.FC = () => {
   return (
     <div className="pointer-events-none absolute inset-0 z-10 flex flex-col justify-between p-3 lg:p-5">
       <div className="flex items-start justify-between gap-3">
-        <div role="group" aria-label="Góc nhìn" className="toolbar pointer-events-auto order-2 max-w-full overflow-x-auto lg:order-1">
+        <div className="order-2 flex min-w-0 items-center gap-2 lg:order-1">
+        <button
+          type="button"
+          aria-controls="config-sidebar"
+          aria-expanded={sidebarOpen}
+          aria-label={sidebarOpen ? 'Thu gọn thanh cấu hình' : 'Mở thanh cấu hình'}
+          title={sidebarOpen ? 'Thu gọn thanh cấu hình' : 'Mở thanh cấu hình'}
+          onClick={toggleSidebar}
+          className="toolbar toolbar__icon pointer-events-auto hidden lg:flex"
+        >
+          {sidebarOpen ? <PanelLeftClose className="h-4 w-4" aria-hidden /> : <PanelLeftOpen className="h-4 w-4" aria-hidden />}
+        </button>
+        <div role="group" aria-label="Góc nhìn" className="toolbar pointer-events-auto max-w-full overflow-x-auto">
           {CAMERA_OPTIONS.map((option) => (
             <button
               key={option.id}
@@ -89,6 +103,7 @@ export const StageOverlay: React.FC = () => {
               {option.label}
             </button>
           ))}
+        </div>
         </div>
 
         <div className="pointer-events-auto order-1 flex items-center gap-2 lg:order-2">

@@ -13,6 +13,9 @@ interface StageState {
   highQuality: boolean;
   /** Tab đang mở trên Sidebar: Thiết kế, Âm thanh hoặc Trợ lý AI */
   activeTab: SidebarTab;
+  /** Thanh cấu hình bên trái (desktop) đang mở hay thu gọn để sân khấu chiếm trọn màn hình */
+  sidebarOpen: boolean;
+  toggleSidebar: () => void;
   setAutoRotate: (on: boolean) => void;
   toggleAutoRotate: () => void;
   setIntroDone: (done: boolean) => void;
@@ -25,9 +28,12 @@ export const useStageStore = create<StageState>((set) => ({
   introDone: false,
   highQuality: true,
   activeTab: 'design',
+  sidebarOpen: true,
+  toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
   setAutoRotate: (autoRotate) => set({ autoRotate }),
   toggleAutoRotate: () => set((state) => ({ autoRotate: !state.autoRotate })),
   setIntroDone: (introDone) => set({ introDone }),
   setHighQuality: (highQuality) => set({ highQuality }),
-  setActiveTab: (activeTab) => set({ activeTab }),
+  // Mở một tab (kể cả từ nút "Trợ lý AI" trên sân khấu) thì thanh cấu hình phải hiện ra
+  setActiveTab: (activeTab) => set({ activeTab, sidebarOpen: true }),
 }));

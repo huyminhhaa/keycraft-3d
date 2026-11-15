@@ -106,6 +106,19 @@ describe('StageOverlay', () => {
     expect(screen.queryByRole('slider')).toBeNull();
   });
 
+  it('nút thu gọn thanh cấu hình bật/tắt sidebarOpen; mở tab Trợ lý AI thì thanh hiện lại', () => {
+    useStageStore.setState({ sidebarOpen: true });
+    render(<StageOverlay />);
+    const toggle = screen.getByRole('button', { name: 'Thu gọn thanh cấu hình' });
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    fireEvent.click(toggle);
+    expect(useStageStore.getState().sidebarOpen).toBe(false);
+    expect(screen.getByRole('button', { name: 'Mở thanh cấu hình' }).getAttribute('aria-expanded')).toBe('false');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hỏi Trợ lý AI' }));
+    expect(useStageStore.getState().sidebarOpen).toBe(true);
+  });
+
   it('nút Xoay 360° bật/tắt bàn xoay', () => {
     useStageStore.setState({ autoRotate: true });
     render(<StageOverlay />);

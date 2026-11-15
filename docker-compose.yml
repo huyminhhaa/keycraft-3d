@@ -1,0 +1,48 @@
+name: keycraft-3d
+
+services:
+  # ----------------------------------------------------------------------------
+  # 1. Cơ sở dữ liệu: PostgreSQL 17 tích hợp sẵn pgvector extension
+  # ----------------------------------------------------------------------------
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: keycraft-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-keycraft}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-keycraft_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-keycraft_db}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-keycraft} -d ${POSTGRES_DB:-keycraft_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ----------------------------------------------------------------------------
+  # 2. Bộ nhớ đệm & Bảo mật: Redis 7 Alpine (Auth Rate Limit, CAPTCHA & Cache)
+  # ----------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: keycraft-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --save 60 1 --loglevel warning
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local

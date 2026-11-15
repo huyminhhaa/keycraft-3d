@@ -21,7 +21,7 @@ import type { CameraPreset } from '@/types/keyboard';
 import { KeyboardModel } from './KeyboardModel';
 import { CanvasLoader } from './CanvasLoader';
 import { BASE_TARGET_Y, CAMERA_FOV, CameraFraming, explodedTargetY } from './CameraFraming';
-import { createRadialFadeTexture } from './geometry/floorTexture';
+import { Hotspots } from './Hotspots';
 
 const TARGET: [number, number, number] = [0, BASE_TARGET_Y, 0];
 /** Mặt bàn: ngay dưới chân cao su (tính cả độ nghiêng của vỏ) */
@@ -138,33 +138,48 @@ const StudioLighting: React.FC = () => (
   </>
 );
 
-/** Mặt bàn bóng phản chiếu mờ, tan dần ra mép như phông chụp sản phẩm. */
-const ReflectiveFloor: React.FC = () => {
-  const fade = useMemo(() => createRadialFadeTexture(), []);
-  useEffect(() => () => fade?.dispose(), [fade]);
-  if (!fade) return null;
+/** Bệ trưng bày tròn: rộng bằng thân vỏ TKL, góc vỏ chỉ chìa ra một chút khi xoay chéo như hàng trưng bày thật. */
+export const PLINTH = { radius: 3.7, height: 0.3 } as const;
+
+/**
+ * Bệ trưng bày kiểu showroom: thân nhôm tối, mặt bóng phản chiếu, viền sáng mảnh cùng màu LED.
+ * Mép tròn là mép thật của vật thể, nên không còn tấm sàn lộ mép (alphaMap bị MeshReflectorMaterial bỏ qua trên GPU thật).
+ */
+const DisplayPlinth: React.FC<{ highQuality: boolean }> = ({ highQuality }) => {
+  const ledColor = useKeyboardStore((s) => s.underglowColor);
+  const ledEnabled = useKeyboardStore((s) => s.underglowEnabled);
 
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, FLOOR_Y, 0]}>
-      <planeGeometry args={[22, 22]} />
-      <MeshReflectorMaterial
-        alphaMap={fade}
-        transparent
-        depthWrite={false}
-        color="#202024"
-        metalness={0.4}
-        roughness={0.9}
-        resolution={512}
-        blur={[300, 90]}
-        mixBlur={1}
-        mixStrength={1.4}
-        mixContrast={1}
-        mirror={0.55}
-        depthScale={1}
-        minDepthThreshold={0.4}
-        maxDepthThreshold={1.3}
-      />
-    </mesh>
+    <group position={[0, FLOOR_Y, 0]}>
+      <mesh position={[0, -PLINTH.height / 2, 0]} receiveShadow>
+        <cylinderGeometry args={[PLINTH.radius, PLINTH.radius * 1.02, PLINTH.height, 128]} />
+        <meshStandardMaterial color="#1b1b1e" metalness={0.85} roughness={0.32} />
+      </mesh>
+      <mesh rotation-x={-Math.PI / 2} position-y={0.001} receiveShadow>
+        <circleGeometry args={[PLINTH.radius - 0.03, 128]} />
+        {highQuality ? (
+          <MeshReflectorMaterial
+            color="#17171a"
+            metalness={0.5}
+            roughness={0.75}
+            resolution={512}
+            blur={[300, 90]}
+            mixBlur={1}
+            mixStrength={1.6}
+            mirror={0.6}
+            depthScale={1}
+            minDepthThreshold={0.4}
+            maxDepthThreshold={1.3}
+          />
+        ) : (
+          <meshStandardMaterial color="#17171a" metalness={0.6} roughness={0.45} />
+        )}
+      </mesh>
+      <mesh rotation-x={-Math.PI / 2} position-y={0.004}>
+        <ringGeometry args={[PLINTH.radius - 0.045, PLINTH.radius - 0.03, 160]} />
+        <meshBasicMaterial color={ledEnabled ? ledColor : '#3a3a3f'} transparent opacity={ledEnabled ? 0.45 : 0.6} />
+      </mesh>
+    </group>
   );
 };
 
@@ -202,7 +217,8 @@ export const KeyboardScene: React.FC = () => {
       <Suspense fallback={<CanvasLoader />}>
         <StudioLighting />
         <KeyboardModel />
-        {highQuality && <ReflectiveFloor />}
+        <Hotspots />
+        <DisplayPlinth highQuality={highQuality} />
         <ContactShadows position={[0, FLOOR_Y + 0.004, 0]} opacity={0.6} scale={16} blur={2.4} far={2.5} resolution={1024} color="#000000" />
         <CameraController />
         <PostEffects highQuality={highQuality} />

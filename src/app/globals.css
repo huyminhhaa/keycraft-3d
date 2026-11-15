@@ -15,6 +15,9 @@
   --stage-hi: #3d3d42;
   --stage-lo: #1c1c1f;
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  /* Luồng đèn rọi từ trần xuống bệ trưng bày */
+  --beam: rgba(255, 255, 255, 0.075);
+  --hotspot-card: rgba(22, 22, 25, 0.92);
 }
 
 @theme inline {
@@ -54,6 +57,7 @@ body {
 /* -------------------------------------------------------------------------- */
 .stage {
   background:
+    radial-gradient(ellipse 26% 80% at 50% 0%, var(--beam) 0%, transparent 72%),
     radial-gradient(ellipse 55% 40% at 50% 70%, rgba(255, 255, 255, 0.035) 0%, transparent 70%),
     radial-gradient(ellipse 70% 58% at 50% 32%, #46464c 0%, #26262a 55%, #141416 100%);
 }
@@ -404,6 +408,74 @@ body {
 }
 
 .layer-label__detail {
+  color: var(--muted);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Điểm chú thích trên mô hình (drei Html): rê chuột hoặc Tab tới để đọc      */
+/* -------------------------------------------------------------------------- */
+.hotspot {
+  position: relative;
+}
+
+.hotspot__dot {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--ink);
+  box-shadow: 0 0 0 5px rgba(236, 236, 238, 0.22), 0 4px 12px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+  transition: transform 150ms var(--ease), box-shadow 150ms var(--ease);
+}
+
+/* Dấu + cho biết đây là thứ để bấm, không phải chấm trang trí */
+.hotspot__dot::before {
+  content: "+";
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--canvas);
+}
+
+.hotspot__dot:hover,
+.hotspot__dot:focus-visible {
+  transform: scale(1.15);
+  box-shadow: 0 0 0 8px rgba(236, 236, 238, 0.28), 0 4px 12px rgba(0, 0, 0, 0.45);
+}
+
+.hotspot__card {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 12px);
+  min-width: 180px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--hotspot-card);
+  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.14), 0 12px 32px rgba(0, 0, 0, 0.4);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, 4px);
+  transition: opacity 150ms var(--ease), transform 150ms var(--ease);
+}
+
+.hotspot:hover .hotspot__card,
+.hotspot:focus-within .hotspot__card {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.hotspot__title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.hotspot__detail {
+  margin-top: 2px;
+  font-size: 12px;
   color: var(--muted);
 }
 
