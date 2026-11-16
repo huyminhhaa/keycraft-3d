@@ -1,8 +1,12 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
+import { Download } from 'lucide-react';
 import { useKeyboardStore } from '@/store/useKeyboardStore';
+import { useStageStore } from '@/store/useStageStore';
 import { countKeys } from '@/lib/keyboard/layouts';
+import { KEYBOARD_MODELS, getModelEntry } from '@/lib/keyboard/models';
+import { EXPORT_ROOT_NAME, downloadFile, exportObjectToGlb, getExportScene } from '@/lib/keyboard/exportGlb';
 import { KEYCAP_SETS, findKeycapSet } from '@/lib/keyboard/keycapSets';
 import type { CaseMaterial, KeyboardLayout } from '@/types/keyboard';
 import { ColorStrip, ListOption, Section, Segmented, Slider, SwatchGroup, Toggle, type Swatch } from './controls';
@@ -41,7 +45,82 @@ const LED_COLORS: Swatch[] = [
   { label: 'Xanh lá', hex: '#3ddc84' },
 ];
 
+type ExportStatus = 'idle' | 'working' | 'failed';
+
+/** Chọn mẫu bàn phím, và xuất mẫu dựng bằng code ra file .glb để mở bằng Blender. */
+const ModelSection: React.FC = () => {
+  const modelId = useKeyboardStore((s) => s.modelId);
+  const setModel = useKeyboardStore((s) => s.setModel);
+  const isExploded = useKeyboardStore((s) => s.isExploded);
+  const modelError = useStageStore((s) => s.modelError);
+  const setModelError = useStageStore((s) => s.setModelError);
+  const [status, setStatus] = useState<ExportStatus>('idle');
+  const active = getModelEntry(modelId);
+
+  const exportGlb = async () => {
+    const root = getExportScene()?.getObjectByName(EXPORT_ROOT_NAME);
+    if (!root) {
+      setStatus('failed');
+      return;
+    }
+    setStatus('working');
+    try {
+      downloadFile(await exportObjectToGlb(root), 'keycraft-starter.glb');
+      setStatus('idle');
+    } catch {
+      setStatus('failed');
+    }
+  };
+
+  return (
+    <Section title="Mẫu bàn phím" value={active.source === 'glb' ? 'File 3D' : 'Dựng bằng code'}>
+      <div className="space-y-1">
+        {KEYBOARD_MODELS.map((entry) => (
+          <ListOption
+            key={entry.id}
+            label={entry.name}
+            selected={entry.id === active.id}
+            detail={entry.source === 'glb' ? '.glb' : undefined}
+            onSelect={() => {
+              setModelError(null);
+              setModel(entry.id);
+            }}
+          />
+        ))}
+      </div>
+
+      {modelError && (
+        <p role="alert" className="mt-3 text-[12px] leading-relaxed text-ink/85">
+          Không mở được file 3D của mẫu này nên đang hiện mẫu dựng bằng code. Kiểm tra file trong public/models.
+        </p>
+      )}
+
+      {active.source === 'procedural' && (
+        <div className="mt-3">
+          <button
+            type="button"
+            onClick={exportGlb}
+            disabled={isExploded || status === 'working'}
+            className="btn-press flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-line px-3 text-[13px] text-ink hover:bg-surface disabled:cursor-not-allowed disabled:opacity-50 lg:min-h-9"
+          >
+            <Download className="h-4 w-4" aria-hidden />
+            {status === 'working' ? 'Đang xuất file…' : 'Tải file .glb để mở bằng Blender'}
+          </button>
+          <p className="mt-2 text-[12px] leading-relaxed text-muted">
+            {isExploded
+              ? 'Ghép các lớp lại rồi mới xuất được file.'
+              : status === 'failed'
+                ? 'Chưa xuất được file. Đợi mô hình tải xong rồi bấm lại.'
+                : 'File giữ đúng màu, chất liệu và tên từng bộ phận đang chọn.'}
+          </p>
+        </div>
+      )}
+    </Section>
+  );
+};
+
 export const DesignPanel: React.FC = () => {
+  const modelId = useKeyboardStore((s) => s.modelId);
   const layout = useKeyboardStore((s) => s.layout);
   const setLayout = useKeyboardStore((s) => s.setLayout);
   const caseMaterial = useKeyboardStore((s) => s.caseMaterial);
@@ -64,11 +143,18 @@ export const DesignPanel: React.FC = () => {
   const activeSet = findKeycapSet({ keycapColor, keycapModifierColor, keycapAccentColor });
   const caseColorName = CASE_COLORS.find((c) => c.hex.toLowerCase() === caseColor.toLowerCase())?.label;
   const woodCase = caseMaterial === 'wood';
+  const fromFile = getModelEntry(modelId).source === 'glb';
 
   return (
     <>
-      <Section title="Bố cục" value={`${countKeys(layout)} phím`}>
-        <Segmented label="Bố cục" options={LAYOUT_OPTIONS} value={layout} onChange={setLayout} />
+      <ModelSection />
+
+      <Section title="Bố cục" value={fromFile ? `${layout}, theo file 3D` : `${countKeys(layout)} phím`}>
+        {fromFile ? (
+          <p className="text-[12px] leading-relaxed text-muted">Mẫu nạp từ file 3D giữ nguyên bố cục phím trong file.</p>
+        ) : (
+          <Segmented label="Bố cục" options={LAYOUT_OPTIONS} value={layout} onChange={setLayout} />
+        )}
       </Section>
 
       <Section

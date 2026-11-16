@@ -4,6 +4,7 @@ import React from 'react';
 import dynamic from 'next/dynamic';
 import { Sidebar } from '@/components/ui/Sidebar';
 import { StageOverlay } from '@/components/ui/StageOverlay';
+import { AuthModal } from '@/components/ui/AuthModal';
 import { useStageStore } from '@/store/useStageStore';
 
 const SceneFallback: React.FC = () => (
@@ -39,6 +40,8 @@ export default function Home() {
       <div className={`min-h-0 flex-1 overflow-y-auto lg:order-1 lg:overflow-visible ${sidebarOpen ? '' : 'lg:hidden'}`}>
         <Sidebar />
       </div>
+
+      <AuthModal />
     </main>
   );
 }

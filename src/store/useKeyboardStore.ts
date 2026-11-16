@@ -6,6 +6,7 @@ import {
   SwitchType,
   SoundProfile,
 } from '@/types/keyboard';
+import { DEFAULT_MODEL_ID, getModelEntry } from '@/lib/keyboard/models';
 
 export const calculateSoundProfile = (
   plate: PlateMaterial,
@@ -74,6 +75,7 @@ export const calculateSoundProfile = (
 
 // Cấu hình mặc định: TKL vỏ nhôm đỏ, plate FR4, keycap đỏ hai tông, đèn hông màu hổ phách
 export const INITIAL_KEYBOARD_STATE: KeyboardState = {
+  modelId: DEFAULT_MODEL_ID,
   layout: 'TKL',
   isExploded: false,
   explosionOffset: 1.5,
@@ -94,7 +96,13 @@ export const INITIAL_KEYBOARD_STATE: KeyboardState = {
 export const useKeyboardStore = create<KeyboardStore>((set) => ({
   ...INITIAL_KEYBOARD_STATE,
 
-  setLayout: (layout) => set({ layout }),
+  setModel: (modelId) => {
+    const entry = getModelEntry(modelId);
+    set(entry.source === 'glb' ? { modelId: entry.id, layout: entry.layout } : { modelId: entry.id });
+  },
+
+  // Mẫu .glb có layout cố định: chỉ mẫu dựng bằng code mới đổi được layout
+  setLayout: (layout) => set((state) => (getModelEntry(state.modelId).source === 'glb' ? {} : { layout })),
 
   toggleExploded: () =>
     set((state) => ({
@@ -161,6 +169,8 @@ export const useKeyboardStore = create<KeyboardStore>((set) => ({
 
       return {
         ...partial,
+        // Mẫu .glb giữ layout của file dù AI đề xuất layout khác
+        layout: getModelEntry(partial.modelId ?? state.modelId).source === 'glb' ? state.layout : (partial.layout ?? state.layout),
         underglowBrightness: nextBrightness,
         explosionOffset: nextOffset,
         soundProfile: needsSoundUpdate

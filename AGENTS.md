@@ -31,3 +31,13 @@
    - **Tại sao chọn cách này (Trade-offs):** So sánh ngắn gọn với cách làm thông thường.
    - **Thử thách tự tay sửa code (5 phút):** Đưa ra 1–2 gợi ý cụ thể (chỉ rõ tên file và dòng code) để chủ dự án tự sửa thử thông số và thấy kết quả thay đổi trên web.
    - **3 câu hỏi phỏng vấn thực chiến** kèm đáp án súc tích xoay quanh đoạn code vừa viết.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+## This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

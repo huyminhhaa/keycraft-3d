@@ -25,6 +25,21 @@ describe('useKeyboardStore', () => {
     expect(state.soundProfile.pitchMultiplier).toBe(1.0);
   });
 
+  it('chọn mẫu .glb thì layout theo file và khoá đổi layout; quay về mẫu code thì đổi lại được', () => {
+    const store = useKeyboardStore.getState();
+    store.setLayout('65%');
+    store.setModel('keycraft-starter');
+    expect(useKeyboardStore.getState()).toMatchObject({ modelId: 'keycraft-starter', layout: 'TKL' });
+
+    store.setLayout('75%');
+    store.applyAIConfig({ layout: '65%' });
+    expect(useKeyboardStore.getState().layout).toBe('TKL');
+
+    store.setModel(INITIAL_KEYBOARD_STATE.modelId);
+    store.setLayout('75%');
+    expect(useKeyboardStore.getState().layout).toBe('75%');
+  });
+
   it('đổi layout sang 65% và TKL thành công', () => {
     const store = useKeyboardStore.getState();
     store.setLayout('65%');

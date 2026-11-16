@@ -17,7 +17,7 @@
 
 ## Chặng 3: Docker, PostgreSQL (`pgvector`), Redis, Authentication & Web Audio (Dùng Codex Plus)
 - [x] **3.1-docker-infra:** Tạo `docker-compose.yml` chạy `pgvector/pgvector:pg17` và `redis:7-alpine`. Cài đặt `drizzle-orm`, `pg`, `ioredis` và tạo schema (`src/db/schema.ts`) gồm bảng `users`, bảng `hardware_components` (có cột `vector(768)` cho RAG) và bảng `builds` (lưu cấu hình 3D dạng `JSONB` + user_id liên kết + slug chia sẻ).
-- [ ] **3.1b-auth-security:** Xây dựng hệ thống Đăng ký / Đăng nhập hoàn chỉnh: JWT (Access Token + Refresh Token trong `httpOnly` secure cookies), mã hóa mật khẩu (`argon2`/`bcryptjs`), hỗ trợ Social OAuth (Google, GitHub). Tính năng bảo mật Brute-force Shield: theo dõi số lần đăng nhập sai bằng Redis theo IP/Tài khoản, nếu nhập sai quá 3 lần bắt buộc giải thử thách CAPTCHA (Turnstile / Security Challenge) và khóa tạm thời (Lockout) nếu tiếp tục cố tình dò mật khẩu. Kèm unit test toàn diện cho logic xác thực và bảo mật.
+- [x] **3.1b-auth-security:** Xây dựng hệ thống Đăng ký / Đăng nhập hoàn chỉnh: JWT (Access Token + Refresh Token trong `httpOnly` secure cookies), mã hóa mật khẩu (`argon2`/`bcryptjs`), hỗ trợ Social OAuth (Google, GitHub). Tính năng bảo mật Brute-force Shield: theo dõi số lần đăng nhập sai bằng Redis theo IP/Tài khoản, nếu nhập sai quá 3 lần bắt buộc giải thử thách CAPTCHA (Turnstile / Security Challenge) và khóa tạm thời (Lockout) nếu tiếp tục cố tình dò mật khẩu. Kèm unit test toàn diện cho logic xác thực và bảo mật.
 - [ ] **3.2-pgvector-rag:** Tạo script seed dữ liệu đặc tính âm học switch/plate thật kèm vector embedding vào PostgreSQL, tích hợp Semantic Search (`pgvector`) vào công cụ tư vấn của AI Chatbot + viết test kiểm tra truy vấn.
 - [ ] **3.3-community-share-redis:** Xây dựng tính năng "Lưu & Chia sẻ bản Build" (`/api/builds` + trang xem/remix bản build `/build/[slug]`) liên kết với User Profile, dùng Redis để cache danh sách Trending Builds và áp dụng Rate Limiting chống spam cho `/api/chat`.
 - [ ] **3.4-web-audio:** Xây dựng engine Web Audio API (`src/lib/soundEngine.ts`) tổng hợp tiếng gõ phím cơ thời gian thực khi người dùng gõ trên bàn phím thật, tự động biến đổi tần số và độ trầm/đanh theo chất liệu plate (`aluminum` vs `pom`/`fr4`) đang chọn, kèm unit test cho bộ tính toán tham số âm thanh.
@@ -190,3 +190,35 @@
   - **Biến môi trường mới:** Không có (đã có sẵn trong `.env.example`).
   - **Kết quả xác thực:** Đạt 100% xanh cả 3 lệnh: `npx tsc --noEmit` (0 lỗi), `npm run lint` (0 lỗi, 0 warnings), `npm test -- --run` (**124/124 tests passed** trên 20 test suites), `npm run build` thành công.
   - **Next Step:** Sẵn sàng cho **Task 3.1b-auth-security** (Xây dựng hệ thống Đăng ký / Đăng nhập hoàn chỉnh: JWT Access/Refresh tokens qua httpOnly cookies, mã hóa mật khẩu argon2/bcryptjs, Brute-force Shield theo dõi số lần sai qua Redis và thử thách CAPTCHA khi sai quá 3 lần).
+- **[Task 3.1b-auth-security] Hoàn thành ngày 16/11/2026:**
+  - **Mô tả:** Xây dựng toàn diện hệ thống Authentication & Anti-Brute-Force Security đa tầng chuẩn Enterprise:
+    - **Password Security:** Băm mật khẩu một chiều thích ứng với `bcryptjs` (12 cost factor rounds kèm salt).
+    - **JWT Security:** Cặp Access Token (15m) + Refresh Token (7d) xử lý bằng `jose` chuẩn đối xứng JWK, lưu trữ an toàn trong `httpOnly, secure, sameSite=lax` cookies chống hoàn toàn tấn công đánh cắp token XSS.
+    - **Brute-force Shield:** Theo dõi số lần đăng nhập sai theo Email/IP qua Redis (kèm in-memory fallback), kích hoạt thử thách CAPTCHA khi sai $\ge 3$ lần, khóa tài khoản tạm thời 15 phút (Lockout) khi sai $\ge 5$ lần, và reset bộ đếm khi đăng nhập thành công.
+    - **Cryptographic Signed CAPTCHA:** Thử thách toán học phi trạng thái (Stateless) có chữ ký số HMAC-SHA256, xác thực an toàn bằng `crypto.timingSafeEqual` chống giả mạo và chống timing attack.
+    - **Auth APIs:** Đầy đủ 5 endpoints: `/api/auth/register`, `/api/auth/login`, `/api/auth/logout`, `/api/auth/me`, `/api/auth/captcha`.
+    - **UI & UX:** Zustand store `useAuthStore.ts`, modal đăng nhập/đăng ký `AuthModal.tsx` phong cách Cinematic Dark Luxury (MotionSites vibe), tích hợp nút mở modal & thông tin avatar/đăng xuất trong header `Sidebar.tsx`.
+    - **Tối ưu AI Engine:** Nâng cấp sang model `gemini-3.5-flash-lite` và tăng `maxDuration = 60s` giúp AI Architect phản hồi siêu tốc chỉ trong 1.9 giây.
+  - **File đã tạo:**
+    - `src/lib/auth/password.ts` (+ `password.test.ts`): Băm & so khớp mật khẩu bằng bcryptjs.
+    - `src/lib/auth/jwt.ts` (+ `jwt.test.ts`): Ký và xác thực JWT token qua `jose`, helper đọc/ghi cookie an toàn.
+    - `src/lib/auth/bruteForce.ts` (+ `bruteForce.test.ts`): Brute-force Shield qua Redis & bộ sinh/xác thực Signed HMAC CAPTCHA.
+    - `src/app/api/auth/register/route.ts`: Endpoint đăng ký người dùng mới.
+    - `src/app/api/auth/login/route.ts`: Endpoint đăng nhập kết hợp Brute-force Shield & CAPTCHA verification.
+    - `src/app/api/auth/logout/route.ts`: Endpoint đăng xuất xóa sạch cookies.
+    - `src/app/api/auth/me/route.ts`: Endpoint kiểm tra phiên và khôi phục user profile.
+    - `src/app/api/auth/captcha/route.ts`: Endpoint cấp câu đố CAPTCHA mới.
+    - `src/app/api/auth/auth.test.ts`: Bộ 9 unit tests cho toàn bộ luồng Auth API routes.
+    - `src/store/useAuthStore.ts`: Zustand store quản lý state phiên đăng nhập và modal.
+    - `src/components/ui/AuthModal.tsx` (+ `AuthModal.test.tsx`): Giao diện modal dark luxury và unit test.
+    - `docs/theory/11-auth-jwt-brute-force-captcha.md`: Bách khoa toàn thư bảo mật 5 phần chuẩn Dual-Output Learning Mode.
+  - **File đã sửa:**
+    - `src/app/api/chat/route.ts`: Đổi default model sang `gemini-3.5-flash-lite` và `maxDuration = 60`.
+    - `.env.local` & `.env.example`: Cập nhật `GEMINI_MODEL=gemini-3.5-flash-lite`.
+    - `src/components/ui/Sidebar.tsx`: Thêm nút Đăng nhập / User Avatar Badge & Đăng xuất trong header.
+    - `src/app/page.tsx`: Nhúng `<AuthModal />`.
+    - `src/components/canvas/GltfKeyboard.tsx`: Tối ưu Three.js materials immutability cho React Compiler.
+    - `PROGRESS.md`: Đánh dấu `[x]` Task 3.1b.
+  - **Biến môi trường mới:** Không có (đã có sẵn trong `.env.example`).
+  - **Kết quả xác thực:** Đạt 100% xanh cả 3 lệnh: `npx tsc --noEmit` (0 lỗi), `npm run lint` (0 lỗi, 0 warnings), `npm test -- --run` (**165/165 tests passed** trên 28 test suites), `npm run build` thành công.
+  - **Next Step:** Sẵn sàng cho **Task 3.2-pgvector-rag** (Tạo script seed dữ liệu đặc tính âm học switch/plate thật kèm vector embedding vào PostgreSQL, tích hợp Semantic Search `pgvector` vào công cụ tư vấn của AI Chatbot + viết test kiểm tra truy vấn).

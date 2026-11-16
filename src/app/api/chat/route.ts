@@ -3,8 +3,8 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { keyboardTools } from '@/lib/ai/keyboardTools';
 import { KEYBOARD_ARCHITECT_SYSTEM_PROMPT } from '@/lib/ai/prompts';
 
-// Cho phép streaming responses lên tới 30 giây
-export const maxDuration = 30;
+// Cho phép streaming responses lên tới 60 giây
+export const maxDuration = 60;
 
 export async function POST(req: Request) {
   try {
@@ -31,7 +31,7 @@ export async function POST(req: Request) {
       apiKey,
     });
 
-    const modelName = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
+    const modelName = process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
 
     const result = streamText({
       model: google(modelName),

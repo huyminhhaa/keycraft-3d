@@ -19,6 +19,7 @@ import {
   keyCenter,
 } from './geometry/keyboardGeometry';
 import { createLegendTexture } from './geometry/legendTexture';
+import { EXPORT_ROOT_NAME } from '@/lib/keyboard/exportGlb';
 
 /* -------------------------------------------------------------------------- */
 /* Vị trí trục Y của 7 lớp (export để unit test)                              */
@@ -66,7 +67,7 @@ export const getCaseMaterialProps = (material: CaseMaterial, color: string): Phy
   }
 };
 
-const getPlateMaterialProps = (material: PlateMaterial): PhysicalProps => {
+export const getPlateMaterialProps =(material: PlateMaterial): PhysicalProps => {
   switch (material) {
     case 'fr4':
       return { color: '#1c1f1a', roughness: 0.6, metalness: 0.15 };
@@ -147,7 +148,8 @@ const Keycap: React.FC<KeycapProps> = ({ keyDef, position, material, legendColor
   const onUp = () => releaseKey(keyDef.code);
 
   return (
-    <group ref={(group) => registerRef(keyDef.code, group)} position={position}>
+    // Tên theo quy ước modelParts.ts: file .glb xuất ra vẫn nhấn phím và đổi màu đúng nhóm
+    <group ref={(group) => registerRef(keyDef.code, group)} position={position} name={`Keycap_${keyDef.code}_${keyDef.role}`}>
       <mesh
         geometry={geometry}
         material={material}
@@ -158,7 +160,7 @@ const Keycap: React.FC<KeycapProps> = ({ keyDef, position, material, legendColor
         onPointerLeave={onUp}
       />
       {texture && (
-        <mesh position={[0, shape.height + 0.0015, 0]} rotation={[-Math.PI / 2 + shape.tilt, 0, 0]}>
+        <mesh name="Legend" position={[0, shape.height + 0.0015, 0]} rotation={[-Math.PI / 2 + shape.tilt, 0, 0]}>
           <planeGeometry args={[legendWidth, legendDepth]} />
           <meshStandardMaterial
             map={texture}
@@ -392,15 +394,16 @@ export const KeyboardModel: React.FC = () => {
 
   return (
     // Nghiêng nhẹ về phía người gõ như góc gõ thật của vỏ
-    <group rotation={[0.05, 0, 0]}>
+    // Tên các group theo quy ước modelParts.ts (TopCase, Plate, Keycaps…) để nút "Tải file .glb" xuất đúng bộ phận
+    <group name={EXPORT_ROOT_NAME} rotation={[0.05, 0, 0]}>
       {/* LỚP 1: BOTTOM CASE + tạ đồng bên trong + LED hông */}
-      <group ref={bottomCaseRef} position={[0, initial.bottomCase, 0]}>
+      <group ref={bottomCaseRef} name="BottomCase" position={[0, initial.bottomCase, 0]}>
         <mesh geometry={bottomCaseGeometry} castShadow receiveShadow>
           <meshPhysicalMaterial ref={bottomCaseMaterialRef} {...caseRestProps} color={initialCaseColor} />
         </mesh>
 
         {/* Tạ đồng chải xước nằm trong lòng vỏ */}
-        <mesh position={[0, BOTTOM_CASE.yBottom + BOTTOM_CASE.height + 0.012, 0]} receiveShadow>
+        <mesh name="Weight" position={[0, BOTTOM_CASE.yBottom + BOTTOM_CASE.height + 0.012, 0]} receiveShadow>
           <boxGeometry args={[dims.keysWidth * 0.72, 0.024, dims.keysDepth * 0.62]} />
           <meshPhysicalMaterial color="#c79a45" metalness={1} roughness={0.32} clearcoat={0.2} />
         </mesh>
@@ -409,6 +412,7 @@ export const KeyboardModel: React.FC = () => {
         {[-1, 1].map((side) => (
           <mesh
             key={side}
+            name="Detail_Led"
             position={[side * (dims.outerWidth / 2 + 0.024), BOTTOM_CASE.yBottom + BOTTOM_CASE.height - 0.035, 0.12]}
           >
             <boxGeometry args={[0.012, 0.05, ledLength]} />
@@ -428,7 +432,7 @@ export const KeyboardModel: React.FC = () => {
           [-1, 1],
           [1, 1],
         ].map(([sx, sz], i) => (
-          <mesh key={i} position={[sx * (dims.outerWidth / 2 - 0.35), BOTTOM_CASE.yBottom - 0.015, sz * (dims.outerDepth / 2 - 0.3)]}>
+          <mesh key={i} name="Detail_Foot" position={[sx * (dims.outerWidth / 2 - 0.35), BOTTOM_CASE.yBottom - 0.015, sz * (dims.outerDepth / 2 - 0.3)]}>
             <cylinderGeometry args={[0.13, 0.13, 0.03, 24]} />
             <meshStandardMaterial color="#121214" roughness={0.95} />
           </mesh>
@@ -438,7 +442,7 @@ export const KeyboardModel: React.FC = () => {
       </group>
 
       {/* LỚP 2: PCB */}
-      <group ref={pcbRef} position={[0, initial.pcb, 0]}>
+      <group ref={pcbRef} name="PCB" position={[0, initial.pcb, 0]}>
         <mesh castShadow receiveShadow>
           <boxGeometry args={[dims.keysWidth - 0.02, 0.03, dims.keysDepth - 0.02]} />
           <meshStandardMaterial color="#14211a" roughness={0.55} metalness={0.2} />
@@ -447,7 +451,7 @@ export const KeyboardModel: React.FC = () => {
       </group>
 
       {/* LỚP 3: FOAM */}
-      <group ref={foamRef} position={[0, initial.foam, 0]}>
+      <group ref={foamRef} name="Foam" position={[0, initial.foam, 0]}>
         <mesh receiveShadow>
           <boxGeometry args={[dims.keysWidth - 0.04, 0.035, dims.keysDepth - 0.04]} />
           <meshStandardMaterial color="#d6cfc0" roughness={1} />
@@ -456,7 +460,7 @@ export const KeyboardModel: React.FC = () => {
       </group>
 
       {/* LỚP 4: PLATE */}
-      <group ref={plateRef} position={[0, initial.plate, 0]}>
+      <group ref={plateRef} name="Plate" position={[0, initial.plate, 0]}>
         <mesh castShadow receiveShadow>
           <boxGeometry args={[dims.keysWidth + 0.02, 0.04, dims.keysDepth + 0.02]} />
           <meshPhysicalMaterial {...plateMaterialProps} />
@@ -465,13 +469,13 @@ export const KeyboardModel: React.FC = () => {
       </group>
 
       {/* LỚP 5: SWITCHES */}
-      <group ref={switchesRef} position={[0, initial.switches, 0]}>
+      <group ref={switchesRef} name="Switches" position={[0, initial.switches, 0]}>
         <Switches centers={keyPositions} stemColor={SWITCH_STEM[switchType]} />
         <LayerLabel index="05" name="Switch" detail={switchType.replace('_', ' ')} visible={isExploded} x={labelX} />
       </group>
 
       {/* LỚP 6: KEYCAPS */}
-      <group ref={keycapsRef} position={[0, initial.keycaps, 0]}>
+      <group ref={keycapsRef} name="Keycaps" position={[0, initial.keycaps, 0]}>
         {layout.keys.map((key, i) => (
           <Keycap
             key={`${layoutId}-${key.code}`}
@@ -486,7 +490,7 @@ export const KeyboardModel: React.FC = () => {
       </group>
 
       {/* LỚP 7: TOP CASE (khung) */}
-      <group ref={topCaseRef} position={[0, initial.topCase, 0]}>
+      <group ref={topCaseRef} name="TopCase" position={[0, initial.topCase, 0]}>
         <mesh geometry={topCaseGeometry} castShadow receiveShadow>
           <meshPhysicalMaterial ref={topCaseMaterialRef} {...caseRestProps} color={initialCaseColor} />
         </mesh>

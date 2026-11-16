@@ -16,6 +16,9 @@ export interface SoundProfile {
 }
 
 export interface KeyboardState {
+  /** Mẫu bàn phím đang xem (id trong src/lib/keyboard/models.ts) */
+  modelId: string;
+
   // Bố cục & Hình học (Layout & Geometry)
   layout: KeyboardLayout;
   isExploded: boolean;
@@ -44,6 +47,8 @@ export interface KeyboardState {
 }
 
 export interface KeyboardActions {
+  /** Đổi mẫu bàn phím; mẫu .glb có layout cố định nên layout đổi theo */
+  setModel: (modelId: string) => void;
   setLayout: (layout: KeyboardLayout) => void;
   toggleExploded: () => void;
   setExploded: (isExploded: boolean) => void;

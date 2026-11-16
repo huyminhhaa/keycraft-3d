@@ -5,6 +5,7 @@ import { Html } from '@react-three/drei';
 import { useKeyboardStore } from '@/store/useKeyboardStore';
 import { useStageStore } from '@/store/useStageStore';
 import { getLayout } from '@/lib/keyboard/layouts';
+import { getModelEntry } from '@/lib/keyboard/models';
 import { findKeycapSet } from '@/lib/keyboard/keycapSets';
 import type { KeyboardState } from '@/types/keyboard';
 import { CASE_COLORS, CASE_MATERIAL_LABELS } from '@/components/ui/DesignPanel';
@@ -61,7 +62,8 @@ export const buildHotspots = (state: KeyboardState): Hotspot[] => {
 export const Hotspots: React.FC = () => {
   const state = useKeyboardStore();
   const introDone = useStageStore((s) => s.introDone);
-  if (!introDone || state.isExploded) return null;
+  // Vị trí chú thích tính theo mẫu dựng bằng code; file .glb có hình dáng riêng nên không gắn chú thích
+  if (!introDone || state.isExploded || getModelEntry(state.modelId).source === 'glb') return null;
 
   return (
     // Cùng độ nghiêng với vỏ trong KeyboardModel

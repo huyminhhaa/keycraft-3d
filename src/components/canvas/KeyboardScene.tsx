@@ -18,14 +18,42 @@ import { useStageStore } from '@/store/useStageStore';
 import { attachKeyboardListeners } from '@/lib/keyboard/pressedKeys';
 import { INTRO, introPose, orbitAroundY, posedPosition, prefersReducedMotion, turntableStep } from '@/lib/ui/cinematic';
 import type { CameraPreset } from '@/types/keyboard';
+import { getModelEntry } from '@/lib/keyboard/models';
+import { STAGE_FLOOR_Y } from '@/lib/keyboard/gltfModel';
+import { setExportScene } from '@/lib/keyboard/exportGlb';
 import { KeyboardModel } from './KeyboardModel';
+import { GltfKeyboard, ModelErrorBoundary } from './GltfKeyboard';
 import { CanvasLoader } from './CanvasLoader';
 import { BASE_TARGET_Y, CAMERA_FOV, CameraFraming, explodedTargetY } from './CameraFraming';
 import { Hotspots } from './Hotspots';
 
 const TARGET: [number, number, number] = [0, BASE_TARGET_Y, 0];
 /** Mặt bàn: ngay dưới chân cao su (tính cả độ nghiêng của vỏ) */
-const FLOOR_Y = -0.19;
+const FLOOR_Y = STAGE_FLOOR_Y;
+
+/** Gửi scene cho nút "Tải file .glb" ở Sidebar (nằm ngoài Canvas). */
+const ExportSceneHandle: React.FC = () => {
+  const scene = useThree((s) => s.scene);
+  useEffect(() => {
+    setExportScene(scene);
+    return () => setExportScene(null);
+  }, [scene]);
+  return null;
+};
+
+/** Mẫu đang chọn: dựng bằng code, hoặc nạp file .glb (lỗi thì quay về mẫu dựng bằng code). */
+const ActiveKeyboard: React.FC = () => {
+  const modelId = useKeyboardStore((s) => s.modelId);
+  const setModelError = useStageStore((s) => s.setModelError);
+  const entry = getModelEntry(modelId);
+
+  if (entry.source === 'procedural') return <KeyboardModel />;
+  return (
+    <ModelErrorBoundary key={entry.id} fallback={<KeyboardModel />} onError={setModelError}>
+      <GltfKeyboard entry={entry} />
+    </ModelErrorBoundary>
+  );
+};
 
 export const CAMERA_POSITIONS: Record<CameraPreset, [number, number, number]> = {
   perspective: [0, 6.7, 6.3],
@@ -212,11 +240,12 @@ export const KeyboardScene: React.FC = () => {
     >
       <CameraFraming />
       <KeyboardListener />
+      <ExportSceneHandle />
       {/* FPS tụt dưới ngưỡng → tắt hẳn hiệu ứng nặng (không bật lại để tránh nhấp nháy) */}
       <PerformanceMonitor onDecline={() => setHighQuality(false)} onFallback={() => setHighQuality(false)} />
       <Suspense fallback={<CanvasLoader />}>
         <StudioLighting />
-        <KeyboardModel />
+        <ActiveKeyboard />
         <Hotspots />
         <DisplayPlinth highQuality={highQuality} />
         <ContactShadows position={[0, FLOOR_Y + 0.004, 0]} opacity={0.6} scale={16} blur={2.4} far={2.5} resolution={1024} color="#000000" />

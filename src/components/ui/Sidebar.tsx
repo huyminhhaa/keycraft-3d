@@ -1,10 +1,11 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { RotateCcw } from 'lucide-react';
+import { RotateCcw, User, LogOut } from 'lucide-react';
 import { useKeyboardStore } from '@/store/useKeyboardStore';
 import { useStageStore, SidebarTab } from '@/store/useStageStore';
+import { useAuthStore } from '@/store/useAuthStore';
 import { DesignPanel } from './DesignPanel';
 import { SoundPanel } from './SoundPanel';
 import { AIChatPanel } from './AIChatPanel';
@@ -28,12 +29,57 @@ export const Sidebar: React.FC = () => {
   const setTab = useStageStore((s) => s.setActiveTab);
   const resetConfig = useKeyboardStore((s) => s.resetConfig);
 
+  const user = useAuthStore((s) => s.user);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const openModal = useAuthStore((s) => s.openModal);
+  const logout = useAuthStore((s) => s.logout);
+  const checkAuth = useAuthStore((s) => s.checkAuth);
+
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
+
   return (
     <aside id="config-sidebar" aria-label="Cấu hình bàn phím" className="flex min-h-0 flex-col border-line bg-canvas lg:h-dvh lg:border-r">
       <header className="px-5 pb-4 pt-5">
-        <div className="flex items-center gap-2 text-ink">
-          <BrandMark />
-          <span className="text-[14px] font-semibold tracking-tight">KeyCraft</span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-ink">
+            <BrandMark />
+            <span className="text-[14px] font-semibold tracking-tight">KeyCraft</span>
+          </div>
+
+          {/* Auth status trigger */}
+          {isAuthenticated && user ? (
+            <div className="flex items-center gap-2">
+              <div
+                title={user.email}
+                className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 py-1 pl-1.5 pr-2.5 text-xs text-ink/90"
+              >
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent/20 text-[10px] font-bold text-accent">
+                  {user.name.charAt(0).toUpperCase()}
+                </span>
+                <span className="max-w-[100px] truncate text-[11px] font-medium">{user.name}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => logout()}
+                title="Đăng xuất"
+                aria-label="Đăng xuất"
+                className="rounded-full border border-white/5 p-1.5 text-muted hover:border-white/10 hover:bg-white/5 hover:text-ink transition-colors"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => openModal('login')}
+              className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-ink/90 shadow-sm transition-all hover:border-accent/40 hover:bg-accent/10 hover:text-accent"
+            >
+              <User className="h-3 w-3" />
+              <span>Đăng nhập</span>
+            </button>
+          )}
         </div>
         <h1 className="mt-5 text-[20px] font-semibold leading-tight tracking-tight text-ink">
           Bàn phím cơ 3D tự cấu hình
