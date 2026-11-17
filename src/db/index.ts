@@ -10,12 +10,17 @@ const globalForDb = globalThis as unknown as {
   conn: Pool | undefined;
 };
 
+const isCloudOrSsl =
+  Boolean(process.env.DATABASE_URL?.includes('sslmode=require')) ||
+  Boolean(process.env.DATABASE_URL?.includes('neon.tech'));
+
 export const pool =
   globalForDb.conn ??
   new Pool({
     connectionString:
       process.env.DATABASE_URL ||
       'postgresql://keycraft:keycraft_secret@localhost:5432/keycraft_db',
+    ssl: isCloudOrSsl ? { rejectUnauthorized: false } : undefined,
     max: 10,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 5000,
