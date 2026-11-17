@@ -1,3 +1,5 @@
+import { soundEngine } from '@/lib/audio/soundEngine';
+
 /**
  * Kho phím đang nhấn, nằm ngoài React: vòng lặp useFrame của mô hình 3D đọc trực tiếp mỗi khung hình,
  * nên gõ phím không gây re-render giao diện.
@@ -6,6 +8,9 @@
 const pressed = new Set<string>();
 
 export const pressKey = (code: string): void => {
+  if (!pressed.has(code)) {
+    soundEngine.playKeySound(code);
+  }
   pressed.add(code);
 };
 

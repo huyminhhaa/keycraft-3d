@@ -1,7 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
+import { Volume2, VolumeX, Sparkles } from 'lucide-react';
 import { useKeyboardStore } from '@/store/useKeyboardStore';
+import { soundEngine } from '@/lib/audio/soundEngine';
 import { ACOUSTIC_RANGES, describeTone, toMeterPercent } from '@/lib/ui/meter';
 import type { PlateMaterial, SwitchType } from '@/types/keyboard';
 import { ListOption, Section } from './controls';
@@ -56,8 +58,95 @@ export const SoundPanel: React.FC = () => {
   const profile = useKeyboardStore((s) => s.soundProfile);
   const tone = TONE_COPY[describeTone(profile)];
 
+  const [muted, setMutedState] = useState(() => soundEngine.isMuted());
+  const [volume, setVolumeState] = useState(() => Math.round(soundEngine.getVolume() * 100));
+
+  const handleToggleMute = () => {
+    const next = !muted;
+    soundEngine.setMuted(next);
+    setMutedState(next);
+  };
+
+  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const nextVal = Number(e.target.value);
+    setVolumeState(nextVal);
+    soundEngine.setVolume(nextVal / 100);
+    if (muted && nextVal > 0) {
+      soundEngine.setMuted(false);
+      setMutedState(false);
+    }
+  };
+
+  const handleTestKey = (code: string) => {
+    soundEngine.playKeySound(code);
+  };
+
   return (
     <>
+      <Section title="Bộ phát tiếng gõ" value={muted ? 'Tắt tiếng' : `${volume}%`}>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={handleToggleMute}
+              className="flex items-center gap-2 rounded-md border border-line bg-surface px-3 py-1.5 text-[12px] font-medium text-ink transition-colors hover:border-ink"
+            >
+              {muted ? (
+                <>
+                  <VolumeX className="h-3.5 w-3.5 text-muted" />
+                  <span>Bật âm thanh</span>
+                </>
+              ) : (
+                <>
+                  <Volume2 className="h-3.5 w-3.5 text-accent" />
+                  <span>Tắt tiếng</span>
+                </>
+              )}
+            </button>
+
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => handleTestKey('KeyA')}
+                className="btn-press rounded border border-line bg-surface px-2.5 py-1 text-[11px] font-medium text-ink hover:border-ink transition-colors"
+              >
+                Gõ phím A
+              </button>
+              <button
+                type="button"
+                onClick={() => handleTestKey('Space')}
+                className="btn-press rounded border border-line bg-surface px-2.5 py-1 text-[11px] font-medium text-ink hover:border-ink transition-colors"
+              >
+                Gõ Space
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <div className="flex items-center justify-between text-[11px] text-muted">
+              <span>Âm lượng</span>
+              <span className="tabular-nums text-ink">{volume}%</span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={volume}
+              onChange={handleVolumeChange}
+              aria-label="Âm lượng gõ phím"
+              className="w-full accent-ink cursor-pointer"
+            />
+          </div>
+
+          <p className="flex items-start gap-1.5 text-[11px] leading-relaxed text-muted">
+            <Sparkles className="mt-0.5 h-3 w-3 shrink-0 text-amber-400" />
+            <span>
+              Gõ trên bàn phím máy tính thật của bạn hoặc bấm chuột lên phím 3D để nghe âm thanh thời gian thực.
+            </span>
+          </p>
+        </div>
+      </Section>
+
       <Section title="Hồ sơ âm thanh" value={tone.label}>
         <p className="mb-4 text-[14px] text-ink">{tone.sentence}</p>
         <div className="space-y-3.5">

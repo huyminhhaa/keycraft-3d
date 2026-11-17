@@ -21,7 +21,7 @@
 - [x] **3.1b-auth-security:** Xây dựng hệ thống Đăng ký / Đăng nhập hoàn chỉnh: JWT (Access Token + Refresh Token trong `httpOnly` secure cookies), mã hóa mật khẩu (`argon2`/`bcryptjs`), hỗ trợ Social OAuth (Google, GitHub). Tính năng bảo mật Brute-force Shield: theo dõi số lần đăng nhập sai bằng Redis theo IP/Tài khoản, nếu nhập sai quá 3 lần bắt buộc giải thử thách CAPTCHA (Turnstile / Security Challenge) và khóa tạm thời (Lockout) nếu tiếp tục cố tình dò mật khẩu. Kèm unit test toàn diện cho logic xác thực và bảo mật.
 - [ ] **3.2-pgvector-rag:** Tạo script seed dữ liệu đặc tính âm học switch/plate thật kèm vector embedding vào PostgreSQL, tích hợp Semantic Search (`pgvector`) vào công cụ tư vấn của AI Chatbot + viết test kiểm tra truy vấn.
 - [ ] **3.3-community-share-redis:** Xây dựng tính năng "Lưu & Chia sẻ bản Build" (`/api/builds` + trang xem/remix bản build `/build/[slug]`) liên kết với User Profile, dùng Redis để cache danh sách Trending Builds và áp dụng Rate Limiting chống spam cho `/api/chat`.
-- [ ] **3.4-web-audio:** Xây dựng engine Web Audio API (`src/lib/soundEngine.ts`) tổng hợp tiếng gõ phím cơ thời gian thực khi người dùng gõ trên bàn phím thật, tự động biến đổi tần số và độ trầm/đanh theo chất liệu plate (`aluminum` vs `pom`/`fr4`) đang chọn, kèm unit test cho bộ tính toán tham số âm thanh.
+- [x] **3.4-web-audio:** Xây dựng engine Web Audio API (`src/lib/audio/soundEngine.ts`) tổng hợp tiếng gõ phím cơ thời gian thực khi người dùng gõ trên bàn phím thật hoặc click chuột 3D, tự động biến đổi tần số và độ trầm/đanh theo chất liệu plate (`aluminum` Clack vs `pom`/`pc` Deep Thock) và switch (`clicky`, `tactile`, `linear`, `silent`), kèm unit test cho bộ tính toán tham số âm thanh.
 
 ## Chặng 4: Đóng gói Production & Hoàn thiện CV (Dùng Codex Plus + Claude Code Pro review cuối)
 - [ ] **4.1-prod-docker:** Viết Multi-stage `Dockerfile` tối ưu cho Next.js, cập nhật `docker-compose.yml` chạy trọn gói cả 3 container (`app`, `db`, `cache`), viết `README.md` chuẩn chỉnh kèm sơ đồ kiến trúc Mermaid và hướng dẫn chạy 1 lệnh để đưa lên CV.
@@ -235,4 +235,28 @@
   - **Biến môi trường mới:** Không có.
   - **Kết quả xác thực:** `npx tsc --noEmit` (0 lỗi), `npm run lint` (0 lỗi), `npm test -- --run` (165/165, 28 suites). Chạy thật qua Chrome headless: xuất `.glb` → chọn mẫu `.glb` → hiển thị đúng, không báo lỗi, tách lớp đúng (chụp ở 900×600; ở 1440×900 ảnh chụp headless bị kẹt khung cũ do render CPU ~1 FPS, cả mẫu code cũng vậy).
   - **Ghi chú cho AI tiếp theo:** Phần lớn file của task này đã lọt vào commit `624bd97` (task 3.1b, do agent khác commit chung lúc đang làm), cùng khối "nextjs-agent-rules" mà `next dev` tự chèn vào `AGENTS.md`. Chưa làm: chọn mẫu qua AI tool, nhãn tách lớp và đèn LED cho mẫu `.glb`, tên mẫu trên tiêu đề sân khấu (`buildStageTitle` vẫn ghi "KeyCraft <layout>").
-  - **Next Step:** Task **3.2-pgvector-rag**. Landing page (đã chọn hướng "trang giới thiệu mới") còn chờ.
+  - **Next Step:** Task **3.4-web-audio** (Ưu tiên theo yêu cầu người dùng).
+- **[Task 3.4-web-audio] Hoàn thành ngày 17/11/2026:**
+  - **Mô tả:** Xây dựng hoàn chỉnh bộ tổng hợp âm thanh phím cơ thời gian thực (Procedural Web Audio Synthesizer) bằng Web Audio API thuần, độ trễ 0ms (Zero-latency), không cần tải file audio mẫu ngoài:
+    - **Physical Acoustic Simulation:** Mô phỏng âm thanh va đập vật lý đa tầng:
+      + *Layer 1 (Bottom-out Impact):* Sóng tam giác/sin với pitch envelope trượt nhanh giả lập switch chạm đáy plate.
+      + *Layer 2 (Plate Resonance):* `BiquadFilterNode` bandpass biến đổi theo vật liệu plate: Nhôm đanh cao (`aluminum` Clack 680Hz Q=4.5), FR4 giòn cân bằng (520Hz), POM/PC trầm sâu (`pom` Thock 340Hz, `pc` Deep Thock 290Hz).
+      + *Layer 3 (Friction & Air Noise):* White noise burst 30ms qua highpass filter mô phỏng ma sát thanh trượt switch.
+      + *Switch Special Impulses:* Xung kim loại nảy lá đồng tần số 3.2kHz cho switch **Clicky**, xung va khấc đôi 180Hz cho switch **Tactile**, và triệt tiêu noise cắt decay 60% cho switch **Silent linear**.
+      + *Phím lớn (Space, Enter, Backspace, Shift):* Tự động hạ tần số trầm sâu hơn 28% và tăng độ ngân buồng rỗng.
+      + *Micro-variation Jitter:* Chống hiện tượng Machine Gun Effect bằng cách áp dụng jitter ngẫu nhiên vi mô ($\pm 2\%$ pitch, $\pm 5\%$ gain).
+    - **Tương tác 2 chiều:** Gõ trên bàn phím máy tính thật hoặc click chuột lên mô hình keycap 3D đều tự động phát ra âm thanh tức thì.
+    - **UI Sound Controls:** Tích hợp khối điều khiển âm thanh trong `SoundPanel.tsx`: Bật/Tắt âm thanh (Mute/Unmute), thanh trượt âm lượng (Volume 0-100%), nút gõ thử phím A và phím Space trực tiếp trên giao diện.
+  - **File đã tạo:**
+    - `src/lib/audio/soundEngine.ts`: Singleton engine tổng hợp âm thanh Web Audio API procedural.
+    - `src/lib/audio/soundEngine.test.ts`: Bộ 10 unit tests kiểm tra phím lớn, volume clamping, mute state, các loại plate và switch.
+    - `docs/theory/13-web-audio-procedural-synthesizer.md`: Tài liệu bách khoa công nghệ 5 phần chuẩn Dual-Output Learning Mode.
+  - **File đã sửa:**
+    - `src/lib/keyboard/pressedKeys.ts`: Gọi `soundEngine.playKeySound(code)` khi nhấn phím (phím thật hoặc click 3D).
+    - `src/components/ui/SoundPanel.tsx`: Thêm mục "Bộ phát tiếng gõ" với công tắc mute, slider volume và nút gõ thử.
+    - `PROGRESS.md`: Đánh dấu `[x]` Task 3.4.
+  - **Biến môi trường mới:** Không có.
+  - **Kết quả xác thực:** Đạt 100% xanh cả 3 lệnh: `npx tsc --noEmit` (0 lỗi), `npm run lint` (0 lỗi, 0 warnings), `npm test -- --run` (**175/175 tests passed** trên 29 test suites).
+  - **Next Step:** Theo thứ tự đã thống nhất với chủ dự án:
+    1. Bước 3: Làm trang giới thiệu (Landing Page).
+    2. Bước 4: Làm task 3.2 (`pgvector` RAG) và task 3.3 (Lưu & Chia sẻ bản build qua Redis/Postgres).
