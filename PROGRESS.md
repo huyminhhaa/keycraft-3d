@@ -14,6 +14,7 @@
 - [x] **2.1d-cinematic-stage:** Giữ bố cục 2.1c, thêm lớp hoàn thiện kiểu trang sản phẩm Apple/Sony: camera lướt vào khi mở trang, bàn xoay 360° (theo thời gian, có nút dừng), sàn phản chiếu mờ dần, ambient occlusion, màu vỏ/keycap đổi dần, tiêu đề sản phẩm chữ lớn, thanh công cụ kính mờ bo tròn, tự hạ chất lượng trên máy yếu.
 - [x] **2.2-chat-ui:** Dựng giao diện AI Acoustic Architect dạng MotionSites.ai Cinematic Floating Glassmorphism panel (spring-physics qua Framer Motion, glowing reactive borders, sound wave visualizer) đồng bộ thời gian thực với Zustand store và hiển thị trạng thái trực quan mỗi khi AI thực thi lệnh biến đổi bàn phím 3D.
 - [x] **2.2b-stage-fill:** Nút thu/mở thanh cấu hình, bệ trưng bày tròn thay sàn phản chiếu lộ mép, điểm chú thích "+" gắn trên mô hình, luồng đèn rọi.
+- [x] **2.3-model-library:** Thư viện mẫu bàn phím: danh mục mẫu (Zod), nạp file `.glb` theo quy ước tên bộ phận (tách lớp, nhấn phím, đổi màu), nút xuất mẫu dựng bằng code ra `.glb` để mở bằng Blender, file mẫu `public/models/keycraft-starter.glb`.
 
 ## Chặng 3: Docker, PostgreSQL (`pgvector`), Redis, Authentication & Web Audio (Dùng Codex Plus)
 - [x] **3.1-docker-infra:** Tạo `docker-compose.yml` chạy `pgvector/pgvector:pg17` và `redis:7-alpine`. Cài đặt `drizzle-orm`, `pg`, `ioredis` và tạo schema (`src/db/schema.ts`) gồm bảng `users`, bảng `hardware_components` (có cột `vector(768)` cho RAG) và bảng `builds` (lưu cấu hình 3D dạng `JSONB` + user_id liên kết + slug chia sẻ).
@@ -222,3 +223,16 @@
   - **Biến môi trường mới:** Không có (đã có sẵn trong `.env.example`).
   - **Kết quả xác thực:** Đạt 100% xanh cả 3 lệnh: `npx tsc --noEmit` (0 lỗi), `npm run lint` (0 lỗi, 0 warnings), `npm test -- --run` (**165/165 tests passed** trên 28 test suites), `npm run build` thành công.
   - **Next Step:** Sẵn sàng cho **Task 3.2-pgvector-rag** (Tạo script seed dữ liệu đặc tính âm học switch/plate thật kèm vector embedding vào PostgreSQL, tích hợp Semantic Search `pgvector` vào công cụ tư vấn của AI Chatbot + viết test kiểm tra truy vấn).
+- **[Task 2.3-model-library] Hoàn thành ngày 17/11/2026:**
+  - **Mô tả:** Chủ dự án muốn đưa nhiều mẫu bàn phím thật (Aurora 80, AULA F75, Wave75, Nut75…) lên web nhưng chưa có file 3D và chưa biết dựng 3D. Code không tự tạo được mô hình giống thật 100%, nên task dựng **khung nạp mẫu** + lộ trình tự học Blender:
+    - Danh mục mẫu `src/lib/keyboard/models.ts` (Zod `discriminatedUnion`: `procedural` | `glb` với `url`, `layout`, `recolor`, `credit`; báo lỗi khi id trùng/url sai).
+    - Quy ước tên bộ phận `src/lib/keyboard/modelParts.ts`: `TopCase`, `BottomCase`, `Weight`, `PCB`, `Foam`, `Plate`, `Switches`, `Keycaps`, `Keycap_<KeyboardEvent.code>_<alpha|modifier|accent>`, `Legend`, `Detail_*`.
+    - `GltfKeyboard.tsx`: nạp `.glb` bằng `useGLTF`, tự canh cỡ (`fitToStage`), tách lớp + nhấn phím (`applyNodePositions`), đổi màu/chất liệu khi `recolor`. `ModelErrorBoundary`: file lỗi → hiện mẫu code + báo lỗi trong Sidebar.
+    - Nút "Tải file .glb để mở bằng Blender" (DesignPanel) xuất bàn phím đang hiện bằng `GLTFExporter`; mẫu code đặt tên group/mesh theo quy ước.
+    - Store: `modelId`, `setModel`; mẫu `.glb` khoá layout (kể cả khi AI đề xuất layout khác). Hotspots ẩn với mẫu `.glb`.
+  - **File đã tạo:** `src/lib/keyboard/models.ts` (+ test), `src/lib/keyboard/modelParts.ts` (+ test), `src/lib/keyboard/gltfModel.ts` (+ test), `src/lib/keyboard/exportGlb.ts`, `src/components/canvas/GltfKeyboard.tsx`, `public/models/keycraft-starter.glb` (1.2 MB, xuất bằng chính nút xuất qua Chrome headless), `docs/theory/12-keyboard-model-library-glb.md`.
+  - **File đã sửa:** `src/types/keyboard.ts`, `src/store/useKeyboardStore.ts` (+ test), `src/store/useStageStore.ts` (`modelError`), `src/components/canvas/KeyboardModel.tsx` (tên bộ phận, export `getPlateMaterialProps`), `KeyboardScene.tsx` (`ActiveKeyboard`, `ExportSceneHandle`, `STAGE_FLOOR_Y`), `Hotspots.tsx`, `src/components/ui/DesignPanel.tsx` (mục "Mẫu bàn phím"), `PROGRESS.md`.
+  - **Biến môi trường mới:** Không có.
+  - **Kết quả xác thực:** `npx tsc --noEmit` (0 lỗi), `npm run lint` (0 lỗi), `npm test -- --run` (165/165, 28 suites). Chạy thật qua Chrome headless: xuất `.glb` → chọn mẫu `.glb` → hiển thị đúng, không báo lỗi, tách lớp đúng (chụp ở 900×600; ở 1440×900 ảnh chụp headless bị kẹt khung cũ do render CPU ~1 FPS, cả mẫu code cũng vậy).
+  - **Ghi chú cho AI tiếp theo:** Phần lớn file của task này đã lọt vào commit `624bd97` (task 3.1b, do agent khác commit chung lúc đang làm), cùng khối "nextjs-agent-rules" mà `next dev` tự chèn vào `AGENTS.md`. Chưa làm: chọn mẫu qua AI tool, nhãn tách lớp và đèn LED cho mẫu `.glb`, tên mẫu trên tiêu đề sân khấu (`buildStageTitle` vẫn ghi "KeyCraft <layout>").
+  - **Next Step:** Task **3.2-pgvector-rag**. Landing page (đã chọn hướng "trang giới thiệu mới") còn chờ.
