@@ -15,7 +15,8 @@ export const pressKey = (code: string): void => {
 };
 
 export const releaseKey = (code: string): void => {
-  pressed.delete(code);
+  // Chỉ phát tiếng nhả khi phím thật sự đang nhấn (rê chuột ra khỏi keycap cũng gọi releaseKey)
+  if (pressed.delete(code)) soundEngine.playKeyUp();
 };
 
 export const releaseAllKeys = (): void => {

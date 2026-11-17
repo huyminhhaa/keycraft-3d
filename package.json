@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest"
+    "test": "vitest",
+    "sounds": "tsx scripts/sounds/make-pack.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.121",

@@ -1,8 +1,11 @@
 /**
- * KeyCraft 3D - Procedural Web Audio Key Sound Synthesizer
+ * KeyCraft 3D - Bộ phát tiếng gõ phím
  * -----------------------------------------------------------------------------
- * Bộ tổng hợp âm thanh phím cơ thời gian thực bằng Web Audio API thuần (Procedural Audio).
- * Không cần tải file audio mẫu ngoài (.mp3/.wav), độ trễ 0ms (zero-latency).
+ * Ưu tiên phát **bản thu thật** (gói âm thanh cắt từ video sound test, xem soundPacks.ts và
+ * scripts/sounds/make-pack.ts): mỗi lần gõ chọn ngẫu nhiên một biến thể, lệch nhẹ tốc độ/âm lượng
+ * để không nghe như súng máy; nhả phím phát tiếng nhả.
+ *
+ * Chưa có gói nào (chưa chạy `npm run sounds`) thì dùng bộ tổng hợp procedural bên dưới:
  *
  * Âm thanh được mô phỏng vật lý đa thành phần:
  * 1. Bottom-out Impact: Sóng tam giác/sin tần số thấp mô tả switch chạm đáy plate.
@@ -17,6 +20,23 @@
 
 import { PlateMaterial, SwitchType, SoundProfile } from '@/types/keyboard';
 import { useKeyboardStore } from '@/store/useKeyboardStore';
+import {
+  SOUND_ROOT,
+  packManifestSchema,
+  pickVariant,
+  planForKey,
+  type PackManifest,
+  type SoundCategory,
+} from './soundPacks';
+
+interface LoadedPack {
+  id: string;
+  buffers: Record<SoundCategory, AudioBuffer[]>;
+}
+
+const CATEGORIES: SoundCategory[] = ['alpha', 'space', 'up'];
+/** Tiếng nhả phím nhỏ hơn tiếng nhấn */
+const UP_GAIN = 0.7;
 
 export interface SoundEngineOptions {
   volume?: number; // 0.0 -> 1.0 (mặc định 0.7)
@@ -29,6 +49,10 @@ class SoundEngine {
   private volume: number = 0.7;
   private muted: boolean = false;
   private initialized: boolean = false;
+  private pack: LoadedPack | null = null;
+  /** Mỗi lần gọi loadPack tăng số này: kết quả của lần gọi cũ về muộn thì bỏ */
+  private packRequest = 0;
+  private lastVariant: Record<SoundCategory, number> = { alpha: -1, space: -1, up: -1 };
 
   constructor(options?: SoundEngineOptions) {
     if (options?.volume !== undefined) this.volume = Math.max(0, Math.min(1, options.volume));
@@ -61,7 +85,8 @@ class SoundEngine {
     }
 
     if (this.ctx && this.ctx.state === 'suspended') {
-      void this.ctx.resume();
+      // Chưa có thao tác của người dùng thì trình duyệt từ chối resume: lần gõ phím kế tiếp sẽ thử lại
+      this.ctx.resume().catch(() => undefined);
     }
 
     return this.ctx;
@@ -91,6 +116,69 @@ class SoundEngine {
 
   public isReady(): boolean {
     return this.initialized && this.ctx !== null;
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /* Bản thu thật                                                              */
+  /* ------------------------------------------------------------------------ */
+
+  /** Tải và giải mã toàn bộ đoạn tiếng của một gói. `null` = bỏ gói, quay về tiếng tổng hợp. */
+  public async loadPack(id: string | null): Promise<PackManifest | null> {
+    const request = ++this.packRequest;
+    if (!id) {
+      this.pack = null;
+      return null;
+    }
+    const ctx = this.initContext();
+    if (!ctx) throw new Error('Trình duyệt không hỗ trợ Web Audio');
+
+    const response = await fetch(`${SOUND_ROOT}/${id}/pack.json`);
+    if (!response.ok) throw new Error(`Không tìm thấy gói âm thanh "${id}"`);
+    const manifest = packManifestSchema.parse(await response.json());
+
+    const decode = async (file: string): Promise<AudioBuffer> => {
+      const clip = await fetch(`${SOUND_ROOT}/${id}/${file}`);
+      if (!clip.ok) throw new Error(`Thiếu file ${file} trong gói "${id}"`);
+      return ctx.decodeAudioData(await clip.arrayBuffer());
+    };
+    const decoded = await Promise.all(CATEGORIES.map((category) => Promise.all(manifest.clips[category].map(decode))));
+
+    if (request === this.packRequest) {
+      this.pack = { id, buffers: { alpha: decoded[0], space: decoded[1], up: decoded[2] } };
+      this.lastVariant = { alpha: -1, space: -1, up: -1 };
+    }
+    return manifest;
+  }
+
+  public getLoadedPackId(): string | null {
+    return this.pack?.id ?? null;
+  }
+
+  /** Phát một biến thể của nhóm; false nếu chưa có gói hoặc nhóm rỗng. */
+  private playSample(category: SoundCategory, rate: number, gain: number): boolean {
+    const list = this.pack?.buffers[category];
+    if (!list || list.length === 0 || !this.ctx || !this.masterGain) return false;
+
+    const index = pickVariant(list.length, this.lastVariant[category]);
+    this.lastVariant[category] = index;
+
+    const source = this.ctx.createBufferSource();
+    source.buffer = list[index];
+    // Lệch ±1.5% tốc độ và tới −8% âm lượng: hai lần gõ cùng một đoạn vẫn nghe khác nhau chút ít như tay người
+    source.playbackRate.value = rate * (0.985 + Math.random() * 0.03);
+    const amp = this.ctx.createGain();
+    amp.gain.value = gain * (0.92 + Math.random() * 0.08);
+    source.connect(amp);
+    amp.connect(this.masterGain);
+    source.start();
+    return true;
+  }
+
+  /** Tiếng nhả phím (chỉ có khi gói có bản thu tiếng nhả). */
+  public playKeyUp(): void {
+    if (this.muted || !this.pack) return;
+    if (!this.initContext()) return;
+    this.playSample('up', 1, UP_GAIN);
   }
 
   /**
@@ -125,6 +213,13 @@ class SoundEngine {
 
     const ctx = this.initContext();
     if (!ctx || !this.masterGain) return;
+
+    // Có bản thu thật thì phát bản thu. customConfig (trang giới thiệu so sánh plate) vẫn dùng tiếng tổng hợp.
+    if (this.pack && !customConfig) {
+      const buffers = this.pack.buffers;
+      const plan = planForKey(code, { alpha: buffers.alpha.length, space: buffers.space.length, up: buffers.up.length });
+      if (this.playSample(plan.category, plan.rate, 1)) return;
+    }
 
     const store = useKeyboardStore.getState();
     const plate = customConfig?.plateMaterial ?? store.plateMaterial;

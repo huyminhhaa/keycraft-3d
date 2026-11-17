@@ -4,6 +4,8 @@ import React, { useState } from 'react';
 import { Volume2, VolumeX, Sparkles } from 'lucide-react';
 import { useKeyboardStore } from '@/store/useKeyboardStore';
 import { soundEngine } from '@/lib/audio/soundEngine';
+import { NOISY_PACK } from '@/lib/audio/soundPacks';
+import { useSoundStore } from '@/store/useSoundStore';
 import { ACOUSTIC_RANGES, describeTone, toMeterPercent } from '@/lib/ui/meter';
 import type { PlateMaterial, SwitchType } from '@/types/keyboard';
 import { ListOption, Section } from './controls';
@@ -50,7 +52,51 @@ const Meter: React.FC<MeterProps> = ({ label, value, percent }) => (
   </div>
 );
 
+/** Chọn bản thu tiếng gõ thật (gói cắt từ video sound test). */
+const RecordingSection: React.FC = () => {
+  const packs = useSoundStore((s) => s.packs);
+  const selectedId = useSoundStore((s) => s.selectedId);
+  const status = useSoundStore((s) => s.status);
+  const error = useSoundStore((s) => s.error);
+  const selectPack = useSoundStore((s) => s.selectPack);
+  const selected = packs.find((p) => p.id === selectedId);
+
+  const value =
+    status === 'loading' ? 'Đang tải' : status === 'none' ? 'Chưa có' : status === 'error' ? 'Lỗi' : selected?.name;
+
+  return (
+    <Section title="Tiếng gõ thật" value={value}>
+      {status === 'none' ? (
+        <p className="text-[12px] leading-relaxed text-muted">
+          Chưa có bản thu nào nên đang dùng tiếng tổng hợp. Chạy <code className="text-ink">npm run sounds</code> để tải
+          tiếng gõ thật từ các video sound test, rồi tải lại trang.
+        </p>
+      ) : (
+        <>
+          <div className="space-y-1">
+            {packs.map((pack) => (
+              <ListOption
+                key={pack.id}
+                label={pack.name}
+                detail={pack.noise !== undefined && pack.noise > NOISY_PACK ? `${pack.switch}, nhiều tạp âm` : pack.switch}
+                selected={pack.id === selectedId}
+                onSelect={() => void selectPack(pack.id)}
+              />
+            ))}
+          </div>
+          <p className="mt-3 text-[12px] leading-relaxed text-muted">
+            {status === 'error'
+              ? `Không tải được bản thu: ${error}`
+              : 'Tiếng phát ra là bản thu của chính bàn phím và switch này. Plate và switch bên dưới chỉ đổi mô hình 3D.'}
+          </p>
+        </>
+      )}
+    </Section>
+  );
+};
+
 export const SoundPanel: React.FC = () => {
+  const realSound = useSoundStore((s) => s.status === 'ready');
   const plateMaterial = useKeyboardStore((s) => s.plateMaterial);
   const setPlateMaterial = useKeyboardStore((s) => s.setPlateMaterial);
   const switchType = useKeyboardStore((s) => s.switchType);
@@ -147,14 +193,19 @@ export const SoundPanel: React.FC = () => {
         </div>
       </Section>
 
-      <Section title="Hồ sơ âm thanh" value={tone.label}>
-        <p className="mb-4 text-[14px] text-ink">{tone.sentence}</p>
-        <div className="space-y-3.5">
-          <Meter label="Cao độ" value={`${formatValue(profile.pitchMultiplier)}×`} percent={toMeterPercent(profile.pitchMultiplier, ACOUSTIC_RANGES.pitch)} />
-          <Meter label="Độ vang" value={formatValue(profile.resonance)} percent={toMeterPercent(profile.resonance, ACOUSTIC_RANGES.resonance)} />
-          <Meter label="Độ tắt tiếng" value={formatValue(profile.damping)} percent={toMeterPercent(profile.damping, ACOUSTIC_RANGES.damping)} />
-        </div>
-      </Section>
+      <RecordingSection />
+
+      {/* Thông số này điều khiển tiếng tổng hợp: chỉ hiện khi chưa có bản thu thật */}
+      {!realSound && (
+        <Section title="Hồ sơ âm thanh" value={tone.label}>
+          <p className="mb-4 text-[14px] text-ink">{tone.sentence}</p>
+          <div className="space-y-3.5">
+            <Meter label="Cao độ" value={`${formatValue(profile.pitchMultiplier)}×`} percent={toMeterPercent(profile.pitchMultiplier, ACOUSTIC_RANGES.pitch)} />
+            <Meter label="Độ vang" value={formatValue(profile.resonance)} percent={toMeterPercent(profile.resonance, ACOUSTIC_RANGES.resonance)} />
+            <Meter label="Độ tắt tiếng" value={formatValue(profile.damping)} percent={toMeterPercent(profile.damping, ACOUSTIC_RANGES.damping)} />
+          </div>
+        </Section>
+      )}
 
       <Section title="Plate" value={PLATE_OPTIONS.find((p) => p.id === plateMaterial)?.name}>
         <div className="space-y-1">

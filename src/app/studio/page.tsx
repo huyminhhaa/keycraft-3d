@@ -1,7 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import dynamic from 'next/dynamic';
+import { useSoundStore } from '@/store/useSoundStore';
 import { Sidebar } from '@/components/ui/Sidebar';
 import { StageOverlay } from '@/components/ui/StageOverlay';
 import { AuthModal } from '@/components/ui/AuthModal';
@@ -23,6 +24,11 @@ const KeyboardScene = dynamic(() => import('@/components/canvas/KeyboardScene'),
 
 export default function StudioPage() {
   const sidebarOpen = useStageStore((s) => s.sidebarOpen);
+
+  // Tải sẵn gói tiếng gõ thật để lần gõ đầu tiên đã có tiếng
+  useEffect(() => {
+    void useSoundStore.getState().loadIndex();
+  }, []);
 
   return (
     <main

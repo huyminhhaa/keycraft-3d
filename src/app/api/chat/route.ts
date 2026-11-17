@@ -2,12 +2,38 @@ import { streamText, stepCountIs } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { keyboardTools } from '@/lib/ai/keyboardTools';
 import { KEYBOARD_ARCHITECT_SYSTEM_PROMPT } from '@/lib/ai/prompts';
+import { checkAIRateLimit } from '@/lib/ai/rateLimiter';
 
 // Cho phép streaming responses lên tới 60 giây
 export const maxDuration = 60;
 
 export async function POST(req: Request) {
   try {
+    // 1. Áp dụng Rate Limiting chống spam theo IP qua Redis
+    const clientIp =
+      req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+      req.headers.get('x-real-ip') ||
+      '127.0.0.1';
+
+    const rateLimit = await checkAIRateLimit(clientIp);
+    if (!rateLimit.success) {
+      return new Response(
+        JSON.stringify({
+          error: `Bạn đã gửi quá nhiều yêu cầu đến AI Acoustic Architect trong thời gian ngắn. Vui lòng thử lại sau ${rateLimit.resetInSeconds} giây.`,
+        }),
+        {
+          status: 429,
+          headers: {
+            'Content-Type': 'application/json',
+            'Retry-After': String(rateLimit.resetInSeconds),
+            'X-RateLimit-Limit': String(rateLimit.limit),
+            'X-RateLimit-Remaining': String(rateLimit.remaining),
+            'X-RateLimit-Reset': String(rateLimit.resetInSeconds),
+          },
+        }
+      );
+    }
+
     const { messages } = await req.json();
 
     const apiKey =

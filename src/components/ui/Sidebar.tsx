@@ -1,15 +1,16 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { RotateCcw, User, LogOut } from 'lucide-react';
+import { RotateCcw, User, LogOut, Share2 } from 'lucide-react';
 import { useKeyboardStore } from '@/store/useKeyboardStore';
 import { useStageStore, SidebarTab } from '@/store/useStageStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { DesignPanel } from './DesignPanel';
 import { SoundPanel } from './SoundPanel';
 import { AIChatPanel } from './AIChatPanel';
+import { SaveBuildModal } from './SaveBuildModal';
 
 const TABS: { id: SidebarTab; label: string }[] = [
   { id: 'design', label: 'Thiết kế' },
@@ -26,6 +27,7 @@ const BrandMark: React.FC = () => (
 );
 
 export const Sidebar: React.FC = () => {
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const tab = useStageStore((s) => s.activeTab);
   const setTab = useStageStore((s) => s.setActiveTab);
   const resetConfig = useKeyboardStore((s) => s.resetConfig);
@@ -136,7 +138,7 @@ export const Sidebar: React.FC = () => {
         </div>
       </div>
 
-      <footer className="border-t border-line px-5 py-3">
+      <footer className="flex items-center justify-between border-t border-line px-5 py-3">
         <button
           type="button"
           onClick={resetConfig}
@@ -145,7 +147,18 @@ export const Sidebar: React.FC = () => {
           <RotateCcw className="h-3.5 w-3.5" aria-hidden />
           Đặt lại cấu hình
         </button>
+
+        <button
+          type="button"
+          onClick={() => setIsSaveModalOpen(true)}
+          className="btn-press inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-3 py-1.5 text-[12px] font-medium text-cyan-400 hover:bg-cyan-500/20 transition-all lg:min-h-9"
+        >
+          <Share2 className="h-3.5 w-3.5" />
+          <span>Lưu & Chia sẻ</span>
+        </button>
       </footer>
+
+      <SaveBuildModal isOpen={isSaveModalOpen} onClose={() => setIsSaveModalOpen(false)} />
     </aside>
   );
 };

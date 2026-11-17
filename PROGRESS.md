@@ -20,8 +20,9 @@
 - [x] **3.1-docker-infra:** Tạo `docker-compose.yml` chạy `pgvector/pgvector:pg17` và `redis:7-alpine`. Cài đặt `drizzle-orm`, `pg`, `ioredis` và tạo schema (`src/db/schema.ts`) gồm bảng `users`, bảng `hardware_components` (có cột `vector(768)` cho RAG) và bảng `builds` (lưu cấu hình 3D dạng `JSONB` + user_id liên kết + slug chia sẻ).
 - [x] **3.1b-auth-security:** Xây dựng hệ thống Đăng ký / Đăng nhập hoàn chỉnh: JWT (Access Token + Refresh Token trong `httpOnly` secure cookies), mã hóa mật khẩu (`argon2`/`bcryptjs`), hỗ trợ Social OAuth (Google, GitHub). Tính năng bảo mật Brute-force Shield: theo dõi số lần đăng nhập sai bằng Redis theo IP/Tài khoản, nếu nhập sai quá 3 lần bắt buộc giải thử thách CAPTCHA (Turnstile / Security Challenge) và khóa tạm thời (Lockout) nếu tiếp tục cố tình dò mật khẩu. Kèm unit test toàn diện cho logic xác thực và bảo mật.
 - [x] **3.2-pgvector-rag:** Tạo script seed dữ liệu đặc tính âm học switch/plate thật kèm vector embedding vào PostgreSQL, tích hợp Semantic Search (`pgvector`) vào công cụ tư vấn của AI Chatbot + viết test kiểm tra truy vấn.
-- [ ] **3.3-community-share-redis:** Xây dựng tính năng "Lưu & Chia sẻ bản Build" (`/api/builds` + trang xem/remix bản build `/build/[slug]`) liên kết với User Profile, dùng Redis để cache danh sách Trending Builds và áp dụng Rate Limiting chống spam cho `/api/chat`.
+- [x] **3.3-community-share-redis:** Xây dựng tính năng "Lưu & Chia sẻ bản Build" (`/api/builds` + trang xem/remix bản build `/build/[slug]`) liên kết với User Profile, dùng Redis để cache danh sách Trending Builds và áp dụng Rate Limiting chống spam cho `/api/chat`.
 - [x] **3.4-web-audio:** Xây dựng engine Web Audio API (`src/lib/audio/soundEngine.ts`) tổng hợp tiếng gõ phím cơ thời gian thực khi người dùng gõ trên bàn phím thật hoặc click chuột 3D, tự động biến đổi tần số và độ trầm/đanh theo chất liệu plate (`aluminum` Clack vs `pom`/`pc` Deep Thock) và switch (`clicky`, `tactile`, `linear`, `silent`), kèm unit test cho bộ tính toán tham số âm thanh.
+- [x] **3.4b-real-sound-packs:** Thay tiếng tổng hợp bằng bản thu thật: script `npm run sounds` tải video sound test (yt-dlp + ffmpeg), tự cắt từng tiếng gõ thành gói âm thanh; engine phát biến thể ngẫu nhiên + tiếng nhả phím; chọn gói trong tab Âm thanh.
 
 ## Chặng 4: Đóng gói Production & Hoàn thiện CV (Dùng Codex Plus + Claude Code Pro review cuối)
 - [ ] **4.1-prod-docker:** Viết Multi-stage `Dockerfile` tối ưu cho Next.js, cập nhật `docker-compose.yml` chạy trọn gói cả 3 container (`app`, `db`, `cache`), viết `README.md` chuẩn chỉnh kèm sơ đồ kiến trúc Mermaid và hướng dẫn chạy 1 lệnh để đưa lên CV.
@@ -298,3 +299,37 @@
   - **Biến môi trường mới:** Không có (đã có sẵn trong `.env.example`).
   - **Kết quả xác thực:** Đạt 100% xanh cả 3 lệnh: `npx tsc --noEmit` (0 lỗi), `npm run lint` (0 lỗi, 0 warnings), `npm test -- --run` (**193/193 tests passed** trên 32 test suites), `npm run build` thành công.
   - **Next Step:** Tiến hành **Task 3.3-community-share-redis** (Xây dựng tính năng "Lưu & Chia sẻ bản Build" `/api/builds` + trang xem/remix bản build `/build/[slug]`, cache Trending Builds qua Redis và Rate Limiting chống spam cho `/api/chat`).
+- **[Task 3.4b-real-sound-packs] Hoàn thành ngày 17/11/2026:**
+  - **Mô tả:** Chủ dự án (chơi phím 4–5 năm) thấy tiếng tổng hợp của 3.4 không giống phím thật, yêu cầu dùng tiếng thật lấy từ video YouTube (dùng cá nhân để học). Đã làm:
+    - Script `npm run sounds` (`scripts/sounds/make-pack.ts`): `yt-dlp` tải tiếng → `ffmpeg` ra PCM mono 48kHz → `src/lib/audio/slicer.ts` tìm tiếng gõ, cắt, chọn 16 tiếng phím thường / ≤6 phím cách / 10 tiếng nhả, chuẩn hoá âm lượng → ghi WAV + `pack.json` vào `public/sounds/<id>/`, danh sách ở `public/sounds/index.json`.
+    - 10 gói từ `scripts/sounds/sources.json`: AULA F75 (Reaper, Ice Vein), AULA F99 Pro (Asura), Leobog Hi75 (Vertex V1), Leobog Hi75C Pro, Weikav Lucky65 V2 (Creamy Yellow, Husky, Turtle Silent), MCHOSE Ace 68 Turbo, Attack Shark X85.
+    - `soundEngine`: `loadPack()` giải mã sẵn cả gói, phát biến thể ngẫu nhiên không lặp, lệch ±1.5% tốc độ; `playKeyUp()` khi nhả phím. Chưa có gói hoặc có `customConfig` (nút so sánh plate trên landing) thì vẫn dùng tiếng tổng hợp.
+    - `useSoundStore`: nạp danh sách khi mở `/studio`, nhớ gói đã chọn (localStorage). Tab Âm thanh có mục "Tiếng gõ thật"; ẩn "Hồ sơ âm thanh" khi đang phát bản thu.
+  - **File đã tạo:** `src/lib/audio/slicer.ts` (+ test), `src/lib/audio/soundPacks.ts` (+ test), `src/lib/audio/soundEngine.pack.test.ts`, `src/store/useSoundStore.ts`, `scripts/sounds/make-pack.ts`, `scripts/sounds/sources.json`, `docs/theory/16-real-keyboard-sound-packs.md`.
+  - **File đã sửa:** `src/lib/audio/soundEngine.ts`, `src/lib/keyboard/pressedKeys.ts` (tiếng nhả), `src/components/ui/SoundPanel.tsx`, `src/app/studio/page.tsx`, `package.json` (script `sounds`), `.gitignore` (`/public/sounds/`), `PROGRESS.md`.
+  - **Biến môi trường mới:** Không có. Cần `yt-dlp` và `ffmpeg` trong PATH để chạy `npm run sounds`.
+  - **Kết quả xác thực:** `npx tsc --noEmit` (0 lỗi), `npm run lint` (0 lỗi), `npm test -- --run` (213/213, 35 suites). Soi dạng sóng của từng gói bằng `ffmpeg showwavespic`. Chạy `/studio` trên Chrome headless: 65 file âm thanh tải 200, chọn gói và gõ phím không lỗi. **Chưa nghe bằng tai**: chủ dự án cần nghe và báo gói nào sai.
+  - **Ghi chú cho AI tiếp theo:** `public/sounds/` không có trong git, clone mới phải chạy `npm run sounds`. 3 gói có chỉ số `noise` > 0.02 (Hi75 Vertex, Turtle Silent, MCHOSE) bị gắn nhãn "nhiều tạp âm", nên thay video. Lúc kiểm tra thấy lỗi hydration ở link "Về trang chủ" trong `Sidebar.tsx` (server trả `<div>`, client `<a>`) trên dev server cổng 3000 đang chạy sẵn, nhiều khả năng do server dùng bản dựng cũ; chưa sửa.
+- **[Task 3.3-community-share-redis] Hoàn thành ngày 17/11/2026:**
+  - **Mô tả:** Xây dựng hoàn chỉnh hệ thống Lưu & Chia sẻ bản build 3D cộng đồng, Redis Caching và AI Rate Limiting chống spam:
+    - **AI Rate Limiter (`src/lib/ai/rateLimiter.ts`):** Thuật toán Fixed-Window Counter kết hợp Redis `INCR` và `EXPIRE` (10 requests/60s per IP) kèm in-memory fallback, chặn spam API token và trả về `HTTP 429 Too Many Requests`.
+    - **Build Service Layer (`src/lib/builds/buildService.ts`):** Sinh slug chuẩn SEO không dấu tiếng Việt (`slugify`), lưu trữ cấu hình 3D nguyên bản dạng `JSONB` trong PostgreSQL, áp dụng mô hình Redis Cache-Aside Pattern (TTL 60s cho Trending Builds, TTL 300s cho chi tiết build) kèm Cache Invalidation tự động (`redis.del`).
+    - **Builds API Routes:** Đầy đủ 2 endpoints: `GET/POST /api/builds` (hỗ trợ phân trang limit/offset, liên kết userId qua JWT cookie) và `GET/POST /api/builds/[slug]` (xem chi tiết, tự động tăng view_count và xử lý remix/fork bản build).
+    - **Giao diện Lưu & Chia sẻ (`SaveBuildModal.tsx` & `Sidebar.tsx`):** Thêm nút "Lưu & Chia sẻ" trong footer Sidebar, mở modal dark luxury cho phép đặt tên, viết mô tả, lưu build và copy link chia sẻ tức thì.
+    - **Trang Chi Tiết & Remix 3D (`/build/[slug]`):** Ứng dụng Next.js 16 Partial Prerendering (PPR) với `<Suspense>`, hiển thị 3D Scene tương tác với đúng cấu hình bản build, thẻ nghe thử âm thanh thời gian thực (Zero-latency Web Audio API) và nút "Remix trong Studio" đưa cấu hình về `/studio`.
+  - **File đã tạo:**
+    - `src/lib/ai/rateLimiter.ts` (+ `rateLimiter.test.ts`): Module Rate Limiting chống spam qua Redis.
+    - `src/lib/builds/buildService.ts` (+ `buildService.test.ts`): Data layer lưu trữ, truy vấn, cache và fork bản build.
+    - `src/app/api/builds/route.ts`: Endpoint danh sách và tạo mới bản build.
+    - `src/app/api/builds/[slug]/route.ts`: Endpoint chi tiết và remix bản build.
+    - `src/app/api/builds/builds.test.ts`: Bộ 5 unit tests cho toàn bộ luồng Builds API.
+    - `src/components/ui/SaveBuildModal.tsx` (+ `SaveBuildModal.test.tsx`): Modal lưu và sinh link chia sẻ.
+    - `src/app/build/[slug]/page.tsx` (+ `BuildDetailClient.tsx`, `page.test.tsx`): Trang chi tiết & remix bản build 3D.
+    - `docs/theory/17-redis-caching-rate-limiting-build-sharing.md`: Bách khoa toàn thư Redis Caching & Rate Limiting chuẩn Dual-Output Learning Mode.
+  - **File đã sửa:**
+    - `src/app/api/chat/route.ts` (+ `route.test.ts`): Tích hợp kiểm tra IP Rate Limiting.
+    - `src/components/ui/Sidebar.tsx`: Tích hợp nút "Lưu & Chia sẻ" và `<SaveBuildModal />`.
+    - `PROGRESS.md`: Đánh dấu `[x]` Task 3.3 (Hoàn tất 100% Chặng 3).
+  - **Biến môi trường mới:** Không có (đã có sẵn `AI_RATE_LIMIT_MAX_REQUESTS`, `AI_RATE_LIMIT_WINDOW_SECONDS` trong `.env.example`).
+  - **Kết quả xác thực:** Đạt 100% xanh cả 3 lệnh: `npx tsc --noEmit` (0 lỗi), `npm run lint` (0 lỗi, 0 warnings), `npm test -- --run` (**236/236 tests passed** trên 40 test suites), `npm run build` thành công.
+  - **Next Step:** Sẵn sàng cho **Chặng 4: Đóng gói Production & Hoàn thiện CV (Task 4.1-prod-docker)**.
