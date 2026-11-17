@@ -257,6 +257,23 @@
     - `PROGRESS.md`: Đánh dấu `[x]` Task 3.4.
   - **Biến môi trường mới:** Không có.
   - **Kết quả xác thực:** Đạt 100% xanh cả 3 lệnh: `npx tsc --noEmit` (0 lỗi), `npm run lint` (0 lỗi, 0 warnings), `npm test -- --run` (**175/175 tests passed** trên 29 test suites).
-  - **Next Step:** Theo thứ tự đã thống nhất với chủ dự án:
-    1. Bước 3: Làm trang giới thiệu (Landing Page).
-    2. Bước 4: Làm task 3.2 (`pgvector` RAG) và task 3.3 (Lưu & Chia sẻ bản build qua Redis/Postgres).
+  - **Next Step:** Đã xong Bước 3 (Landing Page & Studio Route Splitting).
+- **[Task Landing-Page-Studio-Split] Hoàn thành ngày 17/11/2026:**
+  - **Mô tả:** Xây dựng hoàn chỉnh Trang giới thiệu (Landing Page) chuẩn Cinematic Dark Luxury (MotionSites.ai vibe) và kỹ thuật Route Splitting tối ưu tải trang:
+    - **Route Splitting:** Phân tách trang chủ marketing `/` (`src/app/page.tsx`) siêu nhẹ và đưa 3D Studio Configurator vào route chuyên sâu `/studio` (`src/app/studio/page.tsx`).
+    - **Hero Section & Interactive Sound Preview:** Nhúng trực tiếp Web Audio Synthesizer vào Hero, cho phép người dùng click nghe thử 4 chất âm vật lý (Crisp Clack nhôm, Deep Thock POM, Balanced Pop FR4, Silent PC) ngay tức thì mà không cần load Three.js nặng.
+    - **Bento Grid Features:** Bố cục modular giới thiệu 4 thế mạnh công nghệ: Mô hình 3D tách lớp 7 tầng, Web Audio Synthesizer, Trợ lý âm học AI, và Hệ thống bảo mật Enterprise Shield (Brute-force + Signed CAPTCHA).
+    - **Acoustic Showcase:** Bảng so sánh trực quan đặc tính âm học của 4 vật liệu plate kèm nút nghe mẫu.
+    - **Architecture Telemetry & Footer:** Tổng hợp stack công nghệ (Next.js 16, Three.js, pgvector, Redis, Gemini 2.0 Flash) và tích hợp `AuthModal`.
+  - **File đã tạo:**
+    - `src/app/studio/page.tsx`: Route chuyên dụng cho 3D Studio Configurator.
+    - `src/app/studio/page.test.tsx`: Unit test kiểm tra render Studio.
+    - `docs/theory/14-landing-page-cinematic-bento.md`: Bách khoa toàn thư Landing Page & Bento Grid chuẩn Dual-Output Learning Mode.
+  - **File đã sửa:**
+    - `src/app/page.tsx`: Chuyển đổi thành Landing Page phong cách Dark Luxury với Bento Grid và Sound Preview.
+    - `src/app/page.test.tsx`: Cập nhật bộ unit test cho Landing Page.
+    - `src/components/ui/Sidebar.tsx`: Điều chỉnh nút "Về trang chủ" `/` tiện dụng.
+    - `PROGRESS.md`: Cập nhật Handoff Log.
+  - **Biến môi trường mới:** Không có.
+  - **Kết quả xác thực:** Đạt 100% xanh cả 3 lệnh: `npx tsc --noEmit` (0 lỗi), `npm run lint` (0 lỗi, 0 warnings), `npm test -- --run` (**179/179 tests passed** trên 30 test suites), `npm run build` thành công.
+  - **Next Step:** Tiến hành **Task 3.2-pgvector-rag** (Tạo script seed dữ liệu đặc tính âm học switch/plate thật kèm vector embedding vào PostgreSQL, tích hợp Semantic Search `pgvector` vào AI Chatbot) và **Task 3.3-community-share-redis** (Lưu & Chia sẻ bản build qua Redis/Postgres).

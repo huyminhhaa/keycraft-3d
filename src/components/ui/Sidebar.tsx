@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect } from 'react';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { RotateCcw, User, LogOut } from 'lucide-react';
 import { useKeyboardStore } from '@/store/useKeyboardStore';
@@ -43,10 +44,14 @@ export const Sidebar: React.FC = () => {
     <aside id="config-sidebar" aria-label="Cấu hình bàn phím" className="flex min-h-0 flex-col border-line bg-canvas lg:h-dvh lg:border-r">
       <header className="px-5 pb-4 pt-5">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-ink">
+          <Link
+            href="/"
+            title="Về trang chủ KeyCraft"
+            className="flex items-center gap-2 text-ink hover:opacity-80 transition-opacity"
+          >
             <BrandMark />
             <span className="text-[14px] font-semibold tracking-tight">KeyCraft</span>
-          </div>
+          </Link>
 
           {/* Auth status trigger */}
           {isAuthenticated && user ? (
