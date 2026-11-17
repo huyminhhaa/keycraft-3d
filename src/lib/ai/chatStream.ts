@@ -59,6 +59,11 @@ export function formatToolCallSummary(toolName: string, input: Record<string, un
     return `Tư vấn âm học: ${pref}`;
   }
 
+  if (toolName === 'searchHardwareKnowledge') {
+    const q = typeof input.query === 'string' ? `"${input.query}"` : '';
+    return `Tra cứu linh kiện RAG: ${q}`;
+  }
+
   if (toolName === 'updateKeyboardConfig') {
     const changes: string[] = [];
 

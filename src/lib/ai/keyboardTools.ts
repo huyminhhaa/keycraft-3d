@@ -1,5 +1,6 @@
 import { tool } from 'ai';
 import { z } from 'zod';
+import { searchHardwareComponents } from './semanticSearch';
 
 // Regex chuẩn mã màu HEX (#RGB hoặc #RRGGBB)
 const hexColorRegex = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
@@ -170,9 +171,58 @@ export const getAcousticRecommendationTool = tool({
   },
 });
 
+// -----------------------------------------------------------------------------
+// 4. Schema & Tool: Tra cứu tri thức phần cứng thực tế (searchHardwareKnowledge - RAG)
+// -----------------------------------------------------------------------------
+export const searchHardwareKnowledgeSchema = z.object({
+  query: z
+    .string()
+    .min(1, 'Truy vấn không được để trống')
+    .describe(
+      'Mô tả âm thanh, tính chất hoặc tên linh kiện cần tra cứu (ví dụ: "thock trầm ấm", "gateron oil king", "plate nhôm clack", "switch êm văn phòng")'
+    ),
+  type: z
+    .enum(['switch', 'plate', 'case', 'foam', 'all'])
+    .optional()
+    .describe('Lọc theo loại linh kiện: switch, plate, case, foam hoặc all (mặc định all)'),
+  limit: z
+    .number()
+    .min(1)
+    .max(10)
+    .optional()
+    .describe('Số lượng kết quả tối đa cần trả về (mặc định 4)'),
+});
+
+export type SearchHardwareKnowledgeInput = z.infer<typeof searchHardwareKnowledgeSchema>;
+
+export const searchHardwareKnowledgeTool = tool({
+  description:
+    'Tra cứu cơ sở tri thức phần cứng thực tế và âm học (pgvector Semantic Search RAG) bao gồm các loại switch (Oil King, Boba U4T, Cherry MX Black, v.v.), chất liệu plate (POM, FR4, Nhôm, PC) và foam tiêu âm. Dùng công cụ này khi người dùng hỏi về linh kiện cụ thể, so sánh hoặc tìm linh kiện phù hợp với gu âm thanh.',
+  inputSchema: searchHardwareKnowledgeSchema,
+  execute: async ({ query, type = 'all', limit = 4 }: SearchHardwareKnowledgeInput) => {
+    const results = await searchHardwareComponents({ query, type, limit });
+    return {
+      status: 'success',
+      query,
+      resultsCount: results.length,
+      components: results.map((item) => ({
+        id: item.id,
+        name: item.name,
+        type: item.type,
+        material: item.material,
+        acousticDescription: item.acousticDescription,
+        soundProfile: item.soundProfile,
+        specs: item.specs,
+        similarity: item.similarity,
+      })),
+    };
+  },
+});
+
 // Tập hợp tất cả các Tools sẵn sàng truyền vào streamText
 export const keyboardTools = {
   updateKeyboardConfig: updateKeyboardConfigTool,
   toggleExplodedView: toggleExplodedViewTool,
   getAcousticRecommendation: getAcousticRecommendationTool,
+  searchHardwareKnowledge: searchHardwareKnowledgeTool,
 };

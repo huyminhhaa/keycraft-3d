@@ -19,7 +19,7 @@
 ## Chặng 3: Docker, PostgreSQL (`pgvector`), Redis, Authentication & Web Audio (Dùng Codex Plus)
 - [x] **3.1-docker-infra:** Tạo `docker-compose.yml` chạy `pgvector/pgvector:pg17` và `redis:7-alpine`. Cài đặt `drizzle-orm`, `pg`, `ioredis` và tạo schema (`src/db/schema.ts`) gồm bảng `users`, bảng `hardware_components` (có cột `vector(768)` cho RAG) và bảng `builds` (lưu cấu hình 3D dạng `JSONB` + user_id liên kết + slug chia sẻ).
 - [x] **3.1b-auth-security:** Xây dựng hệ thống Đăng ký / Đăng nhập hoàn chỉnh: JWT (Access Token + Refresh Token trong `httpOnly` secure cookies), mã hóa mật khẩu (`argon2`/`bcryptjs`), hỗ trợ Social OAuth (Google, GitHub). Tính năng bảo mật Brute-force Shield: theo dõi số lần đăng nhập sai bằng Redis theo IP/Tài khoản, nếu nhập sai quá 3 lần bắt buộc giải thử thách CAPTCHA (Turnstile / Security Challenge) và khóa tạm thời (Lockout) nếu tiếp tục cố tình dò mật khẩu. Kèm unit test toàn diện cho logic xác thực và bảo mật.
-- [ ] **3.2-pgvector-rag:** Tạo script seed dữ liệu đặc tính âm học switch/plate thật kèm vector embedding vào PostgreSQL, tích hợp Semantic Search (`pgvector`) vào công cụ tư vấn của AI Chatbot + viết test kiểm tra truy vấn.
+- [x] **3.2-pgvector-rag:** Tạo script seed dữ liệu đặc tính âm học switch/plate thật kèm vector embedding vào PostgreSQL, tích hợp Semantic Search (`pgvector`) vào công cụ tư vấn của AI Chatbot + viết test kiểm tra truy vấn.
 - [ ] **3.3-community-share-redis:** Xây dựng tính năng "Lưu & Chia sẻ bản Build" (`/api/builds` + trang xem/remix bản build `/build/[slug]`) liên kết với User Profile, dùng Redis để cache danh sách Trending Builds và áp dụng Rate Limiting chống spam cho `/api/chat`.
 - [x] **3.4-web-audio:** Xây dựng engine Web Audio API (`src/lib/audio/soundEngine.ts`) tổng hợp tiếng gõ phím cơ thời gian thực khi người dùng gõ trên bàn phím thật hoặc click chuột 3D, tự động biến đổi tần số và độ trầm/đanh theo chất liệu plate (`aluminum` Clack vs `pom`/`pc` Deep Thock) và switch (`clicky`, `tactile`, `linear`, `silent`), kèm unit test cho bộ tính toán tham số âm thanh.
 
@@ -276,4 +276,25 @@
     - `PROGRESS.md`: Cập nhật Handoff Log.
   - **Biến môi trường mới:** Không có.
   - **Kết quả xác thực:** Đạt 100% xanh cả 3 lệnh: `npx tsc --noEmit` (0 lỗi), `npm run lint` (0 lỗi, 0 warnings), `npm test -- --run` (**179/179 tests passed** trên 30 test suites), `npm run build` thành công.
-  - **Next Step:** Tiến hành **Task 3.2-pgvector-rag** (Tạo script seed dữ liệu đặc tính âm học switch/plate thật kèm vector embedding vào PostgreSQL, tích hợp Semantic Search `pgvector` vào AI Chatbot) và **Task 3.3-community-share-redis** (Lưu & Chia sẻ bản build qua Redis/Postgres).
+  - **Next Step:** Đã xong Task **3.2-pgvector-rag**. Sẵn sàng cho **Task 3.3-community-share-redis**.
+- **[Task 3.2-pgvector-rag] Hoàn thành ngày 17/11/2026:**
+  - **Mô tả:** Xây dựng hoàn chỉnh hệ thống Tra cứu ngữ nghĩa âm học (Semantic Search RAG) kết hợp PostgreSQL `pgvector` và Google Gemini Vector Embedding 768 chiều:
+    - **Acoustic Hardware Catalog:** Tuyển tập cơ sở dữ liệu các dòng switch thật nổi tiếng thế giới (Gateron Oil King, Cherry MX Black, Boba U4T, Holy Panda, Kailh Box White, Boba U4 Silent, Milky Yellow Pro...), các tấm plate định vị (POM, FR4, Nhôm, PC) và mút tiêu âm buồng rỗng (Poron, IXPE Switch Pad).
+    - **Vector Embedding Engine:** Mô-đun `src/lib/ai/embedding.ts` hỗ trợ sinh vector 768 chiều bằng Gemini `text-embedding-004`, tính toán Cosine Similarity và cơ chế Fallback giả lập (Deterministic Pseudo-Embedding) chuẩn L2 = 1.0 giúp toàn bộ hệ thống và unit test hoạt động mượt mà 100% offline.
+    - **pgvector Semantic Search:** Mô-đun `src/lib/ai/semanticSearch.ts` truy vấn khoảng cách Cosine (`<=>`) trực tiếp từ PostgreSQL, tự động chuyển sang In-memory Vector Search nếu Database container chưa bật.
+    - **Agentic AI Tool Calling:** Bổ sung tool `searchHardwareKnowledge` vào `src/lib/ai/keyboardTools.ts`, nâng cấp System Prompt hướng dẫn AI tra cứu linh kiện thật trước khi đưa ra khuyến nghị âm học và biến đổi 3D.
+    - **Database Seeding Script:** Tạo script `scripts/seedComponents.ts` hỗ trợ nạp tự động toàn bộ linh kiện và vector 768 chiều vào bảng `hardware_components`.
+  - **File đã tạo:**
+    - `src/lib/ai/embedding.ts` (+ `embedding.test.ts`): Engine sinh vector embedding 768d và hàm tính Cosine Similarity.
+    - `src/lib/ai/hardwareCatalog.ts`: Danh mục linh kiện phần cứng và mô tả âm học chi tiết.
+    - `src/lib/ai/semanticSearch.ts` (+ `semanticSearch.test.ts`): Công cụ tìm kiếm ngữ nghĩa RAG với pgvector và fallback.
+    - `scripts/seedComponents.ts`: Script seed database với pgvector extension.
+    - `docs/theory/15-pgvector-rag-acoustic-catalog.md`: Tài liệu bách khoa công nghệ chuyên sâu 5 phần chuẩn Dual-Output Learning Mode.
+  - **File đã sửa:**
+    - `src/lib/ai/keyboardTools.ts` (+ `keyboardTools.test.ts`): Tích hợp tool `searchHardwareKnowledge`.
+    - `src/lib/ai/prompts.ts`: Cập nhật System Prompt RAG cho AI Acoustic Architect.
+    - `src/lib/ai/chatStream.ts`: Tóm tắt tool call tiếng Việt khi AI tra cứu linh kiện.
+    - `PROGRESS.md`: Đánh dấu `[x]` Task 3.2 và cập nhật Handoff Log.
+  - **Biến môi trường mới:** Không có (đã có sẵn trong `.env.example`).
+  - **Kết quả xác thực:** Đạt 100% xanh cả 3 lệnh: `npx tsc --noEmit` (0 lỗi), `npm run lint` (0 lỗi, 0 warnings), `npm test -- --run` (**193/193 tests passed** trên 32 test suites), `npm run build` thành công.
+  - **Next Step:** Tiến hành **Task 3.3-community-share-redis** (Xây dựng tính năng "Lưu & Chia sẻ bản Build" `/api/builds` + trang xem/remix bản build `/build/[slug]`, cache Trending Builds qua Redis và Rate Limiting chống spam cho `/api/chat`).

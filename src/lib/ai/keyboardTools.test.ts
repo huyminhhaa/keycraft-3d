@@ -3,12 +3,15 @@ import {
   updateKeyboardConfigSchema,
   toggleExplodedViewSchema,
   getAcousticRecommendationSchema,
+  searchHardwareKnowledgeSchema,
   updateKeyboardConfigTool,
   toggleExplodedViewTool,
   getAcousticRecommendationTool,
+  searchHardwareKnowledgeTool,
   UpdateKeyboardConfigInput,
   ToggleExplodedViewInput,
   GetAcousticRecommendationInput,
+  SearchHardwareKnowledgeInput,
 } from './keyboardTools';
 
 describe('AI Tools & Zod Schema Validation', () => {
@@ -186,6 +189,68 @@ describe('AI Tools & Zod Schema Validation', () => {
 
       expect(res.plate).toBe('aluminum');
       expect(res.switchType).toBe('tactile');
+    });
+  });
+
+  describe('searchHardwareKnowledgeSchema & Tool (RAG)', () => {
+    it('chấp nhận truy vấn hợp lệ với các tham số', () => {
+      const valid = {
+        query: 'switch deep thock trầm ấm',
+        type: 'switch' as const,
+        limit: 4,
+      };
+
+      const parsed = searchHardwareKnowledgeSchema.safeParse(valid);
+      expect(parsed.success).toBe(true);
+    });
+
+    it('từ chối truy vấn rỗng', () => {
+      const invalid = {
+        query: '',
+      };
+      const parsed = searchHardwareKnowledgeSchema.safeParse(invalid);
+      expect(parsed.success).toBe(false);
+    });
+
+    it('từ chối type không được hỗ trợ', () => {
+      const invalid = {
+        query: 'oil king',
+        type: 'keycap_profile',
+      };
+      const parsed = searchHardwareKnowledgeSchema.safeParse(invalid);
+      expect(parsed.success).toBe(false);
+    });
+
+    it('thực thi searchHardwareKnowledgeTool trả về danh sách linh kiện và similarity', async () => {
+      if (!searchHardwareKnowledgeTool.execute) {
+        throw new Error('Tool execute missing');
+      }
+
+      const input: SearchHardwareKnowledgeInput = {
+        query: 'gateron oil king linear trầm',
+        type: 'switch',
+        limit: 2,
+      };
+
+      const executeFn = searchHardwareKnowledgeTool.execute as unknown as (
+        args: SearchHardwareKnowledgeInput
+      ) => Promise<{
+        status: string;
+        query: string;
+        resultsCount: number;
+        components: Array<{
+          id: string;
+          name: string;
+          type: string;
+          similarity: number;
+        }>;
+      }>;
+
+      const res = await executeFn(input);
+      expect(res.status).toBe('success');
+      expect(res.resultsCount).toBeGreaterThan(0);
+      expect(res.components[0].type).toBe('switch');
+      expect(res.components[0].similarity).toBeGreaterThan(0);
     });
   });
 });
