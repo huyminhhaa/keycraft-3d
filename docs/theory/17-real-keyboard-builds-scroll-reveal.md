@@ -85,4 +85,4 @@ Không, vì `buildId` và `caseShape` là trường tuỳ chọn. Nơi đọc d�
 ## 6. Giới hạn hiện tại
 - **Ảnh thật cho từng lớp (plate, foam, switch riêng lẻ) chưa có:** không tìm được nguồn ảnh đáng tin cho từng linh kiện; thẻ build dùng ảnh thật của cả build (thumbnail video).
 - Màu lấy từ ảnh bằng mắt; dáng vỏ là xấp xỉ.
-- Ảnh (`public/builds/`) và tiếng (`public/sounds/`) không nằm trong git, nên bản deploy không có chúng: thẻ build hiện dải màu thay ảnh, tiếng dùng bộ tổng hợp.
+- Ảnh (`public/builds/`) và tiếng (`public/sounds/`) đã được commit theo yêu cầu của chủ dự án để bản deploy có tiếng thật. Nếu thiếu (xoá file, clone thiếu), thẻ build hiện dải màu thay ảnh và tiếng quay về bộ tổng hợp.

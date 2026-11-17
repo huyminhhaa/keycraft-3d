@@ -10,7 +10,7 @@ npm run sounds -- --only aula-f75-reaper        # tạo lại một gói
 npm run sounds -- --id my-board --name "Tên phím" --switch "Tên switch" \
   --url "https://www.youtube.com/watch?v=..." [--start 5 --end 40] [--space 12-18]
 ```
-Cần `yt-dlp` và `ffmpeg` trong PATH. Gói nằm ở `public/sounds/` và **không đưa lên git** (`.gitignore`), vì là âm thanh của người khác. Clone về máy mới thì chạy lại `npm run sounds`.
+Cần `yt-dlp` và `ffmpeg` trong PATH. Gói nằm ở `public/sounds/` và đã được commit (chủ dự án chọn đưa lên để bản deploy trên Vercel có tiếng thật). Tạo lại hoặc thêm gói thì chạy `npm run sounds` rồi commit thư mục này.
 
 Vào studio → tab **Âm thanh** → mục **Tiếng gõ thật** để chọn gói. Lựa chọn được nhớ trong trình duyệt.
 

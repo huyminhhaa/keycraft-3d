@@ -1,0 +1,36 @@
+{
+  "id": "lucky65-turtle-silent",
+  "name": "Weikav Lucky65 V2",
+  "switch": "Turtle Silent Tactile",
+  "noise": 0.0239,
+  "sourceUrl": "https://www.youtube.com/watch?v=AK7_8pk-35Q",
+  "clips": {
+    "alpha": [
+      "alpha-01.wav",
+      "alpha-02.wav",
+      "alpha-03.wav",
+      "alpha-04.wav",
+      "alpha-05.wav",
+      "alpha-06.wav",
+      "alpha-07.wav",
+      "alpha-08.wav",
+      "alpha-09.wav",
+      "alpha-10.wav"
+    ],
+    "space": [
+      "space-01.wav"
+    ],
+    "up": [
+      "up-01.wav",
+      "up-02.wav",
+      "up-03.wav",
+      "up-04.wav",
+      "up-05.wav",
+      "up-06.wav",
+      "up-07.wav",
+      "up-08.wav",
+      "up-09.wav",
+      "up-10.wav"
+    ]
+  }
+}

@@ -1,0 +1,62 @@
+[
+  {
+    "id": "attack-shark-x85",
+    "name": "Attack Shark X85",
+    "switch": "Switch theo máy",
+    "noise": 0.0056
+  },
+  {
+    "id": "aula-f75-ice-vein",
+    "name": "AULA F75",
+    "switch": "Leobog Ice Vein",
+    "noise": 0.0193
+  },
+  {
+    "id": "aula-f75-reaper",
+    "name": "AULA F75",
+    "switch": "Leobog Reaper",
+    "noise": 0.0113
+  },
+  {
+    "id": "aula-f99-asura",
+    "name": "AULA F99 Pro",
+    "switch": "Asura",
+    "noise": 0.0163
+  },
+  {
+    "id": "leobog-hi75-vertex",
+    "name": "Leobog Hi75",
+    "switch": "Vertex V1",
+    "noise": 0.0678
+  },
+  {
+    "id": "leobog-hi75c-pro",
+    "name": "Leobog Hi75C Pro",
+    "switch": "Switch theo máy",
+    "noise": 0.0061
+  },
+  {
+    "id": "lucky65-creamy-yellow",
+    "name": "Weikav Lucky65 V2",
+    "switch": "Akko Creamy Yellow",
+    "noise": 0.0049
+  },
+  {
+    "id": "lucky65-husky",
+    "name": "Weikav Lucky65 V2",
+    "switch": "Husky",
+    "noise": 0.006
+  },
+  {
+    "id": "lucky65-turtle-silent",
+    "name": "Weikav Lucky65 V2",
+    "switch": "Turtle Silent Tactile",
+    "noise": 0.0239
+  },
+  {
+    "id": "mchose-ace68-turbo",
+    "name": "MCHOSE Ace 68 Turbo",
+    "switch": "Switch theo máy",
+    "noise": 0.0899
+  }
+]
