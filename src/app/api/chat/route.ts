@@ -38,7 +38,7 @@ export async function POST(req: Request) {
       system: KEYBOARD_ARCHITECT_SYSTEM_PROMPT,
       messages,
       tools: keyboardTools,
-      stopWhen: stepCountIs(5), // Cho phép mô hình suy luận đa bước (tool call -> nhận kết quả -> stream phản hồi)
+      stopWhen: stepCountIs(8), // Cho phép mô hình suy luận đa bước
     });
 
     return result.toUIMessageStreamResponse();

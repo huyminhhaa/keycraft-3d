@@ -132,7 +132,10 @@ export function applyToolToStore(
     });
 
     if (input.cameraPreset && typeof input.cameraPreset === 'string') {
-      store.setCameraPreset(input.cameraPreset as CameraPreset);
+      const validPresets: CameraPreset[] = ['perspective', 'top', 'front', 'side', 'isometric'];
+      if (validPresets.includes(input.cameraPreset as CameraPreset)) {
+        store.setCameraPreset(input.cameraPreset as CameraPreset);
+      }
     }
 
     return { applied: true, summary };

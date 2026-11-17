@@ -89,7 +89,8 @@ const CameraController: React.FC = () => {
     // Giữ độ nâng tâm nhìn hiện tại (nếu đang tách lớp) khi đổi góc
     const { isExploded, explosionOffset } = useKeyboardStore.getState();
     const lift = explodedTargetY(isExploded, explosionOffset) - BASE_TARGET_Y;
-    const [x, y, z] = CAMERA_POSITIONS[cameraPreset];
+    const pos = CAMERA_POSITIONS[cameraPreset] ?? CAMERA_POSITIONS.perspective;
+    const [x, y, z] = pos;
     camera.position.set(x, y + lift, z);
     camera.lookAt(0, BASE_TARGET_Y + lift, 0);
     controlsRef.current?.target.set(0, BASE_TARGET_Y + lift, 0);

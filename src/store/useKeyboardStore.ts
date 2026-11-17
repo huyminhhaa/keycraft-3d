@@ -5,6 +5,7 @@ import {
   PlateMaterial,
   SwitchType,
   SoundProfile,
+  CameraPreset,
 } from '@/types/keyboard';
 import { DEFAULT_MODEL_ID, getModelEntry } from '@/lib/keyboard/models';
 
@@ -147,7 +148,10 @@ export const useKeyboardStore = create<KeyboardStore>((set) => ({
 
   setUnderglowEnabled: (enabled) => set({ underglowEnabled: enabled }),
 
-  setCameraPreset: (preset) => set({ cameraPreset: preset }),
+  setCameraPreset: (preset) => {
+    const valid = ['perspective', 'top', 'front', 'side', 'isometric'].includes(preset);
+    set({ cameraPreset: valid ? preset : 'perspective' });
+  },
 
   resetConfig: () => set(INITIAL_KEYBOARD_STATE),
 
@@ -164,11 +168,18 @@ export const useKeyboardStore = create<KeyboardStore>((set) => ({
           ? Math.max(0.5, Math.min(3.0, partial.explosionOffset))
           : state.explosionOffset;
 
+      const validPresets: CameraPreset[] = ['perspective', 'top', 'front', 'side', 'isometric'];
+      const nextCamera =
+        partial.cameraPreset && validPresets.includes(partial.cameraPreset)
+          ? partial.cameraPreset
+          : state.cameraPreset;
+
       const needsSoundUpdate =
         partial.plateMaterial !== undefined || partial.switchType !== undefined;
 
       return {
         ...partial,
+        cameraPreset: nextCamera,
         // Mẫu .glb giữ layout của file dù AI đề xuất layout khác
         layout: getModelEntry(partial.modelId ?? state.modelId).source === 'glb' ? state.layout : (partial.layout ?? state.layout),
         underglowBrightness: nextBrightness,
