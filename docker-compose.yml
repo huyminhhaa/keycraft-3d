@@ -41,6 +41,34 @@ services:
       timeout: 5s
       retries: 5
 
+  # ----------------------------------------------------------------------------
+  # 3. Ứng dụng Web Next.js 16 (Three.js 3D Studio, Web Audio & AI Architect)
+  # ----------------------------------------------------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: keycraft-app
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-keycraft}:${POSTGRES_PASSWORD:-keycraft_secret}@postgres:5432/${POSTGRES_DB:-keycraft_db}
+      REDIS_URL: redis://redis:6379
+      GOOGLE_GENERATIVE_AI_API_KEY: ${GOOGLE_GENERATIVE_AI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.5-flash-lite}
+      JWT_SECRET: ${JWT_SECRET:-keycraft_super_secret_jwt_key_at_least_32_chars_long!}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-keycraft_super_refresh_jwt_key_at_least_32_chars!}
+      AI_RATE_LIMIT_MAX_REQUESTS: ${AI_RATE_LIMIT_MAX_REQUESTS:-10}
+      AI_RATE_LIMIT_WINDOW_SECONDS: ${AI_RATE_LIMIT_WINDOW_SECONDS:-60}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
 volumes:
   postgres_data:
     driver: local
