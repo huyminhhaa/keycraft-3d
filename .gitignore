@@ -45,3 +45,4 @@ next-env.d.ts
 # gói âm thanh cắt từ video (tạo lại bằng npm run sounds)
 /public/sounds/
 
+/public/builds/

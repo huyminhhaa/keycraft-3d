@@ -7,12 +7,14 @@ import { RotateCcw, User, LogOut, Share2 } from 'lucide-react';
 import { useKeyboardStore } from '@/store/useKeyboardStore';
 import { useStageStore, SidebarTab } from '@/store/useStageStore';
 import { useAuthStore } from '@/store/useAuthStore';
+import { BuildsPanel } from './BuildsPanel';
 import { DesignPanel } from './DesignPanel';
 import { SoundPanel } from './SoundPanel';
 import { AIChatPanel } from './AIChatPanel';
 import { SaveBuildModal } from './SaveBuildModal';
 
 const TABS: { id: SidebarTab; label: string }[] = [
+  { id: 'builds', label: 'Mẫu phím' },
   { id: 'design', label: 'Thiết kế' },
   { id: 'sound', label: 'Âm thanh' },
   { id: 'ai', label: 'Trợ lý AI' },
@@ -132,6 +134,7 @@ export const Sidebar: React.FC = () => {
         className="scroll-thin min-h-0 flex-1 lg:overflow-y-auto"
       >
         <div key={tab} className="panel-fade h-full">
+          {tab === 'builds' && <BuildsPanel />}
           {tab === 'design' && <DesignPanel />}
           {tab === 'sound' && <SoundPanel />}
           {tab === 'ai' && <AIChatPanel />}

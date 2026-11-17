@@ -16,6 +16,10 @@ import {
 import { soundEngine } from '@/lib/audio/soundEngine';
 import { useAuthStore } from '@/store/useAuthStore';
 import { AuthModal } from '@/components/ui/AuthModal';
+import { ScrollReveal } from '@/components/ui/ScrollReveal';
+
+/** Độ trễ so le cho hiệu ứng trượt vào (đọc trong globals.css qua --reveal-delay) */
+const revealDelay = (ms: number): React.CSSProperties => ({ '--reveal-delay': `${ms}ms` }) as React.CSSProperties;
 
 /** Logo KeyCraft: một keycap nhìn từ trên xuống */
 const BrandMark: React.FC = () => (
@@ -63,7 +67,7 @@ const SOUND_PRESETS = [
 const TECH_BADGES = [
   { name: 'Next.js 16', role: 'App Router & Turbopack' },
   { name: 'React Three Fiber', role: 'Three.js 3D Viewport' },
-  { name: 'Web Audio API', role: 'Procedural Synth (0ms)' },
+  { name: 'Web Audio API', role: 'Bản thu phím thật' },
   { name: 'Google Gemini', role: 'Agentic Tool Calling' },
   { name: 'PostgreSQL 17', role: 'pgvector RAG Embeddings' },
   { name: 'Redis 7', role: 'Brute-force Shield & Cache' },
@@ -90,6 +94,7 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-canvas text-ink selection:bg-accent/30 selection:text-ink">
+      <ScrollReveal />
       {/* -------------------------------------------------------------------------- */}
       {/* 1. NAVBAR                                                                  */}
       {/* -------------------------------------------------------------------------- */}
@@ -265,7 +270,7 @@ export default function LandingPage() {
       {/* -------------------------------------------------------------------------- */}
       <section id="features" className="border-b border-line px-5 py-20 lg:px-8 lg:py-24">
         <div className="mx-auto max-w-7xl">
-          <div className="mb-14 text-center">
+          <div className="mb-14 text-center" data-reveal="left">
             <h2 className="text-[13px] font-semibold uppercase tracking-wider text-muted">Bento Grid Features</h2>
             <p className="mt-2 text-[28px] font-semibold tracking-tight text-ink sm:text-[36px]">
               Kỹ nghệ Phần cứng & Trải nghiệm Siêu thực
@@ -274,7 +279,7 @@ export default function LandingPage() {
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             {/* Card 1: 3D Exploded View (Khối lớn 2 cột) */}
-            <div className="group relative overflow-hidden rounded-2xl border border-line bg-surface p-7 md:col-span-2">
+            <div className="group relative overflow-hidden rounded-2xl border border-line bg-surface p-7 md:col-span-2" data-reveal="left">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-line bg-canvas text-ink">
                 <Layers className="h-5 w-5" />
               </div>
@@ -296,22 +301,22 @@ export default function LandingPage() {
             </div>
 
             {/* Card 2: Web Audio Synthesizer */}
-            <div className="group relative overflow-hidden rounded-2xl border border-line bg-surface p-7">
+            <div className="group relative overflow-hidden rounded-2xl border border-line bg-surface p-7" data-reveal="right" style={revealDelay(90)}>
               <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-line bg-canvas text-ink">
                 <Volume2 className="h-5 w-5" />
               </div>
-              <h3 className="mt-5 text-[20px] font-semibold text-ink">Web Audio Synth (0ms)</h3>
+              <h3 className="mt-5 text-[20px] font-semibold text-ink">Tiếng gõ thu từ phím thật</h3>
               <p className="mt-2 text-[14px] leading-relaxed text-muted">
-                Bộ tổng hợp âm thanh thủ công thời gian thực. Không dùng file mp3 thu âm trước. Tần số dao động và độ vang
-                biến đổi chính xác theo độ cứng của Plate và loại Switch.
+                Mỗi build phát đúng bản thu của chính nó, cắt từ video sound test thành từng tiếng gõ. Web Audio phát lại
+                ngay khi bạn gõ, mỗi lần một biến thể khác nhau.
               </p>
               <div className="mt-6 text-[12px] font-medium text-accent">
-                ±2% Micro-variation • Chống Machine Gun Effect
+                16 biến thể mỗi build, không lặp tiếng vừa phát
               </div>
             </div>
 
             {/* Card 3: AI Acoustic Architect */}
-            <div className="group relative overflow-hidden rounded-2xl border border-line bg-surface p-7">
+            <div className="group relative overflow-hidden rounded-2xl border border-line bg-surface p-7" data-reveal="left">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-line bg-canvas text-ink">
                 <Sparkles className="h-5 w-5" />
               </div>
@@ -324,7 +329,7 @@ export default function LandingPage() {
             </div>
 
             {/* Card 4: Enterprise Security & Auth (Khối 2 cột) */}
-            <div className="group relative overflow-hidden rounded-2xl border border-line bg-surface p-7 md:col-span-2">
+            <div className="group relative overflow-hidden rounded-2xl border border-line bg-surface p-7 md:col-span-2" data-reveal="right" style={revealDelay(90)}>
               <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-line bg-canvas text-ink">
                 <ShieldCheck className="h-5 w-5" />
               </div>
@@ -350,7 +355,7 @@ export default function LandingPage() {
       {/* -------------------------------------------------------------------------- */}
       <section id="audio" className="border-b border-line px-5 py-20 lg:px-8 lg:py-24">
         <div className="mx-auto max-w-5xl">
-          <div className="text-center">
+          <div className="text-center" data-reveal="right">
             <h2 className="text-[13px] font-semibold uppercase tracking-wider text-muted">Acoustic Physics Simulation</h2>
             <p className="mt-2 text-[28px] font-semibold tracking-tight text-ink sm:text-[36px]">
               Vật Lý Âm Học: Từ Plate Nhôm Đến Plate POM
@@ -362,7 +367,7 @@ export default function LandingPage() {
           </div>
 
           <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-xl border border-line bg-surface p-5">
+            <div className="rounded-xl border border-line bg-surface p-5" data-reveal="left" style={revealDelay(0)}>
               <span className="text-[12px] font-semibold text-accent">Plate Nhôm (Aluminum)</span>
               <h4 className="mt-1 text-[17px] font-bold text-ink">Crisp Clack</h4>
               <p className="mt-2 text-[13px] text-muted">Tần số cao (~680Hz), đỉnh lọc Q nhọn. Âm đanh, rõ từng phím gõ.</p>
@@ -378,7 +383,7 @@ export default function LandingPage() {
               </button>
             </div>
 
-            <div className="rounded-xl border border-line bg-surface p-5">
+            <div className="rounded-xl border border-line bg-surface p-5" data-reveal="right" style={revealDelay(80)}>
               <span className="text-[12px] font-semibold text-accent">Plate FR4</span>
               <h4 className="mt-1 text-[17px] font-bold text-ink">Balanced Pop</h4>
               <p className="mt-2 text-[13px] text-muted">Tần số cân bằng (~520Hz). Âm giòn giã, độ nảy vừa phải, tự nhiên.</p>
@@ -394,7 +399,7 @@ export default function LandingPage() {
               </button>
             </div>
 
-            <div className="rounded-xl border border-line bg-surface p-5">
+            <div className="rounded-xl border border-line bg-surface p-5" data-reveal="left" style={revealDelay(160)}>
               <span className="text-[12px] font-semibold text-accent">Plate POM</span>
               <h4 className="mt-1 text-[17px] font-bold text-ink">Deep Thock</h4>
               <p className="mt-2 text-[13px] text-muted">Tần số trầm (~340Hz). Chất âm trầm, dày, ngân vang ấm áp.</p>
@@ -410,7 +415,7 @@ export default function LandingPage() {
               </button>
             </div>
 
-            <div className="rounded-xl border border-line bg-surface p-5">
+            <div className="rounded-xl border border-line bg-surface p-5" data-reveal="right" style={revealDelay(240)}>
               <span className="text-[12px] font-semibold text-accent">Polycarbonate</span>
               <h4 className="mt-1 text-[17px] font-bold text-ink">Muted Whisper</h4>
               <p className="mt-2 text-[13px] text-muted">Tần số cực trầm (~290Hz). Êm tai, mềm mại, phù hợp không gian yên tĩnh.</p>
@@ -434,7 +439,7 @@ export default function LandingPage() {
       {/* -------------------------------------------------------------------------- */}
       <section id="architecture" className="border-b border-line px-5 py-20 lg:px-8 lg:py-24">
         <div className="mx-auto max-w-6xl">
-          <div className="text-center">
+          <div className="text-center" data-reveal="left">
             <h2 className="text-[13px] font-semibold uppercase tracking-wider text-muted">Fullstack Architecture</h2>
             <p className="mt-2 text-[28px] font-semibold tracking-tight text-ink sm:text-[36px]">
               Công Nghệ Chuẩn Production
@@ -442,8 +447,8 @@ export default function LandingPage() {
           </div>
 
           <div className="mt-12 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {TECH_BADGES.map((item) => (
-              <div key={item.name} className="rounded-xl border border-line bg-surface p-4 text-center">
+            {TECH_BADGES.map((item, i) => (
+              <div key={item.name} className="rounded-xl border border-line bg-surface p-4 text-center" data-reveal={i % 2 === 0 ? 'left' : 'right'} style={revealDelay((i % 4) * 60)}>
                 <span className="block text-[14px] font-semibold text-ink">{item.name}</span>
                 <span className="mt-1 block text-[11px] text-muted">{item.role}</span>
               </div>
@@ -457,13 +462,13 @@ export default function LandingPage() {
       {/* -------------------------------------------------------------------------- */}
       <section className="px-5 py-24 text-center lg:px-8">
         <div className="mx-auto max-w-3xl">
-          <h2 className="text-[32px] font-bold tracking-tight text-ink sm:text-[42px]">
+          <h2 className="text-[32px] font-bold tracking-tight text-ink sm:text-[42px]" data-reveal="left">
             Sẵn sàng chế tác chiếc bàn phím chân ái của bạn?
           </h2>
-          <p className="mx-auto mt-4 max-w-xl text-[15px] text-muted">
+          <p className="mx-auto mt-4 max-w-xl text-[15px] text-muted" data-reveal="right" style={revealDelay(90)}>
             Mở Studio 3D ngay bây giờ, thử các phối màu độc bản, lắng nghe âm thanh gõ phím thời gian thực và trò chuyện cùng Trợ lý AI.
           </p>
-          <div className="mt-8 flex justify-center gap-3">
+          <div className="mt-8 flex justify-center gap-3" data-reveal="left" style={revealDelay(180)}>
             <Link
               href="/studio"
               className="btn-press flex items-center gap-2 rounded-lg bg-ink px-8 py-3.5 text-[15px] font-semibold text-canvas shadow-xl transition-transform hover:scale-[1.02]"

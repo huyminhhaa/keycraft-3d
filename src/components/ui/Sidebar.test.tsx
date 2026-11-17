@@ -11,11 +11,21 @@ import { TONE_COPY } from './SoundPanel';
 describe('Sidebar', () => {
   beforeEach(() => {
     useKeyboardStore.getState().resetConfig();
+    // Các test bên dưới thao tác tab Thiết kế; tab mặc định là Mẫu phím
+    useStageStore.getState().setActiveTab('design');
   });
 
   it('h1 gọi đúng tên loại sản phẩm', () => {
     render(<Sidebar />);
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Bàn phím cơ 3D tự cấu hình');
+  });
+
+  it('tab Mẫu phím: chọn một build thì đổi cả cấu hình 3D', () => {
+    useStageStore.getState().setActiveTab('builds');
+    render(<Sidebar />);
+    fireEvent.click(screen.getAllByRole('button', { name: /AULA F99 Pro/ })[0]);
+    expect(useKeyboardStore.getState()).toMatchObject({ buildId: 'aula-f99-asura', layout: '96%' });
+    expect(screen.getByText('Kiểu mount')).toBeDefined();
   });
 
   it('đổi bố cục qua nhóm nút và hiển thị số phím', () => {

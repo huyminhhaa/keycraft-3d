@@ -40,7 +40,7 @@ describe('LandingPage (Home Page)', () => {
   it('hiển thị đầy đủ các khối tính năng Bento Grid', () => {
     render(<LandingPage />);
     expect(screen.getByText('Mô phỏng 7 tầng cấu trúc & Tách lớp 3D')).toBeDefined();
-    expect(screen.getByText('Web Audio Synth (0ms)')).toBeDefined();
+    expect(screen.getByText('Tiếng gõ thu từ phím thật')).toBeDefined();
     expect(screen.getByText('Trợ lý AI Kiến trúc sư')).toBeDefined();
     expect(screen.getByText('Bảo Mật Enterprise & Lá Chắn Brute-Force')).toBeDefined();
   });

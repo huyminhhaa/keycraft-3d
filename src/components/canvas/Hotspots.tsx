@@ -22,7 +22,7 @@ export interface Hotspot {
 /** Điểm chú thích kiểu trang sản phẩm: mỗi điểm gắn vào một bộ phận, nội dung lấy đúng cấu hình đang chọn. */
 export const buildHotspots = (state: KeyboardState): Hotspot[] => {
   const layout = getLayout(state.layout);
-  const dims = getCaseDimensions(layout.width, layout.depth);
+  const dims = getCaseDimensions(layout.width, layout.depth, state.caseShape?.bezel);
   const center = (code: string) => {
     const key = layout.keys.find((k) => k.code === code);
     return key ? keyCenter(key, layout.width, layout.depth) : ([0, 0] as [number, number]);

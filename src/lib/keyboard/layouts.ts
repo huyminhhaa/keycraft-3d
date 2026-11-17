@@ -171,6 +171,53 @@ const ROWS: Record<KeyboardLayout, RowSpec[]> = {
       ],
     },
   ],
+  // 96% (1800 thu gọn, kiểu AULA F99): cụm mũi tên nằm sát phím chữ, numpad bên phải.
+  // Phím + và Enter của numpad ngoài đời cao 2u; ở đây vẽ 1u nên hai ô dưới chúng là PgUp/PgDn.
+  '96%': [
+    {
+      y: 0,
+      profileRow: 1,
+      items: [
+        ESC, gap(0.25), ...F_KEYS(1, 4, 'alpha'), gap(0.25), ...F_KEYS(5, 8, 'modifier'), gap(0.25),
+        ...F_KEYS(9, 12, 'alpha'), gap(0.25),
+        m('Insert', 'Ins'), m('Delete', 'Del'), m('Home', 'Home'), m('End', 'End'), m('PrintScreen', 'Prt Sc'),
+      ],
+    },
+    {
+      y: 1.25,
+      profileRow: 1,
+      items: [...NUMBER_ROW, m('NumLock', 'Num'), k('NumpadDivide', '/'), k('NumpadMultiply', '*'), k('NumpadSubtract', '-')],
+    },
+    {
+      y: 2.25,
+      profileRow: 2,
+      items: [...QWERTY_ROW, k('Numpad7', '7'), k('Numpad8', '8'), k('Numpad9', '9'), m('NumpadAdd', '+')],
+    },
+    {
+      y: 3.25,
+      profileRow: 3,
+      items: [...HOME_ROW, k('Numpad4', '4'), k('Numpad5', '5'), k('Numpad6', '6'), m('PageUp', 'PgUp')],
+    },
+    {
+      y: 4.25,
+      profileRow: 4,
+      items: [
+        m('ShiftLeft', 'Shift', 2.25), ...SHIFT_ROW_ALPHAS, m('ShiftRight', 'Shift', 1.75), ARROW_UP,
+        k('Numpad1', '1'), k('Numpad2', '2'), k('Numpad3', '3'), k('NumpadEnter', 'Ent', 1, 'accent'),
+      ],
+    },
+    {
+      y: 5.25,
+      profileRow: 4,
+      items: [
+        m('ControlLeft', 'Ctrl', 1.25), m('MetaLeft', 'Win', 1.25), m('AltLeft', 'Alt', 1.25),
+        k('Space', '', 6.25),
+        m('AltRight', 'Alt'), m('Fn', 'Fn'), m('ControlRight', 'Ctrl'),
+        ARROW_LEFT, ARROW_DOWN, ARROW_RIGHT,
+        k('Numpad0', '0'), k('NumpadDecimal', '.'), m('PageDown', 'PgDn'),
+      ],
+    },
+  ],
   '65%': [
     { y: 0, profileRow: 1, items: [{ ...ESC, legend: ['~', 'Esc'] }, ...NUMBER_ROW.slice(1), m('Delete', 'Del')] },
     { y: 1, profileRow: 2, items: [...QWERTY_ROW, m('PageUp', 'PgUp')] },
@@ -219,6 +266,17 @@ export const LAYOUTS: Record<KeyboardLayout, LayoutDefinition> = {
   '65%': buildLayout('65%'),
   '75%': buildLayout('75%'),
   TKL: buildLayout('TKL'),
+  '96%': buildLayout('96%'),
+};
+
+/**
+ * Phím mà núm xoay thay chỗ: phím ngoài cùng bên phải của hàng trên cùng
+ * (AULA F75, Leobog Hi75C Pro, Attack Shark X85, AULA F99 Pro đều đặt núm ở góc này).
+ */
+export const knobKeyCode = (id: KeyboardLayout): string | null => {
+  const top = LAYOUTS[id].keys.filter((key) => key.y === 0);
+  if (top.length === 0) return null;
+  return top.reduce((right, key) => (key.x > right.x ? key : right)).code;
 };
 
 export const getLayout = (id: KeyboardLayout): LayoutDefinition => LAYOUTS[id];

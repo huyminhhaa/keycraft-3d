@@ -1,8 +1,20 @@
-export type KeyboardLayout = '65%' | '75%' | 'TKL';
+export type KeyboardLayout = '65%' | '75%' | 'TKL' | '96%';
+
+export const KEYBOARD_LAYOUTS: readonly KeyboardLayout[] = ['65%', '75%', 'TKL', '96%'];
+
+/** Dáng vỏ theo từng mẫu phím thật (đơn vị thế giới 3D, 1u phím = 0.38) */
+export interface CaseShape {
+  /** Viền vỏ quanh vùng phím */
+  bezel: number;
+  /** Bán kính bo góc vỏ */
+  cornerRadius: number;
+  /** Núm xoay thay chỗ phím cuối hàng trên cùng (AULA F75, Hi75C Pro, X85…) */
+  knob: boolean;
+}
 
 export type PlateMaterial = 'aluminum' | 'polycarbonate' | 'pom' | 'fr4';
 
-export type CaseMaterial = 'aluminum' | 'polycarbonate' | 'wood' | 'acrylic';
+export type CaseMaterial = 'aluminum' | 'plastic' | 'polycarbonate' | 'wood' | 'acrylic';
 
 export type SwitchType = 'linear' | 'tactile' | 'clicky' | 'silent_linear';
 
@@ -15,9 +27,18 @@ export interface SoundProfile {
   label: string;
 }
 
+export const DEFAULT_CASE_SHAPE: CaseShape = { bezel: 0.22, cornerRadius: 0.16, knob: false };
+
 export interface KeyboardState {
   /** Mẫu bàn phím đang xem (id trong src/lib/keyboard/models.ts) */
   modelId: string;
+  /**
+   * Build phím thật đang áp dụng (id trong src/lib/keyboard/builds.ts), null = tự phối.
+   * Tuỳ chọn để bản build đã lưu trước khi có trường này vẫn đọc được.
+   */
+  buildId?: string | null;
+  /** Dáng vỏ; thiếu thì dùng DEFAULT_CASE_SHAPE */
+  caseShape?: CaseShape;
 
   // Bố cục & Hình học (Layout & Geometry)
   layout: KeyboardLayout;
@@ -49,6 +70,8 @@ export interface KeyboardState {
 export interface KeyboardActions {
   /** Đổi mẫu bàn phím; mẫu .glb có layout cố định nên layout đổi theo */
   setModel: (modelId: string) => void;
+  /** Áp dụng một build phím thật: layout, màu, chất liệu, dáng vỏ (tiếng do useSoundStore lo) */
+  applyBuild: (buildId: string) => void;
   setLayout: (layout: KeyboardLayout) => void;
   toggleExploded: () => void;
   setExploded: (isExploded: boolean) => void;

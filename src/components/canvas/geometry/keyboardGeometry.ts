@@ -107,18 +107,20 @@ export interface CaseDimensions {
   outerDepth: number;
 }
 
-export const getCaseDimensions = (layoutWidthU: number, layoutDepthU: number): CaseDimensions => {
+export const getCaseDimensions = (layoutWidthU: number, layoutDepthU: number, bezel = CASE_BEZEL): CaseDimensions => {
   const keysWidth = layoutWidthU * KEY_UNIT;
   const keysDepth = layoutDepthU * KEY_UNIT;
   return {
     keysWidth,
     keysDepth,
-    outerWidth: keysWidth + 2 * CASE_BEZEL,
-    outerDepth: keysDepth + 2 * CASE_BEZEL,
+    outerWidth: keysWidth + 2 * bezel,
+    outerDepth: keysDepth + 2 * bezel,
   };
 };
 
 const CASE_BEVEL = 0.025;
+/** Bo góc mặc định của vỏ */
+export const CASE_CORNER_RADIUS = 0.16;
 
 /**
  * Khối vỏ ép đùn từ hình chữ nhật bo góc, cạnh vát như nhôm CNC.
@@ -129,9 +131,10 @@ export const createCaseGeometry = (
   depth: number,
   height: number,
   yBottom: number,
-  hole?: { width: number; depth: number }
+  hole?: { width: number; depth: number },
+  cornerRadius = CASE_CORNER_RADIUS
 ): THREE.ExtrudeGeometry => {
-  const shape = roundedRectPath(new THREE.Shape(), width, depth, 0.16);
+  const shape = roundedRectPath(new THREE.Shape(), width, depth, cornerRadius);
   if (hole) shape.holes.push(roundedRectPath(new THREE.Path(), hole.width, hole.depth, 0.05));
 
   const geometry = new THREE.ExtrudeGeometry(shape, {

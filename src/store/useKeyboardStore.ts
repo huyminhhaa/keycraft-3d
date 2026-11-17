@@ -8,6 +8,8 @@ import {
   CameraPreset,
 } from '@/types/keyboard';
 import { DEFAULT_MODEL_ID, getModelEntry } from '@/lib/keyboard/models';
+import { findBuild } from '@/lib/keyboard/builds';
+import { DEFAULT_CASE_SHAPE } from '@/types/keyboard';
 
 export const calculateSoundProfile = (
   plate: PlateMaterial,
@@ -77,6 +79,8 @@ export const calculateSoundProfile = (
 // Cấu hình mặc định: TKL vỏ nhôm đỏ, plate FR4, keycap đỏ hai tông, đèn hông màu hổ phách
 export const INITIAL_KEYBOARD_STATE: KeyboardState = {
   modelId: DEFAULT_MODEL_ID,
+  buildId: null,
+  caseShape: DEFAULT_CASE_SHAPE,
   layout: 'TKL',
   isExploded: false,
   explosionOffset: 1.5,
@@ -99,7 +103,30 @@ export const useKeyboardStore = create<KeyboardStore>((set) => ({
 
   setModel: (modelId) => {
     const entry = getModelEntry(modelId);
-    set(entry.source === 'glb' ? { modelId: entry.id, layout: entry.layout } : { modelId: entry.id });
+    // Build phím thật dựng bằng code: chuyển sang file .glb thì không còn là build đó nữa
+    set(entry.source === 'glb' ? { modelId: entry.id, layout: entry.layout, buildId: null } : { modelId: entry.id });
+  },
+
+  applyBuild: (buildId) => {
+    const build = findBuild(buildId);
+    if (!build) return;
+    const { look } = build;
+    set({
+      buildId: build.id,
+      modelId: DEFAULT_MODEL_ID,
+      layout: look.layout,
+      caseMaterial: look.caseMaterial,
+      caseColor: look.caseColor,
+      keycapColor: look.keycapColor,
+      keycapModifierColor: look.keycapModifierColor,
+      keycapAccentColor: look.keycapAccentColor,
+      plateMaterial: look.plateMaterial,
+      switchType: look.switchType,
+      caseShape: look.caseShape,
+      // Các build này không có dải LED hông như mẫu mặc định
+      underglowEnabled: false,
+      soundProfile: calculateSoundProfile(look.plateMaterial, look.switchType),
+    });
   },
 
   // Mẫu .glb có layout cố định: chỉ mẫu dựng bằng code mới đổi được layout

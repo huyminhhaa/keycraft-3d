@@ -8,15 +8,16 @@ import { countKeys } from '@/lib/keyboard/layouts';
 import { KEYBOARD_MODELS, getModelEntry } from '@/lib/keyboard/models';
 import { EXPORT_ROOT_NAME, downloadFile, exportObjectToGlb, getExportScene } from '@/lib/keyboard/exportGlb';
 import { KEYCAP_SETS, findKeycapSet } from '@/lib/keyboard/keycapSets';
-import type { CaseMaterial, KeyboardLayout } from '@/types/keyboard';
+import { KEYBOARD_LAYOUTS, type CaseMaterial, type KeyboardLayout } from '@/types/keyboard';
 import { ColorStrip, ListOption, Section, Segmented, Slider, SwatchGroup, Toggle, type Swatch } from './controls';
 
-const LAYOUT_OPTIONS: { value: KeyboardLayout; label: string; hint: string }[] = (['65%', '75%', 'TKL'] as const).map(
+const LAYOUT_OPTIONS: { value: KeyboardLayout; label: string; hint: string }[] = KEYBOARD_LAYOUTS.map(
   (id) => ({ value: id, label: id, hint: `${countKeys(id)} phím` })
 );
 
 export const CASE_MATERIAL_LABELS: Record<CaseMaterial, string> = {
   aluminum: 'Nhôm',
+  plastic: 'Nhựa',
   polycarbonate: 'PC',
   acrylic: 'Acrylic',
   wood: 'Gỗ',

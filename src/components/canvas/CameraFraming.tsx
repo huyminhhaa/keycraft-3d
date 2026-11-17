@@ -56,6 +56,7 @@ export const CameraFraming: React.FC = () => {
   const layout = useKeyboardStore((s) => s.layout);
   const isExploded = useKeyboardStore((s) => s.isExploded);
   const offset = useKeyboardStore((s) => s.explosionOffset);
+  const bezel = useKeyboardStore((s) => s.caseShape?.bezel);
 
   // Nội suy mỗi khung hình để chuyển cảnh tách/ghép lớp mượt, không giật
   useFrame((state, delta) => {
@@ -63,7 +64,7 @@ export const CameraFraming: React.FC = () => {
     if (!(camera instanceof THREE.PerspectiveCamera)) return;
     const step = Math.min(1, delta * 6);
 
-    const goalZoom = computeFitZoom(size, getModelWidth(layout)) * explodedZoomFactor(isExploded, offset);
+    const goalZoom = computeFitZoom(size, getModelWidth(layout, bezel)) * explodedZoomFactor(isExploded, offset);
     if (Math.abs(camera.zoom - goalZoom) > 1e-4) {
       camera.zoom = THREE.MathUtils.lerp(camera.zoom, goalZoom, step);
       camera.updateProjectionMatrix();

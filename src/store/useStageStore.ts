@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type SidebarTab = 'design' | 'sound' | 'ai';
+export type SidebarTab = 'builds' | 'design' | 'sound' | 'ai';
 
 /**
  * Trạng thái của sân khấu 3D & điều hướng thanh công cụ:
@@ -30,7 +30,8 @@ export const useStageStore = create<StageState>((set) => ({
   autoRotate: true,
   introDone: false,
   highQuality: true,
-  activeTab: 'design',
+  // Mở studio là thấy ngay thư viện build phím thật
+  activeTab: 'builds',
   sidebarOpen: true,
   modelError: null,
   setModelError: (modelError) => set({ modelError }),

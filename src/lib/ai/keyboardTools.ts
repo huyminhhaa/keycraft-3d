@@ -10,17 +10,17 @@ const hexColorRegex = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 // -----------------------------------------------------------------------------
 export const updateKeyboardConfigSchema = z.object({
   layout: z
-    .enum(['65%', '75%', 'TKL'])
+    .enum(['65%', '75%', 'TKL', '96%'])
     .optional()
-    .describe('Kích thước layout bàn phím: 65% (nhỏ gọn), 75% (có F-row), TKL (87 phím)'),
+    .describe('Kích thước layout bàn phím: 65% (nhỏ gọn), 75% (có F-row), TKL (87 phím), 96% (có numpad, kiểu AULA F99)'),
   plateMaterial: z
     .enum(['aluminum', 'polycarbonate', 'pom', 'fr4'])
     .optional()
     .describe('Chất liệu Plate: aluminum (đanh giòn), polycarbonate (trầm ấm), pom (thock sâu), fr4 (cân bằng)'),
   caseMaterial: z
-    .enum(['aluminum', 'polycarbonate', 'acrylic', 'wood'])
+    .enum(['aluminum', 'plastic', 'polycarbonate', 'acrylic', 'wood'])
     .optional()
-    .describe('Chất liệu vỏ Case ngoài: aluminum (nhôm CNC), polycarbonate (PC mờ), acrylic, wood (gỗ tự nhiên)'),
+    .describe('Chất liệu vỏ Case ngoài: aluminum (nhôm CNC), plastic (nhựa ABS), polycarbonate (PC mờ), acrylic, wood (gỗ tự nhiên)'),
   switchType: z
     .enum(['linear', 'tactile', 'clicky', 'silent_linear'])
     .optional()

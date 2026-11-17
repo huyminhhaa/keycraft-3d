@@ -17,7 +17,7 @@ describe('Bố cục phím ANSI', () => {
 
   it('mỗi hàng kết thúc thẳng mép phải của khối chính hoặc của cả bàn phím', () => {
     // TKL: hàng Home không có cụm điều hướng (dừng ở 15u), hàng Shift dừng ở phím ↑ (giữa cụm, 17.25u)
-    const allowedEdges: Record<string, number[]> = { TKL: [15, 17.25, 18.25], '75%': [16], '65%': [16] };
+    const allowedEdges: Record<string, number[]> = { TKL: [15, 17.25, 18.25], '75%': [16], '65%': [16], '96%': [19] };
     Object.values(LAYOUTS).forEach((layout) => {
       const rows = new Map<number, number>();
       layout.keys.forEach((key) => rows.set(key.y, Math.max(rows.get(key.y) ?? 0, key.x + key.w)));
