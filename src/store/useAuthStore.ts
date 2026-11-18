@@ -9,11 +9,13 @@ export interface UserProfile {
   email: string;
   role: string;
   avatarUrl?: string | null;
+  authProvider?: 'credentials' | 'google';
 }
 
 interface AuthState {
   user: UserProfile | null;
   isAuthenticated: boolean;
+  hasChecked: boolean;
   isLoading: boolean;
   isAuthModalOpen: boolean;
   authModalMode: 'login' | 'register';
@@ -23,13 +25,13 @@ interface AuthState {
   captchaChallenge: CaptchaChallenge | null;
   errorMessage: string | null;
 
-  openModal: (mode?: 'login' | 'register') => void;
+  openModal: (mode?: 'login' | 'register', errorMessage?: string | null) => void;
   closeModal: () => void;
   setMode: (mode: 'login' | 'register') => void;
   setCaptcha: (challenge: CaptchaChallenge | null) => void;
   fetchCaptcha: () => Promise<void>;
 
-  checkAuth: () => Promise<void>;
+  checkAuth: (force?: boolean) => Promise<void>;
   login: (credentials: {
     email: string;
     password: string;
@@ -45,9 +47,10 @@ interface AuthState {
   logout: () => Promise<void>;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isAuthenticated: false,
+  hasChecked: false,
   isLoading: false,
   isAuthModalOpen: false,
   authModalMode: 'login',
@@ -56,11 +59,11 @@ export const useAuthStore = create<AuthState>((set) => ({
   captchaChallenge: null,
   errorMessage: null,
 
-  openModal: (mode = 'login') =>
+  openModal: (mode = 'login', errorMessage = null) =>
     set({
       isAuthModalOpen: true,
       authModalMode: mode,
-      errorMessage: null,
+      errorMessage,
     }),
 
   closeModal: () =>
@@ -86,22 +89,23 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
   },
 
-  checkAuth: async () => {
+  checkAuth: async (force = false) => {
+    if (!force && (get().hasChecked || get().isLoading)) return;
     set({ isLoading: true });
     try {
-      const res = await fetch('/api/auth/me');
+      const res = await fetch('/api/auth/me', { credentials: 'same-origin' });
       if (res.ok) {
         const data = await res.json();
         if (data.authenticated && data.user) {
-          set({ user: data.user, isAuthenticated: true });
+          set({ user: data.user, isAuthenticated: true, hasChecked: true });
         } else {
-          set({ user: null, isAuthenticated: false });
+          set({ user: null, isAuthenticated: false, hasChecked: true });
         }
       } else {
-        set({ user: null, isAuthenticated: false });
+        set({ user: null, isAuthenticated: false, hasChecked: true });
       }
     } catch {
-      set({ user: null, isAuthenticated: false });
+      set({ user: null, isAuthenticated: false, hasChecked: true });
     } finally {
       set({ isLoading: false });
     }

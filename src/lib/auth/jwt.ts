@@ -1,10 +1,14 @@
 import { SignJWT, jwtVerify, JWTPayload } from 'jose';
 
+export type AuthProvider = 'credentials' | 'google';
+
 export interface UserJWTPayload extends JWTPayload {
   userId: string;
   email: string;
   name: string;
   role: string;
+  avatarUrl?: string | null;
+  authProvider?: AuthProvider;
   type?: 'access' | 'refresh';
 }
 

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { POST } from './route';
+import { signAccessToken, COOKIE_ACCESS_TOKEN } from '@/lib/auth/jwt';
 
 describe('/api/chat API Route', () => {
   const originalEnv = process.env;
@@ -78,5 +79,63 @@ describe('/api/chat API Route', () => {
     expect(rateLimitedRes.headers.get('Retry-After')).toBeDefined();
     const data = await rateLimitedRes.json();
     expect(data.error).toContain('quá nhiều yêu cầu');
+  });
+
+  it('chặn khách chưa đăng nhập (HTTP 401) khi cố gửi tệp/ảnh đính kèm', async () => {
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY = 'test_mock_key';
+
+    const req = new Request('http://localhost:3000/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-forwarded-for': '198.51.100.11',
+      },
+      body: JSON.stringify({
+        messages: [{ role: 'user', content: 'Xem ảnh này giúp mình' }],
+        attachments: [
+          {
+            name: 'desk.jpg',
+            mimeType: 'image/jpeg',
+            dataBase64: Buffer.from([0xff, 0xd8, 0xff, 0xe0]).toString('base64'),
+          },
+        ],
+      }),
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(401);
+    const data = await res.json();
+    expect(data.code).toBe('AUTH_REQUIRED_FOR_ATTACHMENTS');
+  });
+
+  it('chặn tệp .exe giả mạo ảnh .jpg (HTTP 400 MALICIOUS_SIGNATURE) dù đã đăng nhập', async () => {
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY = 'test_mock_key';
+    const token = await signAccessToken({
+      userId: 'usr_security_test',
+      email: 'sec@keycraft.io',
+      name: 'Sec Tester',
+      role: 'user',
+      authProvider: 'google',
+    });
+
+    const fakeJpg = Buffer.from([0x4d, 0x5a, 0x90, 0x00, 0x03, 0x00]).toString('base64');
+    const req = new Request('http://localhost:3000/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Cookie: `${COOKIE_ACCESS_TOKEN}=${token}`,
+      },
+      body: JSON.stringify({
+        messages: [{ role: 'user', content: 'Kiểm tra ảnh này' }],
+        attachments: [
+          { name: 'evil.jpg', mimeType: 'image/jpeg', dataBase64: fakeJpg },
+        ],
+      }),
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.code).toBe('MALICIOUS_SIGNATURE');
   });
 });

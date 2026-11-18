@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
+import { AuthHydrator } from '@/components/ui/AuthHydrator';
 import './globals.css';
 
 const geistSans = Geist({
@@ -29,7 +30,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="vi" className={`${geistSans.variable} ${geistMono.variable} h-full`}>
-      <body className="min-h-full">{children}</body>
+      <body className="min-h-full">
+        <AuthHydrator />
+        {children}
+      </body>
     </html>
   );
 }

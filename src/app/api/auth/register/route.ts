@@ -97,6 +97,8 @@ export async function POST(req: Request) {
       email: newUser.email,
       name: newUser.name,
       role: newUser.role,
+      avatarUrl: newUser.avatarUrl,
+      authProvider: 'credentials',
     });
 
     const refreshToken = await signRefreshToken({
@@ -104,6 +106,8 @@ export async function POST(req: Request) {
       email: newUser.email,
       name: newUser.name,
       role: newUser.role,
+      avatarUrl: newUser.avatarUrl,
+      authProvider: 'credentials',
     });
 
     const cookieHeaders = buildAuthCookieHeaders({ accessToken, refreshToken });
@@ -112,7 +116,7 @@ export async function POST(req: Request) {
       {
         success: true,
         message: 'Đăng ký tài khoản thành công.',
-        user: newUser,
+        user: { ...newUser, authProvider: 'credentials' as const },
       },
       { status: 201 }
     );

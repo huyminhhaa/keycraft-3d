@@ -107,11 +107,14 @@ export async function POST(req: Request) {
     // 6. Xử lý khi đăng nhập THÀNH CÔNG -> Reset bộ đếm lỗi & Cấp phát JWT
     await recordSuccessfulLogin(normEmail);
 
+    const authProvider = userRecord.authProvider === 'google' ? 'google' : 'credentials';
     const userPayload = {
       userId: userRecord.id,
       email: userRecord.email,
       name: userRecord.name,
       role: userRecord.role,
+      avatarUrl: userRecord.avatarUrl ?? null,
+      authProvider: authProvider as 'credentials' | 'google',
     };
 
     const accessToken = await signAccessToken(userPayload);
@@ -127,6 +130,7 @@ export async function POST(req: Request) {
         email: userRecord.email,
         role: userRecord.role,
         avatarUrl: userRecord.avatarUrl,
+        authProvider,
       },
     });
 

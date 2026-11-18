@@ -1,10 +1,26 @@
 'use client';
 
-import React, { useRef, useEffect } from 'react';
-import { Send, Square, Sparkles, RefreshCw, Cpu, Layers } from 'lucide-react';
+import React, { useRef, useEffect, useState } from 'react';
+import {
+  Send,
+  Square,
+  Sparkles,
+  RefreshCw,
+  Cpu,
+  Layers,
+  Paperclip,
+  History,
+  Plus,
+  Trash2,
+  X,
+  FileText,
+  Image as ImageIcon,
+  Lock,
+} from 'lucide-react';
 import { useAIAssistant } from '@/lib/ai/useAIAssistant';
 import { AcousticWaveform } from './AcousticWaveform';
 import { applyToolToStore } from '@/lib/ai/chatStream';
+import { useAuthStore } from '@/store/useAuthStore';
 
 const PROMPT_SUGGESTIONS = [
   {
@@ -29,6 +45,14 @@ const PROMPT_SUGGESTIONS = [
   },
 ];
 
+const ACCEPTED_FILE_TYPES = '.jpg,.jpeg,.png,.webp,.pdf,.txt,.md,.json,.csv';
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 export const AIChatPanel: React.FC = () => {
   const {
     messages,
@@ -39,10 +63,24 @@ export const AIChatPanel: React.FC = () => {
     sendMessage,
     stopStreaming,
     clearMessages,
+    isCloudMode,
+    sessions,
+    activeSessionId,
+    isLoadingSessions,
+    selectSession,
+    deleteSession,
+    pendingAttachments,
+    attachmentError,
+    addAttachments,
+    removeAttachment,
   } = useAIAssistant();
+
+  const openAuthModal = useAuthStore((s) => s.openModal);
+  const [showHistory, setShowHistory] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (typeof messagesEndRef.current?.scrollIntoView === 'function') {
@@ -52,12 +90,45 @@ export const AIChatPanel: React.FC = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isStreaming) return;
-    sendMessage();
+    if ((!input.trim() && pendingAttachments.length === 0) || isStreaming) return;
+    void sendMessage();
   };
 
   const handleSuggestionClick = (prompt: string) => {
-    sendMessage(prompt);
+    void sendMessage(prompt);
+  };
+
+  const handleAttachmentButtonClick = () => {
+    if (!isCloudMode) {
+      openAuthModal(
+        'login',
+        'Đăng nhập bằng Google hoặc tài khoản KeyCraft để gửi ảnh/tệp phân tích và lưu lịch sử trò chuyện.'
+      );
+      return;
+    }
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      void addAttachments(e.target.files);
+      e.target.value = '';
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    if (!isCloudMode) return;
+    const files: File[] = [];
+    for (const item of Array.from(e.clipboardData.items)) {
+      if (item.kind === 'file') {
+        const f = item.getAsFile();
+        if (f) files.push(f);
+      }
+    }
+    if (files.length > 0) {
+      e.preventDefault();
+      void addAttachments(files);
+    }
   };
 
   // Hỗ trợ chế độ thử nghiệm Demo khi chưa gắn Gemini API Key
@@ -85,31 +156,126 @@ export const AIChatPanel: React.FC = () => {
   };
 
   const isMissingKey = error?.includes('GOOGLE_GENERATIVE_AI_API_KEY');
+  const canSend = Boolean(input.trim() || pendingAttachments.length > 0);
 
   return (
     <div className="flex h-full flex-col">
       {/* 1. Header & Live Acoustic Telemetry */}
       <div className="border-b border-line px-5 py-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-ink" aria-hidden />
             <h2 className="text-[13px] font-medium text-ink">Kiến trúc sư âm học AI</h2>
           </div>
-          {messages.length > 0 && (
+
+          <div className="flex items-center gap-1.5">
+            {isCloudMode && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setShowHistory((v) => !v)}
+                  aria-label="Lịch sử trò chuyện"
+                  className={`btn-press flex items-center gap-1 rounded border px-2 py-1 text-[11px] transition-colors ${
+                    showHistory
+                      ? 'border-ink bg-ink text-canvas'
+                      : 'border-line bg-surface text-muted hover:text-ink'
+                  }`}
+                >
+                  <History className="h-3 w-3" />
+                  <span>Lịch sử ({sessions.length})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    clearMessages();
+                    setShowHistory(false);
+                  }}
+                  aria-label="Đoạn chat mới"
+                  title="Đoạn chat mới"
+                  className="btn-press flex items-center gap-1 rounded border border-line bg-surface px-2 py-1 text-[11px] text-muted hover:text-ink"
+                >
+                  <Plus className="h-3 w-3" />
+                  <span>Mới</span>
+                </button>
+              </>
+            )}
+
+            {!isCloudMode && messages.length > 0 && (
+              <button
+                type="button"
+                onClick={clearMessages}
+                aria-label="Xoá cuộc trò chuyện"
+                className="btn-press flex items-center gap-1 text-[11px] text-muted hover:text-ink"
+              >
+                <RefreshCw className="h-3 w-3" />
+                <span>Làm mới</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Khách: nhắc đăng nhập để lưu lịch sử. Đã đăng nhập thì không hiện thẻ trạng thái */}
+        {!isCloudMode && (
+          <div className="mt-2 flex items-center justify-between gap-2 rounded-md border border-line bg-surface-2/70 px-2.5 py-1.5 text-[11px] text-muted">
+            <span className="leading-snug">
+              Đoạn chat tạm thời · Đăng nhập để lưu lịch sử & gửi ảnh/tệp
+            </span>
             <button
               type="button"
-              onClick={clearMessages}
-              aria-label="Xoá cuộc trò chuyện"
-              className="btn-press flex items-center gap-1 text-[11px] text-muted hover:text-ink"
+              onClick={() => openAuthModal('login')}
+              className="btn-press shrink-0 rounded bg-ink px-2 py-0.5 text-[11px] font-medium text-canvas hover:opacity-90"
             >
-              <RefreshCw className="h-3 w-3" />
-              <span>Làm mới</span>
+              Đăng nhập
             </button>
-          )}
-        </div>
-        <p className="mt-1.5 text-[12px] leading-relaxed text-muted">
-          Yêu cầu AI tư vấn chất âm mong muốn và tự động biến đổi mô hình bàn phím 3D thời gian thực.
-        </p>
+          </div>
+        )}
+
+        {/* Drawer lịch sử đoạn chat đã lưu trên PostgreSQL */}
+        {isCloudMode && showHistory && (
+          <div className="mt-2.5 max-h-44 overflow-y-auto rounded-lg border border-line bg-canvas p-1.5 scroll-thin">
+            {isLoadingSessions ? (
+              <p className="px-2 py-3 text-center text-[11px] text-muted">Đang tải lịch sử...</p>
+            ) : sessions.length === 0 ? (
+              <p className="px-2 py-3 text-center text-[11px] text-muted">
+                Chưa có đoạn chat nào được lưu. Hãy gửi câu hỏi đầu tiên!
+              </p>
+            ) : (
+              <ul className="space-y-1">
+                {sessions.map((s) => {
+                  const isActive = s.id === activeSessionId;
+                  return (
+                    <li
+                      key={s.id}
+                      className={`group flex items-center justify-between gap-1 rounded px-2 py-1.5 text-[12px] transition-colors ${
+                        isActive ? 'bg-surface-2 text-ink' : 'text-muted hover:bg-surface hover:text-ink'
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void selectSession(s.id);
+                          setShowHistory(false);
+                        }}
+                        className="flex-1 truncate text-left"
+                        title={s.title}
+                      >
+                        {s.title}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void deleteSession(s.id)}
+                        aria-label={`Xóa đoạn chat ${s.title}`}
+                        className="shrink-0 rounded p-1 text-faint opacity-70 hover:bg-red-500/15 hover:text-red-400 hover:opacity-100"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        )}
 
         <div className="mt-3">
           <AcousticWaveform isStreaming={isStreaming} />
@@ -154,6 +320,44 @@ export const AIChatPanel: React.FC = () => {
                       : 'border border-line bg-surface text-ink'
                   }`}
                 >
+                  {/* Hiển thị ảnh/tệp đính kèm trong tin nhắn */}
+                  {msg.attachments && msg.attachments.length > 0 && (
+                    <div className="mb-2 flex flex-wrap gap-1.5">
+                      {msg.attachments.map((att, idx) =>
+                        att.kind === 'image' && att.previewUrl ? (
+                          <div
+                            key={`${att.name}-${idx}`}
+                            className="overflow-hidden rounded-md border border-black/15"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={att.previewUrl}
+                              alt={att.name}
+                              className="max-h-28 max-w-[160px] object-cover"
+                            />
+                          </div>
+                        ) : (
+                          <div
+                            key={`${att.name}-${idx}`}
+                            className={`flex items-center gap-1.5 rounded px-2 py-1 text-[11px] ${
+                              isUser
+                                ? 'bg-canvas/15 text-canvas'
+                                : 'border border-line bg-surface-2 text-ink'
+                            }`}
+                          >
+                            {att.kind === 'image' ? (
+                              <ImageIcon className="h-3 w-3 shrink-0" />
+                            ) : (
+                              <FileText className="h-3 w-3 shrink-0" />
+                            )}
+                            <span className="max-w-[130px] truncate">{att.name}</span>
+                            <span className="opacity-70">{formatBytes(att.size)}</span>
+                          </div>
+                        )
+                      )}
+                    </div>
+                  )}
+
                   <p className="whitespace-pre-wrap">{msg.content}</p>
 
                   {/* Hiển thị danh sách Tool Execution khi AI điều khiển 3D Canvas */}
@@ -225,17 +429,87 @@ export const AIChatPanel: React.FC = () => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* 3. Input Form */}
+      {/* 3. Input Form + Multimodal Attachment Tray */}
       <form onSubmit={handleSubmit} className="border-t border-line p-3">
+        {/* Cảnh báo lỗi file từ Client Guard */}
+        {attachmentError && (
+          <div className="mb-2 rounded-md border border-red-500/30 bg-red-500/10 px-2.5 py-1.5 text-[11px] text-red-400">
+            {attachmentError}
+          </div>
+        )}
+
+        {/* Xem trước ảnh/tệp đang chờ gửi */}
+        {pendingAttachments.length > 0 && (
+          <div className="mb-2 flex flex-wrap gap-1.5">
+            {pendingAttachments.map((att) => (
+              <div
+                key={att.id}
+                className="flex items-center gap-1.5 rounded-md border border-line bg-surface px-2 py-1 text-[11px] text-ink"
+              >
+                {att.kind === 'image' && att.previewUrl ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={att.previewUrl}
+                    alt={att.name}
+                    className="h-6 w-6 rounded object-cover"
+                  />
+                ) : (
+                  <FileText className="h-3.5 w-3.5 text-muted" />
+                )}
+                <span className="max-w-[110px] truncate">{att.name}</span>
+                <span className="text-[10px] text-faint">{formatBytes(att.size)}</span>
+                <button
+                  type="button"
+                  onClick={() => removeAttachment(att.id)}
+                  aria-label={`Gỡ ${att.name}`}
+                  className="rounded p-0.5 text-muted hover:bg-surface-2 hover:text-ink"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept={ACCEPTED_FILE_TYPES}
+          onChange={handleFileChange}
+          className="hidden"
+          aria-label="Chọn ảnh hoặc tệp đính kèm"
+        />
+
         <div className="relative flex items-center">
+          <button
+            type="button"
+            onClick={handleAttachmentButtonClick}
+            disabled={isStreaming}
+            aria-label={isCloudMode ? 'Đính kèm ảnh hoặc tệp' : 'Đăng nhập để đính kèm ảnh hoặc tệp'}
+            title={
+              isCloudMode
+                ? 'Đính kèm ảnh (JPG/PNG/WebP) hoặc tệp (PDF/TXT/JSON/MD/CSV, tối đa 4MB)'
+                : 'Đăng nhập để gửi ảnh/tệp phân tích'
+            }
+            className="btn-press absolute left-1.5 flex h-7 w-7 items-center justify-center rounded text-muted transition-colors hover:bg-surface-2 hover:text-ink disabled:opacity-40"
+          >
+            {isCloudMode ? <Paperclip className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
+          </button>
+
           <input
             ref={inputRef}
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            onPaste={handlePaste}
             disabled={isStreaming}
-            placeholder="Hỏi về âm học hoặc yêu cầu cấu hình..."
-            className="w-full rounded-md border border-line bg-surface py-2.5 pl-3 pr-11 text-[13px] text-ink placeholder:text-muted focus:border-ink focus:outline-none disabled:opacity-50"
+            placeholder={
+              isCloudMode
+                ? 'Hỏi AI, dán ảnh bàn phím (Ctrl+V) hoặc gửi file...'
+                : 'Hỏi về âm học hoặc yêu cầu cấu hình...'
+            }
+            className="w-full rounded-md border border-line bg-surface py-2.5 pl-10 pr-11 text-[13px] text-ink placeholder:text-muted focus:border-ink focus:outline-none disabled:opacity-50"
           />
 
           {isStreaming ? (
@@ -250,7 +524,7 @@ export const AIChatPanel: React.FC = () => {
           ) : (
             <button
               type="submit"
-              disabled={!input.trim()}
+              disabled={!canSend}
               aria-label="Gửi yêu cầu"
               className="btn-press absolute right-1.5 flex h-7 w-7 items-center justify-center rounded bg-ink text-canvas hover:bg-ink/90 disabled:opacity-30 disabled:hover:bg-ink"
             >
