@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { KEYBOARD_LAYOUTS, KEYCAP_PROFILES, SHELL_STYLES } from '@/types/keyboard';
 import { moduleSchema } from './modules';
+import { PHOTO_VERSIONS } from './buildPhotoVersions';
 
 /**
  * Danh mục build phím thật (kiểu "sound profile" của các shop): mỗi build gồm
@@ -138,7 +139,14 @@ export type KeyboardBuild = z.infer<typeof buildSchema>;
 type BuildInput = z.input<typeof buildSchema>;
 type ModuleInput = z.input<typeof moduleSchema>;
 
-export const buildPhotoUrl = (build: Pick<KeyboardBuild, 'id'>): string => `/builds/${build.id}.jpg`;
+/**
+ * URL ảnh có mã phiên bản theo nội dung (`?v=`): thay ảnh cùng tên thì URL đổi theo, nên cả ảnh nhỏ trong danh sách
+ * (bản thu nhỏ do next/image tạo và cache) lẫn ảnh lớn đều hiện ảnh mới ngay.
+ */
+export const buildPhotoUrl = (build: Pick<KeyboardBuild, 'id'>): string => {
+  const version = PHOTO_VERSIONS[build.id];
+  return version ? `/builds/${build.id}.jpg?v=${version}` : `/builds/${build.id}.jpg`;
+};
 
 /* ----------------------------- Module dùng lại ----------------------------- */
 
@@ -744,7 +752,8 @@ const BATCH_3: BuildInput[] = [
     name: 'CIDOO QK75',
     tags: ['Gasket', 'QMK/VIA', 'Vỏ trong khói'],
     soundPackId: 'cidoo-qk75',
-    sourceUrl: yt('T9XDN1udjhI'),
+    // Bản thu gõ thuần, mic condenser phòng thu (PERFECT_PC, 02/2026); bản cũ là video review lẫn tiếng thao tác
+    sourceUrl: yt('4HpkYO1YblE'),
     specs: {
       case: 'Nhựa PC trong màu khói, núm xoay viền cam',
       mount: 'Gasket mount',

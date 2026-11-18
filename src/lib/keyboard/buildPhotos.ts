@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 /**
  * Ảnh thật chủ dự án thả vào `pics/<tên thư mục>/` → ảnh đại diện `public/builds/<build.id>.jpg`.
  * Script `npm run photos` (scripts/builds/sync-photos.ts) dùng bảng này; thư mục trống thì giữ ảnh cũ.
@@ -74,6 +76,9 @@ export const pickPrimaryPhoto = (candidates: PhotoCandidate[]): PhotoCandidate |
     (a, b) => landscape(b) - landscape(a) || b.width * b.height - a.width * a.height || a.file.localeCompare(b.file)
   )[0];
 };
+
+/** Mã phiên bản ảnh: 10 ký tự đầu SHA-1 của nội dung file (đổi ảnh là đổi mã) */
+export const photoHash = (bytes: Uint8Array): string => createHash('sha1').update(bytes).digest('hex').slice(0, 10);
 
 /** Kích thước đích: cạnh dài tối đa 1280px, giữ tỷ lệ, không phóng to ảnh nhỏ */
 export const fitWithin = (width: number, height: number, max = 1280): { width: number; height: number } => {

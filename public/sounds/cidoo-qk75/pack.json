@@ -2,8 +2,8 @@
   "id": "cidoo-qk75",
   "name": "CIDOO QK75",
   "switch": "CIDOO",
-  "noise": 0.0145,
-  "sourceUrl": "https://www.youtube.com/watch?v=T9XDN1udjhI",
+  "noise": 0.0054,
+  "sourceUrl": "https://www.youtube.com/watch?v=4HpkYO1YblE",
   "clips": {
     "alpha": [
       "alpha-01.wav",

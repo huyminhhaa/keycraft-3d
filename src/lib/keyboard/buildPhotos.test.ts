@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { KEYBOARD_BUILDS } from './builds';
-import { PHOTO_FOLDERS, fitWithin, pickPrimaryPhoto } from './buildPhotos';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { KEYBOARD_BUILDS, buildPhotoUrl } from './builds';
+import { PHOTO_FOLDERS, fitWithin, photoHash, pickPrimaryPhoto } from './buildPhotos';
+import { PHOTO_VERSIONS } from './buildPhotoVersions';
 
 describe('buildPhotos: đồng bộ ảnh thật từ pics/', () => {
   it('đủ 41/41 build đều có tên thư mục ảnh, không thừa', () => {
@@ -21,6 +24,14 @@ describe('buildPhotos: đồng bộ ảnh thật từ pics/', () => {
     ];
     expect(pickPrimaryPhoto(files)?.file).toBe('toan-canh.png');
     expect(pickPrimaryPhoto([...files, { file: 'cover.jpg', width: 400, height: 300 }])?.file).toBe('cover.jpg');
+  });
+
+  it('URL ảnh mang mã nội dung khớp file hiện tại (thay ảnh mà quên `npm run photos` thì test báo)', () => {
+    KEYBOARD_BUILDS.forEach((build) => {
+      const bytes = readFileSync(join(process.cwd(), 'public', 'builds', `${build.id}.jpg`));
+      expect(PHOTO_VERSIONS[build.id], build.id).toBe(photoHash(bytes));
+      expect(buildPhotoUrl(build)).toBe(`/builds/${build.id}.jpg?v=${photoHash(bytes)}`);
+    });
   });
 
   it('thu nhỏ giữ đúng tỷ lệ, cạnh dài ≤ 1280, không phóng to ảnh nhỏ', () => {
