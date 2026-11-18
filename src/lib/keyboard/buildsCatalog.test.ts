@@ -76,8 +76,16 @@ describe('màu PCB và foam thật', () => {
     expect(findBuild('mode-envoy-pc')?.look.pcbColor).toBe('#ecebe6');
   });
 
-  it('build chưa soi được video tháo máy thì để trống (dùng màu mặc định)', () => {
+  it('đợt 2: Neo65 mạch trắng, K2 HE mạch đen, X85 foam trắng, Hi75C foam đen', () => {
+    expect(findBuild('neo65')?.look.pcbColor).toBe('#ecebe6');
+    expect(findBuild('keychron-k2-he-se')?.look.pcbColor).toBe('#1b1c1f');
+    expect(findBuild('attack-shark-x85')?.look.foamColor).toBe('#e9e8e2');
+    expect(findBuild('leobog-hi75c-pro')?.look.foamColor).toBe('#222326');
+  });
+
+  it('chỗ chưa thấy tận mắt thì để trống (dùng màu mặc định)', () => {
     expect(findBuild('attack-shark-x85')?.look.pcbColor).toBeUndefined();
+    expect(findBuild('nuphy-halo75-v2')?.look.pcbColor).toBeUndefined();
     expect(findBuild('nuphy-halo75-v2')?.look.foamColor).toBeUndefined();
   });
 
