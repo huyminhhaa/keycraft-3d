@@ -92,6 +92,12 @@ describe('màu PCB và foam thật', () => {
   it('Hi75 dùng plate PP như trong video tháo máy', () => {
     expect(findBuild('leobog-hi75-vertex')?.specs.plate).toBe('PP');
   });
+
+  it('X85 dùng plate PC flex-cut (video tháo máy + ảnh cấu trúc chính hãng), không phải nhôm', () => {
+    const x85 = findBuild('attack-shark-x85');
+    expect(x85?.specs.plate).toBe('PC flex-cut');
+    expect(x85?.look.plateMaterial).toBe('polycarbonate');
+  });
 });
 
 describe('build không foam', () => {

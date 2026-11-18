@@ -330,7 +330,7 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
     specs: {
       case: 'Nhựa + nhôm',
       mount: 'Gasket mount',
-      plate: 'Nhôm',
+      plate: 'PC flex-cut',
       foam: '5 lớp: Poron sandwich, IXPE, PET, foam vỏ, silicone đáy',
       switch: 'Outemu White Jade (linear)',
       keycap: 'PBT',
@@ -342,7 +342,7 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       keycapColor: '#e5e5e2',
       keycapModifierColor: '#9b9da1',
       keycapAccentColor: '#5a5d62',
-      plateMaterial: 'aluminum',
+      plateMaterial: 'polycarbonate',
       switchType: 'linear',
       switchColors: SWITCH_COLORS.outemuJade,
       foamColor: FOAM.white,
