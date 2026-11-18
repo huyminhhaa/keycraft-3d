@@ -42,4 +42,5 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-
+# Vercel CLI (liên kết project cục bộ)
+.vercel
