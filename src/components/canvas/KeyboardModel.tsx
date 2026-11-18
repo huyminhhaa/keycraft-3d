@@ -1,26 +1,42 @@
 'use client';
 
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import { useKeyboardStore } from '@/store/useKeyboardStore';
-import { getLayout, knobKeyCode, type PlacedKey } from '@/lib/keyboard/layouts';
+import { getLayout, knobKeyCode, topRowModuleCodes, type PlacedKey } from '@/lib/keyboard/layouts';
 import { findBuild, type KeyboardBuild } from '@/lib/keyboard/builds';
 import { legendColorFor } from '@/lib/keyboard/keycapSets';
 import { isKeyPressed, pressKey, releaseKey } from '@/lib/keyboard/pressedKeys';
 import { prefersReducedMotion, stepColorToward } from '@/lib/ui/cinematic';
-import { DEFAULT_CASE_SHAPE, type CaseMaterial, type PlateMaterial, type SwitchType } from '@/types/keyboard';
 import {
+  DEFAULT_CASE_SHAPE,
+  type CaseMaterial,
+  type KeycapProfile,
+  type PlateMaterial,
+  type SwitchType,
+} from '@/types/keyboard';
+import {
+  HOMING_BAR,
+  HOMING_KEYS,
   KEY_UNIT,
   createCaseGeometry,
   createKeycapGeometry,
+  createLegendGeometry,
   getCaseDimensions,
   getKeycapShape,
   keyCenter,
+  keycapSurfaceY,
 } from './geometry/keyboardGeometry';
+import { getSurfaceTexture, getWoodColorTexture } from './geometry/proceduralTextures';
+import { TYPING_ANGLE } from './geometry/caseGeometry';
+import { BottomCaseBody, RotaryKnob } from './parts/CaseParts';
+import { ShellBottomDetails, ShellTopDetails } from './parts/ShellParts';
 import { createLegendTexture } from './geometry/legendTexture';
 import { EXPORT_ROOT_NAME } from '@/lib/keyboard/exportGlb';
+import { FoamLayer, PCB_THICKNESS, PLATE_THICKNESS, PcbLayer, PlateLayer } from './parts/InternalLayers';
+import { SwitchLayer } from './parts/SwitchLayer';
 
 /* -------------------------------------------------------------------------- */
 /* Vị trí trục Y của 7 lớp (export để unit test)                              */
@@ -45,8 +61,20 @@ export const calculateLayerPositions = (offset: number): LayerPositions => ({
   topCase: Number((0.44 + offset * 2.15).toFixed(3)),
 });
 
-/** Núm xoay (toạ độ trong group vỏ trên, gốc tại y = 0.44): chân chạm plate (0.4), đỉnh ngang mặt keycap (~0.76) */
-const KNOB = { radius: 0.15, height: 0.36, centerY: 0.14 } as const;
+/** Chân núm xoay trong toạ độ group vỏ trên (gốc 0.44): chạm plate (0.4), đỉnh cao 0.36 ngang mặt keycap */
+const KNOB_BASE_Y = -0.04;
+
+/** Thông số vật liệu đặt về mặc định trước khi đổi chất liệu (setValues chỉ ghi đè thuộc tính được truyền) */
+const MATERIAL_RESET: Partial<THREE.MeshPhysicalMaterialParameters> = {
+  roughness: 1,
+  metalness: 0,
+  transmission: 0,
+  thickness: 0,
+  transparent: false,
+  opacity: 1,
+  clearcoat: 0,
+  clearcoatRoughness: 0,
+};
 
 /** Núm kim loại: vỏ sáng thì núm bạc, vỏ tối thì núm xám than. */
 export const knobColorFor = (caseColor: string): string =>
@@ -167,18 +195,23 @@ interface KeycapProps {
   /** Vật liệu dùng chung theo vai trò phím (đổi màu dần cho cả nhóm cùng lúc) */
   material: THREE.Material;
   legendColor: string;
+  profile: KeycapProfile;
   registerRef: (code: string, group: THREE.Group | null) => void;
 }
 
-const Keycap: React.FC<KeycapProps> = ({ keyDef, position, material, legendColor, registerRef }) => {
-  const shape = getKeycapShape(keyDef.w, keyDef.profileRow);
-  const geometry = createKeycapGeometry(keyDef.w, keyDef.profileRow);
+const homingBarGeometry = new THREE.BoxGeometry(HOMING_BAR.width, HOMING_BAR.height, HOMING_BAR.depth);
+
+const Keycap: React.FC<KeycapProps> = ({ keyDef, position, material, legendColor, profile, registerRef }) => {
+  const shape = getKeycapShape(keyDef.w, keyDef.profileRow, profile);
+  const geometry = createKeycapGeometry(keyDef.w, keyDef.profileRow, profile);
   const legendWidth = shape.topWidth - 0.03;
   const legendDepth = shape.topDepth - 0.03;
+  const legendGeometry = createLegendGeometry(keyDef.w, keyDef.profileRow, legendWidth, legendDepth, profile);
   const texture = useMemo(
     () => createLegendTexture(keyDef.legend, legendWidth, legendDepth),
     [keyDef.legend, legendWidth, legendDepth]
   );
+  const homing = HOMING_KEYS.has(keyDef.code);
 
   const onDown = (event: ThreeEvent<PointerEvent>) => {
     event.stopPropagation();
@@ -198,9 +231,17 @@ const Keycap: React.FC<KeycapProps> = ({ keyDef, position, material, legendColor
         onPointerUp={onUp}
         onPointerLeave={onUp}
       />
+      {/* Gờ định vị F/J: cùng vật liệu keycap, nổi trên mặt lõm gần mép trước */}
+      {homing && (
+        <mesh
+          geometry={homingBarGeometry}
+          material={material}
+          position={[0, keycapSurfaceY(shape, 0, HOMING_BAR.z) + HOMING_BAR.height / 2 - 0.001, HOMING_BAR.z]}
+          castShadow
+        />
+      )}
       {texture && (
-        <mesh name="Legend" position={[0, shape.height + 0.0015, 0]} rotation={[-Math.PI / 2 + shape.tilt, 0, 0]}>
-          <planeGeometry args={[legendWidth, legendDepth]} />
+        <mesh name="Legend" geometry={legendGeometry}>
           <meshStandardMaterial
             map={texture}
             color={legendColor}
@@ -216,72 +257,34 @@ const Keycap: React.FC<KeycapProps> = ({ keyDef, position, material, legendColor
 };
 
 /* -------------------------------------------------------------------------- */
-/* Switch: dùng InstancedMesh (3 draw call cho cả bàn phím)                   */
-/* -------------------------------------------------------------------------- */
-interface SwitchesProps {
-  centers: [number, number][];
-  stemColor: string;
-}
-
-const SWITCH_PARTS = [
-  { size: [0.26, 0.08, 0.26] as const, y: -0.05, color: '#18181a', transparent: false },
-  { size: [0.25, 0.07, 0.25] as const, y: 0.025, color: '#c9c3b6', transparent: true },
-];
-
-const Switches: React.FC<SwitchesProps> = ({ centers, stemColor }) => {
-  const bottomRef = useRef<THREE.InstancedMesh>(null);
-  const topRef = useRef<THREE.InstancedMesh>(null);
-  const stemRef = useRef<THREE.InstancedMesh>(null);
-
-  useLayoutEffect(() => {
-    const matrix = new THREE.Matrix4();
-    const place = (mesh: THREE.InstancedMesh | null, y: number) => {
-      if (!mesh) return;
-      centers.forEach(([x, z], i) => {
-        matrix.makeTranslation(x, y, z);
-        mesh.setMatrixAt(i, matrix);
-      });
-      mesh.instanceMatrix.needsUpdate = true;
-      mesh.computeBoundingSphere();
-    };
-    place(bottomRef.current, SWITCH_PARTS[0].y);
-    place(topRef.current, SWITCH_PARTS[1].y);
-    place(stemRef.current, 0.09);
-  }, [centers]);
-
-  return (
-    <>
-      <instancedMesh ref={bottomRef} args={[undefined, undefined, centers.length]} castShadow>
-        <boxGeometry args={[...SWITCH_PARTS[0].size]} />
-        <meshStandardMaterial color={SWITCH_PARTS[0].color} roughness={0.5} />
-      </instancedMesh>
-      <instancedMesh ref={topRef} args={[undefined, undefined, centers.length]}>
-        <boxGeometry args={[...SWITCH_PARTS[1].size]} />
-        <meshStandardMaterial color={SWITCH_PARTS[1].color} roughness={0.25} transparent opacity={0.55} />
-      </instancedMesh>
-      <instancedMesh ref={stemRef} args={[undefined, undefined, centers.length]}>
-        <boxGeometry args={[0.09, 0.07, 0.09]} />
-        <meshStandardMaterial color={stemColor} roughness={0.4} />
-      </instancedMesh>
-    </>
-  );
-};
-
-/* -------------------------------------------------------------------------- */
 /* Mô hình bàn phím                                                           */
 /* -------------------------------------------------------------------------- */
 // Vỏ cao tổng 0.64 (≈ 32mm quy đổi): nửa dưới mỏng, nửa trên ôm sát tới chân keycap
 const BOTTOM_CASE = { yBottom: -0.08, height: 0.2 };
 const TOP_CASE = { yBottom: -0.32, height: 0.44 }; // tương đối với gốc lớp top case (0.44) → mép trên ở 0.56
 const KEYCAP_BASE_Y = -0.17; // đáy keycap so với gốc lớp keycap (0.74)
+/** Mặt trên plate trong toạ độ group switch khi đã ghép lớp (switch ngồi trên plate, vỏ dưới lọt qua lỗ) */
+const REST = calculateLayerPositions(0);
+const SWITCH_PLATE_TOP_Y = REST.plate + PLATE_THICKNESS / 2 - REST.switches;
 /** Tốc độ chuyển màu: ~0.4s để đổi gần hết màu */
 const COLOR_SPEED = 7;
 
 type KeycapMaterials = Record<PlacedKey['role'], THREE.MeshPhysicalMaterial>;
 
 const createKeycapMaterials = (colors: Record<PlacedKey['role'], string>): KeycapMaterials => {
+  // Nhựa PBT double-shot: hạt li ti (bumpMap) + nhám lì (roughnessMap), không bóng như ABS
+  const grain = getSurfaceTexture('pbt');
   const make = (hex: string) =>
-    new THREE.MeshPhysicalMaterial({ color: hex, roughness: 0.55, metalness: 0, sheen: 0.2, sheenRoughness: 0.8 });
+    new THREE.MeshPhysicalMaterial({
+      color: hex,
+      roughness: 0.68,
+      metalness: 0,
+      bumpMap: grain,
+      bumpScale: 0.35,
+      roughnessMap: grain,
+      sheen: 0.25,
+      sheenRoughness: 0.85,
+    });
   return { alpha: make(colors.alpha), modifier: make(colors.modifier), accent: make(colors.accent) };
 };
 
@@ -310,6 +313,8 @@ export const KeyboardModel: React.FC = () => {
   const ledBrightness = useKeyboardStore((s) => s.underglowBrightness);
   const ledEnabled = useKeyboardStore((s) => s.underglowEnabled);
   const caseShape = useKeyboardStore((s) => s.caseShape ?? DEFAULT_CASE_SHAPE);
+  const shellStyle = useKeyboardStore((s) => s.shellStyle ?? 'default');
+  const keycapProfile = useKeyboardStore((s) => s.keycapProfile ?? 'cherry');
   const build = findBuild(useKeyboardStore((s) => s.buildId ?? null));
 
   const layout = useMemo(() => getLayout(layoutId), [layoutId]);
@@ -317,18 +322,23 @@ export const KeyboardModel: React.FC = () => {
 
   // Núm xoay chiếm chỗ phím ngoài cùng bên phải hàng trên (giống AULA F75, Hi75C Pro…)
   const knobCode = caseShape.knob ? knobKeyCode(layoutId) : null;
-  const keys = useMemo(() => layout.keys.filter((key) => key.code !== knobCode), [layout, knobCode]);
+  // Module LCD 2U (kiểu Zoom75) chiếm 2 phím ngoài cùng bên phải hàng trên
+  const lcdCodes = useMemo(() => (shellStyle === 'lcd-75' ? topRowModuleCodes(layoutId, 2) : []), [shellStyle, layoutId]);
+  const keys = useMemo(
+    () => layout.keys.filter((key) => key.code !== knobCode && !lcdCodes.includes(key.code)),
+    [layout, knobCode, lcdCodes]
+  );
+  const lcdPosition = useMemo((): [number, number] | null => {
+    const centers = layout.keys.filter((key) => lcdCodes.includes(key.code)).map((key) => keyCenter(key, layout.width, layout.depth));
+    if (centers.length === 0) return null;
+    return [centers.reduce((s, [x]) => s + x, 0) / centers.length, centers[0][1]];
+  }, [layout, lcdCodes]);
   const keyPositions = useMemo(() => keys.map((key) => keyCenter(key, layout.width, layout.depth)), [keys, layout]);
   const knobPosition = useMemo(() => {
     const knobKey = layout.keys.find((key) => key.code === knobCode);
     return knobKey ? keyCenter(knobKey, layout.width, layout.depth) : null;
   }, [layout, knobCode]);
 
-  const bottomCaseGeometry = useMemo(
-    () =>
-      createCaseGeometry(dims.outerWidth, dims.outerDepth, BOTTOM_CASE.height, BOTTOM_CASE.yBottom, undefined, caseShape.cornerRadius),
-    [dims, caseShape.cornerRadius]
-  );
   const topCaseGeometry = useMemo(
     () =>
       createCaseGeometry(
@@ -340,6 +350,19 @@ export const KeyboardModel: React.FC = () => {
         caseShape.cornerRadius
       ),
     [dims, caseShape.cornerRadius]
+  );
+
+  // Thông số chung cho các lớp bên trong (PCB, foam, plate, switch): hình học cache theo layout + núm xoay
+  const layerProps = useMemo(
+    () => ({
+      keys,
+      layoutWidth: layout.width,
+      layoutDepth: layout.depth,
+      keysWidth: dims.keysWidth,
+      keysDepth: dims.keysDepth,
+      cacheKey: `${layoutId}:${knobCode ?? 'no-knob'}:${lcdCodes.join('+') || 'no-lcd'}`,
+    }),
+    [keys, layout, dims, layoutId, knobCode, lcdCodes]
   );
 
   const caseMaterialProps = useMemo(() => getCaseMaterialProps(caseMaterial, caseColor), [caseMaterial, caseColor]);
@@ -354,7 +377,55 @@ export const KeyboardModel: React.FC = () => {
     delete rest.color;
     return rest;
   }, [caseMaterialProps]);
-  const caseTarget = useMemo(() => new THREE.Color(caseMaterialProps.color as string), [caseMaterialProps.color]);
+  // Vỏ gỗ có texture vân màu: tint gần trắng để không nhân màu nâu hai lần
+  const caseTarget = useMemo(
+    () => new THREE.Color(caseMaterial === 'wood' && getWoodColorTexture() ? '#efe2d2' : (caseMaterialProps.color as string)),
+    [caseMaterial, caseMaterialProps.color]
+  );
+
+  const shellDims = useMemo(
+    () => ({
+      outerWidth: dims.outerWidth,
+      outerDepth: dims.outerDepth,
+      keysWidth: dims.keysWidth,
+      keysDepth: dims.keysDepth,
+      seamY: BOTTOM_CASE.yBottom + BOTTOM_CASE.height,
+    }),
+    [dims]
+  );
+  // NuPhy Halo: đáy nhựa ABS trong mờ để dải đèn Halo hắt sáng xuyên qua
+  const haloBottomMaterial = useMemo(
+    () =>
+      new THREE.MeshPhysicalMaterial({
+        color: '#eef1f2',
+        roughness: 0.5,
+        transmission: 0.55,
+        thickness: 0.3,
+        transparent: true,
+        opacity: 0.9,
+      }),
+    []
+  );
+  useEffect(() => () => haloBottomMaterial.dispose(), [haloBottomMaterial]);
+
+  /* ---------------- Vật liệu vỏ dùng chung cho vỏ trên, vỏ dưới, trụ ốc, gờ gasket ---------------- */
+  const caseMaterialObject = useMemo(() => new THREE.MeshPhysicalMaterial({ color: initialCaseColor }), [initialCaseColor]);
+  useEffect(() => () => caseMaterialObject.dispose(), [caseMaterialObject]);
+  useEffect(() => {
+    const wood = caseMaterial === 'wood';
+    // Nhôm: hạt phun cát (bead-blast) trước khi anodize; gỗ: vân + thớ nổi; nhựa/PC/acrylic: nhẵn
+    const blasted = caseMaterial === 'aluminum' ? getSurfaceTexture('beadBlast') : null;
+    caseMaterialObject.setValues({
+      ...MATERIAL_RESET,
+      ...caseRestProps,
+      map: wood ? getWoodColorTexture() : null,
+      bumpMap: wood ? getSurfaceTexture('wood') : blasted,
+      bumpScale: wood ? 0.6 : 0.15,
+      roughnessMap: wood ? getSurfaceTexture('wood') : blasted,
+    });
+    // eslint-disable-next-line react-hooks/immutability -- vật liệu Three.js là đối tượng mutable, cần báo shader biên dịch lại
+    caseMaterialObject.needsUpdate = true;
+  }, [caseMaterialObject, caseMaterial, caseRestProps]);
   const keycapMaterials = useMemo(
     () =>
       createKeycapMaterials({
@@ -373,8 +444,6 @@ export const KeyboardModel: React.FC = () => {
     }),
     [keycapColor, keycapModifierColor, keycapAccentColor]
   );
-  const bottomCaseMaterialRef = useRef<THREE.MeshPhysicalMaterial>(null);
-  const topCaseMaterialRef = useRef<THREE.MeshPhysicalMaterial>(null);
 
   /* ---------------- Refs cho 7 lớp và từng keycap ---------------- */
   const bottomCaseRef = useRef<THREE.Group>(null);
@@ -385,6 +454,11 @@ export const KeyboardModel: React.FC = () => {
   const keycapsRef = useRef<THREE.Group>(null);
   const topCaseRef = useRef<THREE.Group>(null);
   const keyGroups = useRef(new Map<string, THREE.Group>());
+  // Stem switch lún đúng bằng keycap: đọc vị trí keycap thay vì tự tính lại
+  const getKeyOffset = useCallback((code: string): number => {
+    const group = keyGroups.current.get(code);
+    return group ? group.position.y - KEYCAP_BASE_Y : 0;
+  }, []);
   const registerKey = (code: string, group: THREE.Group | null) => {
     if (group) keyGroups.current.set(code, group);
     else keyGroups.current.delete(code);
@@ -414,8 +488,7 @@ export const KeyboardModel: React.FC = () => {
     const colorStep = reduceMotion ? 1 : Math.min(1, delta * COLOR_SPEED);
     stepMaterials(
       [
-        [bottomCaseMaterialRef.current, caseTarget],
-        [topCaseMaterialRef.current, caseTarget],
+        [caseMaterialObject, caseTarget],
         [keycapMaterials.alpha, keycapTargets.alpha],
         [keycapMaterials.modifier, keycapTargets.modifier],
         [keycapMaterials.accent, keycapTargets.accent],
@@ -446,23 +519,25 @@ export const KeyboardModel: React.FC = () => {
   return (
     // Nghiêng nhẹ về phía người gõ như góc gõ thật của vỏ
     // Tên các group theo quy ước modelParts.ts (TopCase, Plate, Keycaps…) để nút "Tải file .glb" xuất đúng bộ phận
-    <group name={EXPORT_ROOT_NAME} rotation={[0.05, 0, 0]}>
-      {/* LỚP 1: BOTTOM CASE + tạ đồng bên trong + LED hông */}
+    <group name={EXPORT_ROOT_NAME} rotation={[TYPING_ANGLE, 0, 0]}>
+      {/* LỚP 1: BOTTOM CASE nêm 6.5° + khoang rỗng + tạ đồng + LED hông */}
       <group ref={bottomCaseRef} name="BottomCase" position={[0, initial.bottomCase, 0]}>
-        <mesh geometry={bottomCaseGeometry} castShadow receiveShadow>
-          <meshPhysicalMaterial ref={bottomCaseMaterialRef} {...caseRestProps} color={initialCaseColor} />
-        </mesh>
+        {/* Tạ đồng chỉ có ở mẫu tự phối; build thật không ghi có tạ thì không vẽ */}
+        <BottomCaseBody
+          outerWidth={dims.outerWidth}
+          outerDepth={dims.outerDepth}
+          keysWidth={dims.keysWidth}
+          keysDepth={dims.keysDepth}
+          cornerRadius={caseShape.cornerRadius}
+          top={BOTTOM_CASE.yBottom + BOTTOM_CASE.height}
+          pcbBottom={REST.pcb - PCB_THICKNESS / 2}
+          material={shellStyle === 'halo-rgb' ? haloBottomMaterial : caseMaterialObject}
+          showWeight={!build}
+        />
+        <ShellBottomDetails style={shellStyle} dims={shellDims} />
 
-        {/* Tạ đồng chải xước nằm trong lòng vỏ (chỉ mẫu tự phối; build thật không ghi có tạ thì không vẽ) */}
-        {!build && (
-          <mesh name="Weight" position={[0, BOTTOM_CASE.yBottom + BOTTOM_CASE.height + 0.012, 0]} receiveShadow>
-            <boxGeometry args={[dims.keysWidth * 0.72, 0.024, dims.keysDepth * 0.62]} />
-            <meshPhysicalMaterial color="#c79a45" metalness={1} roughness={0.32} clearcoat={0.2} />
-          </mesh>
-        )}
-
-        {/* Dải LED hai bên hông, ngay đường ghép vỏ trên/dưới */}
-        {[-1, 1].map((side) => (
+        {/* Dải LED hai bên hông (chỉ mẫu tự phối; build thật không có) */}
+        {!build && [-1, 1].map((side) => (
           <mesh
             key={side}
             name="Detail_Led"
@@ -478,52 +553,37 @@ export const KeyboardModel: React.FC = () => {
           </mesh>
         ))}
 
-        {/* Chân cao su */}
-        {[
-          [-1, -1],
-          [1, -1],
-          [-1, 1],
-          [1, 1],
-        ].map(([sx, sz], i) => (
-          <mesh key={i} name="Detail_Foot" position={[sx * (dims.outerWidth / 2 - 0.35), BOTTOM_CASE.yBottom - 0.015, sz * (dims.outerDepth / 2 - 0.3)]}>
-            <cylinderGeometry args={[0.13, 0.13, 0.03, 24]} />
-            <meshStandardMaterial color="#121214" roughness={0.95} />
-          </mesh>
-        ))}
-
         <LayerLabel index="01" name="Vỏ dưới" detail={details.bottomCase} visible={isExploded} x={labelX} />
       </group>
 
       {/* LỚP 2: PCB */}
       <group ref={pcbRef} name="PCB" position={[0, initial.pcb, 0]}>
-        <mesh castShadow receiveShadow>
-          <boxGeometry args={[dims.keysWidth - 0.02, 0.03, dims.keysDepth - 0.02]} />
-          <meshStandardMaterial color="#14211a" roughness={0.55} metalness={0.2} />
-        </mesh>
+        <PcbLayer {...layerProps} ledEnabled={ledEnabled} ledColor={ledColor} ledBrightness={ledBrightness} />
         <LayerLabel index="02" name="PCB" detail={details.pcb} visible={isExploded} x={labelX} />
       </group>
 
       {/* LỚP 3: FOAM */}
       <group ref={foamRef} name="Foam" position={[0, initial.foam, 0]}>
-        <mesh receiveShadow>
-          <boxGeometry args={[dims.keysWidth - 0.04, 0.035, dims.keysDepth - 0.04]} />
-          <meshStandardMaterial color="#d6cfc0" roughness={1} />
-        </mesh>
+        <FoamLayer {...layerProps} />
         <LayerLabel index="03" name={build ? 'Foam' : 'Foam Poron'} detail={details.foam} visible={isExploded} x={labelX} />
       </group>
 
       {/* LỚP 4: PLATE */}
       <group ref={plateRef} name="Plate" position={[0, initial.plate, 0]}>
-        <mesh castShadow receiveShadow>
-          <boxGeometry args={[dims.keysWidth + 0.02, 0.04, dims.keysDepth + 0.02]} />
-          <meshPhysicalMaterial {...plateMaterialProps} />
-        </mesh>
+        <PlateLayer {...layerProps} plateMaterial={plateMaterial} materialProps={plateMaterialProps} />
         <LayerLabel index="04" name="Plate" detail={details.plate} visible={isExploded} x={labelX} />
       </group>
 
       {/* LỚP 5: SWITCHES */}
       <group ref={switchesRef} name="Switches" position={[0, initial.switches, 0]}>
-        <Switches centers={keyPositions} stemColor={SWITCH_STEM[switchType]} />
+        <SwitchLayer
+          keys={keys}
+          layoutWidth={layout.width}
+          layoutDepth={layout.depth}
+          stemColor={SWITCH_STEM[switchType]}
+          plateTopY={SWITCH_PLATE_TOP_Y}
+          getKeyOffset={getKeyOffset}
+        />
         <LayerLabel index="05" name="Switch" detail={details.switches} visible={isExploded} x={labelX} />
       </group>
 
@@ -536,6 +596,7 @@ export const KeyboardModel: React.FC = () => {
             position={[keyPositions[i][0], KEYCAP_BASE_Y, keyPositions[i][1]]}
             material={keycapMaterials[key.role]}
             legendColor={legendColors[key.role]}
+            profile={keycapProfile}
             registerRef={registerKey}
           />
         ))}
@@ -544,17 +605,27 @@ export const KeyboardModel: React.FC = () => {
 
       {/* LỚP 7: TOP CASE (khung) */}
       <group ref={topCaseRef} name="TopCase" position={[0, initial.topCase, 0]}>
-        <mesh geometry={topCaseGeometry} castShadow receiveShadow>
-          <meshPhysicalMaterial ref={topCaseMaterialRef} {...caseRestProps} color={initialCaseColor} />
-        </mesh>
-        {/* Núm xoay kim loại: chân nằm trên plate, nhô lên ngang mặt keycap */}
+        <mesh geometry={topCaseGeometry} material={caseMaterialObject} castShadow receiveShadow />
+        {/* Núm xoay nhôm CNC khía rãnh: chân trên mặt plate, đỉnh ngang mặt keycap */}
         {knobPosition && (
-          <mesh name="Detail_Knob" position={[knobPosition[0], KNOB.centerY, knobPosition[1]]} castShadow>
-            <cylinderGeometry args={[KNOB.radius, KNOB.radius, KNOB.height, 48]} />
-            {/* Kim loại vừa phải: kim loại 100% phản chiếu sân khấu tối nên núm bạc trông đen */}
-            <meshPhysicalMaterial color={knobColorFor(caseColor)} metalness={0.45} roughness={0.38} clearcoat={0.4} />
-          </mesh>
+          <RotaryKnob
+            position={[knobPosition[0], KNOB_BASE_Y, knobPosition[1]]}
+            color={knobColorFor(caseColor)}
+            // AULA: khía mịn; Hi75: núm to có vòng viền kim loại nhấn màu
+            ridges={shellStyle === 'aula' ? 60 : 36}
+            radius={shellStyle === 'hi75' ? 0.185 : undefined}
+            accentRing={shellStyle === 'hi75' ? '#c9a35a' : undefined}
+          />
         )}
+        <ShellTopDetails
+          style={shellStyle}
+          dims={shellDims}
+          caseMaterial={caseMaterialObject}
+          ledColor={ledColor}
+          modulePosition={lcdPosition}
+          topY={TOP_CASE.yBottom + TOP_CASE.height}
+          plateY={KNOB_BASE_Y}
+        />
         <LayerLabel index="07" name="Vỏ trên" detail={details.topCase} visible={isExploded} x={labelX} />
       </group>
 

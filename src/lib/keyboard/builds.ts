@@ -1,12 +1,14 @@
 import { z } from 'zod';
+import { SHELL_STYLES } from '@/types/keyboard';
 
 /**
  * Danh mục build phím thật (kiểu "sound profile" của các shop): mỗi build gồm
  *  - thông số linh kiện thật (tra từ trang hãng/shop/review, chỗ nào nguồn mâu thuẫn thì ghi rõ),
  *  - gói tiếng thu từ chính build đó (public/sounds/<soundPackId>, tạo bằng `npm run sounds`),
  *  - ảnh thật (public/builds/<id>.jpg, thumbnail video sound test),
- *  - cách dựng 3D: layout, màu lấy theo ảnh, chất liệu, dáng vỏ.
- * Ảnh và tiếng không nằm trong git; thiếu thì thẻ vẫn hiện, chỉ không có ảnh/tiếng.
+ *  - cách dựng 3D: layout, màu lấy theo ảnh, chất liệu, dáng vỏ đặc trưng (shellStyle), profile keycap,
+ *  - tuỳ chọn modelUrl: file .glb thật trong public/models/ (thiếu hoặc lỗi thì dựng bằng code).
+ * Thiếu ảnh/tiếng thì thẻ vẫn hiện, chỉ không có ảnh/tiếng.
  */
 
 const hex = z.string().regex(/^#[0-9a-f]{6}$/i);
@@ -20,6 +22,11 @@ export const buildSchema = z.object({
   soundPackId: z.string(),
   /** Video gốc của bản thu */
   sourceUrl: z.string().url(),
+  /** File .glb thật (public/models/…) thay cho bản dựng bằng code */
+  modelUrl: z
+    .string()
+    .regex(/^\/models\/[\w.-]+\.glb$/, 'modelUrl phải có dạng /models/<ten-file>.glb')
+    .optional(),
   specs: z.object({
     case: z.string(),
     mount: z.string(),
@@ -42,6 +49,8 @@ export const buildSchema = z.object({
       cornerRadius: z.number().min(0.02).max(0.3),
       knob: z.boolean(),
     }),
+    shellStyle: z.enum(SHELL_STYLES).default('default'),
+    keycapProfile: z.enum(['cherry', 'moa']).default('cherry'),
   }),
 });
 
@@ -85,6 +94,7 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       plateMaterial: 'polycarbonate',
       switchType: 'linear',
       caseShape: F75_SHAPE,
+      shellStyle: 'aula',
     },
   },
   {
@@ -104,6 +114,7 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       plateMaterial: 'polycarbonate',
       switchType: 'linear',
       caseShape: F75_SHAPE,
+      shellStyle: 'aula',
     },
   },
   {
@@ -130,12 +141,13 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       plateMaterial: 'polycarbonate',
       switchType: 'linear',
       caseShape: { bezel: 0.18, cornerRadius: 0.16, knob: true },
+      shellStyle: 'aula',
     },
   },
   {
     id: 'leobog-hi75-vertex',
     name: 'Leobog Hi75',
-    tags: ['Nhôm', 'Gasket'],
+    tags: ['Nhôm', 'Gasket', 'MOA'],
     soundPackId: 'leobog-hi75-vertex',
     sourceUrl: 'https://www.youtube.com/watch?v=bbe4xUERQ08',
     specs: {
@@ -155,7 +167,9 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       keycapAccentColor: '#e3a0b6',
       plateMaterial: 'polycarbonate',
       switchType: 'linear',
-      caseShape: { bezel: 0.3, cornerRadius: 0.08, knob: false },
+      caseShape: { bezel: 0.3, cornerRadius: 0.06, knob: false },
+      shellStyle: 'hi75',
+      keycapProfile: 'moa',
     },
   },
   {
@@ -181,7 +195,8 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       keycapAccentColor: '#7a5c3c',
       plateMaterial: 'polycarbonate',
       switchType: 'linear',
-      caseShape: { bezel: 0.28, cornerRadius: 0.08, knob: true },
+      caseShape: { bezel: 0.28, cornerRadius: 0.06, knob: true },
+      shellStyle: 'hi75',
     },
   },
   {
@@ -201,6 +216,7 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       plateMaterial: 'fr4',
       switchType: 'linear',
       caseShape: LUCKY65_SHAPE,
+      shellStyle: 'lucky65',
     },
   },
   {
@@ -220,6 +236,7 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       plateMaterial: 'fr4',
       switchType: 'linear',
       caseShape: LUCKY65_SHAPE,
+      shellStyle: 'lucky65',
     },
   },
   {
@@ -239,6 +256,7 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       plateMaterial: 'fr4',
       switchType: 'tactile',
       caseShape: LUCKY65_SHAPE,
+      shellStyle: 'lucky65',
     },
   },
   {
@@ -265,6 +283,304 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       plateMaterial: 'aluminum',
       switchType: 'linear',
       caseShape: { bezel: 0.22, cornerRadius: 0.16, knob: true },
+      shellStyle: 'x85',
+    },
+  },
+  /* -------------------------------------------------------------------------- */
+  /* Mẫu bổ sung (thông số tra từ trang hãng/shop/review, xem docs/theory/18)    */
+  /* -------------------------------------------------------------------------- */
+  {
+    id: 'wobkey-rainy75-pro',
+    name: 'WOBKEY Rainy75 Pro',
+    tags: ['Nhôm', 'Gasket'],
+    soundPackId: 'wobkey-rainy75-pro',
+    sourceUrl: 'https://www.youtube.com/watch?v=Kvb3prJbcBY',
+    specs: {
+      case: 'Nhôm CNC 6063',
+      mount: 'Gasket mount',
+      plate: 'FR4 (bản Pro; Lite/Standard dùng PP)',
+      foam: 'Poron, IXPE switch pad, PET, đáy EPDM',
+      switch: 'Kailh Cocoa (linear, lube sẵn)',
+      keycap: 'PBT Double Shot',
+    },
+    look: {
+      layout: '75%',
+      caseMaterial: 'aluminum',
+      caseColor: '#8a1f2e',
+      keycapColor: '#f1c9cd',
+      keycapModifierColor: '#b6323f',
+      keycapAccentColor: '#f3ece4',
+      plateMaterial: 'fr4',
+      switchType: 'linear',
+      caseShape: { bezel: 0.24, cornerRadius: 0.12, knob: false },
+    },
+  },
+  {
+    id: 'wobkey-crush80-pro',
+    name: 'WOBKEY Crush 80 Reboot Pro',
+    tags: ['Nhôm', 'Ball-catch', '80%'],
+    soundPackId: 'wobkey-crush80-pro',
+    sourceUrl: 'https://www.youtube.com/watch?v=BiOV_MQJ6Oc',
+    specs: {
+      case: 'Nhôm CNC đánh bóng, mở nhanh bằng chốt bi',
+      mount: 'Gasket mount',
+      plate: 'FR4 flex-cut (kèm plate nhôm thay thế)',
+      foam: 'Poron plate, IXPE switch pad, foam PCB, Poron vỏ, PET',
+      switch: 'Kailh Cocoa (linear, 45g, hành trình 3.6mm)',
+      keycap: 'Theo máy',
+    },
+    look: {
+      layout: 'TKL',
+      caseMaterial: 'aluminum',
+      caseColor: '#1f2a3d',
+      keycapColor: '#2c3a52',
+      keycapModifierColor: '#9fa6ad',
+      keycapAccentColor: '#ece4d0',
+      plateMaterial: 'fr4',
+      switchType: 'linear',
+      caseShape: { bezel: 0.24, cornerRadius: 0.1, knob: false },
+      shellStyle: 'lucky65',
+    },
+  },
+  {
+    id: 'bridge75-plus',
+    name: 'Shortcut Studio Bridge75 Plus',
+    tags: ['Nhôm', 'Ball-catch'],
+    soundPackId: 'bridge75-plus',
+    sourceUrl: 'https://www.youtube.com/watch?v=0hCFtMQ1KqM',
+    specs: {
+      case: 'Nhôm CNC, mở bằng chốt bi',
+      mount: 'Gasket mount trên PCB',
+      plate: 'FR4 flex-cut (bản Plus/Max; bản thường PC)',
+      foam: 'Poron INOAC, IXPE, foam vỏ EPDM, PET',
+      switch: 'SC Princess V2 (linear)',
+      keycap: 'PBT Double Shot, profile Cherry',
+    },
+    look: {
+      layout: '75%',
+      caseMaterial: 'aluminum',
+      caseColor: '#1c1c1f',
+      keycapColor: '#26262a',
+      keycapModifierColor: '#303034',
+      keycapAccentColor: '#e9dcc0',
+      plateMaterial: 'fr4',
+      switchType: 'linear',
+      caseShape: { bezel: 0.24, cornerRadius: 0.1, knob: false },
+      shellStyle: 'lucky65',
+    },
+  },
+  {
+    id: 'keychron-q1-max',
+    name: 'Keychron Q1 Max',
+    tags: ['Nhôm', 'Double-gasket', 'Tactile'],
+    soundPackId: 'keychron-q1-max',
+    sourceUrl: 'https://www.youtube.com/watch?v=9dopQ-n9wFo',
+    specs: {
+      case: 'Nhôm CNC',
+      mount: 'Double-gasket (đệm silicone giữa vỏ trên và dưới)',
+      plate: 'PC',
+      foam: 'Foam tiêu âm, IXPE, PET, đệm latex, foam đáy vỏ',
+      switch: 'Gateron Jupiter Banana (tactile)',
+      keycap: 'KSA PBT Double Shot (dựng gần đúng bằng profile tròn)',
+    },
+    look: {
+      layout: '75%',
+      caseMaterial: 'aluminum',
+      caseColor: '#262b33',
+      keycapColor: '#eef0f2',
+      keycapModifierColor: '#2f3b52',
+      keycapAccentColor: '#3fb6a8',
+      plateMaterial: 'polycarbonate',
+      switchType: 'tactile',
+      caseShape: { bezel: 0.26, cornerRadius: 0.1, knob: true },
+      keycapProfile: 'moa',
+    },
+  },
+  {
+    id: 'keychron-k2-he-se',
+    name: 'Keychron K2 HE Special Edition',
+    tags: ['Hall Effect', 'Ốp gỗ'],
+    soundPackId: 'keychron-k2-he-se',
+    sourceUrl: 'https://www.youtube.com/watch?v=0qNnm-UiKIw',
+    specs: {
+      case: 'Nhôm + khung, 2 thanh ốp gỗ hồng mộc hai bên hông',
+      mount: 'Tray mount',
+      plate: 'Nhôm',
+      foam: 'Không ghi trong nguồn',
+      switch: 'Gateron Double-Rail Magnetic (Hall Effect, kích hoạt 0.2–3.8mm)',
+      keycap: 'OSA Double Shot (dựng bằng profile Cherry)',
+    },
+    look: {
+      layout: '75%',
+      caseMaterial: 'plastic',
+      caseColor: '#ece9e2',
+      keycapColor: '#f3efe8',
+      keycapModifierColor: '#e7c4a6',
+      keycapAccentColor: '#e39a72',
+      plateMaterial: 'aluminum',
+      switchType: 'linear',
+      caseShape: { bezel: 0.2, cornerRadius: 0.12, knob: false },
+      shellStyle: 'wood-accent',
+    },
+  },
+  {
+    id: 'nuphy-halo75-v2',
+    name: 'NuPhy Halo75 V2',
+    tags: ['Gasket', 'Halo RGB'],
+    soundPackId: 'nuphy-halo75-v2',
+    sourceUrl: 'https://www.youtube.com/watch?v=T0xKQYG_aHs',
+    specs: {
+      case: 'Khung trên nhôm, đáy ABS trong mờ (có nguồn ghi khác)',
+      mount: 'Gasket mount trên PCB',
+      plate: 'POM trong video (bản gốc: PC, có nguồn ghi nhôm)',
+      foam: 'Foam plate, IXPE switch pad, foam PCB, silicone đáy',
+      switch: 'NuPhy Raspberry (linear)',
+      keycap: 'Keycap theo máy',
+    },
+    look: {
+      layout: '75%',
+      caseMaterial: 'aluminum',
+      caseColor: '#a9dcc7',
+      keycapColor: '#f1f5f1',
+      keycapModifierColor: '#bfe5d3',
+      keycapAccentColor: '#8fcfb5',
+      plateMaterial: 'pom',
+      switchType: 'linear',
+      caseShape: { bezel: 0.18, cornerRadius: 0.18, knob: false },
+      shellStyle: 'halo-rgb',
+    },
+  },
+  {
+    id: 'zoom75-ee',
+    name: 'Meletrix Zoom75',
+    tags: ['Nhôm', 'Gasket', 'Màn hình'],
+    soundPackId: 'zoom75-ee',
+    sourceUrl: 'https://www.youtube.com/watch?v=HmFH3E1xahQ',
+    specs: {
+      case: 'Nhôm CNC (bản EE đen trong video)',
+      mount: 'Gasket mount',
+      plate: 'Không ghi trong video (bản SE/TIGA: PC)',
+      foam: 'Đủ foam (theo video)',
+      switch: 'WS Morandi (lube 205g0)',
+      keycap: 'KAT Mizu (dựng bằng profile Cherry)',
+    },
+    look: {
+      layout: '75%',
+      caseMaterial: 'aluminum',
+      caseColor: '#222326',
+      keycapColor: '#cfe0ec',
+      keycapModifierColor: '#9fb7cb',
+      keycapAccentColor: '#eef3f6',
+      plateMaterial: 'polycarbonate',
+      switchType: 'linear',
+      caseShape: { bezel: 0.24, cornerRadius: 0.1, knob: false },
+      // Module góc phải 2U: bản gốc là màn hình LCD; bản EE trong video dùng núm
+      shellStyle: 'lcd-75',
+    },
+  },
+  {
+    id: 'wooting-80he',
+    name: 'Wooting 80HE',
+    tags: ['Hall Effect', 'Gasket', '80%'],
+    soundPackId: 'wooting-80he',
+    sourceUrl: 'https://www.youtube.com/watch?v=7CB89nFIkPU',
+    specs: {
+      case: 'Nhựa PCR ABS (có bản hợp kim kẽm)',
+      mount: 'Gasket mount, pad silicone sandwich',
+      plate: 'PC',
+      foam: 'Pad silicone sandwich',
+      switch: 'Lekker Linear45 V2 (Hall Effect)',
+      keycap: 'Wooting Double Shot PBT xuyên LED',
+    },
+    look: {
+      layout: 'TKL',
+      caseMaterial: 'plastic',
+      caseColor: '#1f2024',
+      keycapColor: '#1c1c1f',
+      keycapModifierColor: '#232327',
+      keycapAccentColor: '#2b2b30',
+      plateMaterial: 'polycarbonate',
+      switchType: 'linear',
+      caseShape: { bezel: 0.2, cornerRadius: 0.14, knob: false },
+    },
+  },
+  {
+    id: 'mode-envoy-pc',
+    name: 'Mode Envoy (Polycarbonate)',
+    tags: ['PC mờ', 'Block mount'],
+    soundPackId: 'mode-envoy-pc',
+    sourceUrl: 'https://www.youtube.com/watch?v=ekRfFOoB3zc',
+    specs: {
+      case: 'Polycarbonate phay CNC, mờ (frosted)',
+      mount: 'Lattice block mount',
+      plate: 'Nhôm (theo video)',
+      foam: 'Không foam (theo video)',
+      switch: 'HMX Xinhai',
+      keycap: 'GMK Oblivion (ABS, profile Cherry)',
+    },
+    look: {
+      layout: '65%',
+      caseMaterial: 'polycarbonate',
+      caseColor: '#d3cdd1',
+      keycapColor: '#2a2a2d',
+      keycapModifierColor: '#3a3a3e',
+      keycapAccentColor: '#d94f3d',
+      plateMaterial: 'aluminum',
+      switchType: 'linear',
+      caseShape: { bezel: 0.24, cornerRadius: 0.14, knob: false },
+      shellStyle: 'frosted-pc',
+    },
+  },
+  {
+    id: 'neo65',
+    name: 'Qwertykeys Neo65',
+    tags: ['Nhôm', 'O-ring'],
+    soundPackId: 'neo65',
+    sourceUrl: 'https://www.youtube.com/watch?v=B1tixGFsUT0',
+    specs: {
+      case: 'Nhôm nguyên khối (unibody)',
+      mount: 'Gasket trên PCB hoặc O-ring',
+      plate: 'Nhôm (theo video)',
+      foam: 'Không foam (theo video)',
+      switch: 'HMX Sunset Gleam V2',
+      keycap: 'Không ghi trong video',
+    },
+    look: {
+      layout: '65%',
+      caseMaterial: 'aluminum',
+      caseColor: '#2b2b2e',
+      keycapColor: '#f1f0ec',
+      keycapModifierColor: '#e4e1d9',
+      keycapAccentColor: '#c8442f',
+      plateMaterial: 'aluminum',
+      switchType: 'linear',
+      caseShape: { bezel: 0.26, cornerRadius: 0.12, knob: false },
+    },
+  },
+  {
+    id: 'monsgeek-m1w-v3',
+    name: 'MonsGeek M1W V3',
+    tags: ['Nhôm', 'Gasket', 'Stock'],
+    soundPackId: 'monsgeek-m1w-v3',
+    sourceUrl: 'https://www.youtube.com/watch?v=cu_Xb6eI03A',
+    specs: {
+      case: 'Nhôm',
+      mount: 'Gasket mount',
+      plate: 'PC trong suốt',
+      foam: 'Poron plate, foam vỏ',
+      switch: 'Akko V3 Piano Pro',
+      keycap: 'PBT Double Shot',
+    },
+    look: {
+      layout: '75%',
+      caseMaterial: 'aluminum',
+      caseColor: '#2a2b2e',
+      keycapColor: '#d9dadb',
+      keycapModifierColor: '#5c5f64',
+      keycapAccentColor: '#9fa3a8',
+      plateMaterial: 'polycarbonate',
+      switchType: 'linear',
+      caseShape: { bezel: 0.24, cornerRadius: 0.12, knob: false },
     },
   },
 ];
@@ -282,3 +598,17 @@ export const KEYBOARD_BUILDS: KeyboardBuild[] = z
 
 export const findBuild = (id: string | null): KeyboardBuild | undefined =>
   id ? KEYBOARD_BUILDS.find((build) => build.id === id) : undefined;
+
+/** Lọc thư viện build theo layout và từ khoá (tên phím, switch, tag) */
+export const filterBuilds = (
+  builds: KeyboardBuild[],
+  layout: KeyboardBuild['look']['layout'] | 'all',
+  query: string
+): KeyboardBuild[] => {
+  const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  return builds.filter((build) => {
+    if (layout !== 'all' && build.look.layout !== layout) return false;
+    const haystack = [build.name, build.specs.switch, build.specs.case, ...build.tags].join(' ').toLowerCase();
+    return words.every((word) => haystack.includes(word));
+  });
+};

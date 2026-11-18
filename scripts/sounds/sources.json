@@ -1,12 +1,130 @@
 [
-  { "id": "aula-f75-reaper", "name": "AULA F75", "switch": "Leobog Reaper", "url": "https://www.youtube.com/watch?v=efs36WEdby0" },
-  { "id": "aula-f75-ice-vein", "name": "AULA F75", "switch": "Leobog Ice Vein", "url": "https://www.youtube.com/watch?v=AUa1SIhlNVE" },
-  { "id": "aula-f99-asura", "name": "AULA F99 Pro", "switch": "Asura", "url": "https://www.youtube.com/watch?v=sSSM0Z2B8ro" },
-  { "id": "leobog-hi75-vertex", "name": "Leobog Hi75", "switch": "Vertex V1", "url": "https://www.youtube.com/watch?v=bbe4xUERQ08" },
-  { "id": "leobog-hi75c-pro", "name": "Leobog Hi75C Pro", "switch": "Switch theo máy", "url": "https://www.youtube.com/watch?v=3GoVzlVMlMw" },
-  { "id": "lucky65-creamy-yellow", "name": "Weikav Lucky65 V2", "switch": "Akko Creamy Yellow", "url": "https://www.youtube.com/watch?v=vHPD1t7wCtU" },
-  { "id": "lucky65-husky", "name": "Weikav Lucky65 V2", "switch": "Husky", "url": "https://www.youtube.com/watch?v=8P5YRp5ndgQ" },
-  { "id": "lucky65-turtle-silent", "name": "Weikav Lucky65 V2", "switch": "Turtle Silent Tactile", "url": "https://www.youtube.com/watch?v=AK7_8pk-35Q" },
-  { "id": "mchose-ace68-turbo", "name": "MCHOSE Ace 68 Turbo", "switch": "Switch theo máy", "url": "https://www.youtube.com/watch?v=F9A0nVLz0Kw" },
-  { "id": "attack-shark-x85", "name": "Attack Shark X85", "switch": "Switch theo máy", "url": "https://www.youtube.com/watch?v=Bk5vONQeJao" }
+    {
+        "id":  "aula-f75-reaper",
+        "name":  "AULA F75",
+        "switch":  "Leobog Reaper",
+        "url":  "https://www.youtube.com/watch?v=efs36WEdby0"
+    },
+    {
+        "id":  "aula-f75-ice-vein",
+        "name":  "AULA F75",
+        "switch":  "Leobog Ice Vein",
+        "url":  "https://www.youtube.com/watch?v=AUa1SIhlNVE"
+    },
+    {
+        "id":  "aula-f99-asura",
+        "name":  "AULA F99 Pro",
+        "switch":  "Asura",
+        "url":  "https://www.youtube.com/watch?v=sSSM0Z2B8ro"
+    },
+    {
+        "id":  "leobog-hi75-vertex",
+        "name":  "Leobog Hi75",
+        "switch":  "Vertex V1",
+        "url":  "https://www.youtube.com/watch?v=bbe4xUERQ08"
+    },
+    {
+        "id":  "leobog-hi75c-pro",
+        "name":  "Leobog Hi75C Pro",
+        "switch":  "Switch theo máy",
+        "url":  "https://www.youtube.com/watch?v=3GoVzlVMlMw"
+    },
+    {
+        "id":  "lucky65-creamy-yellow",
+        "name":  "Weikav Lucky65 V2",
+        "switch":  "Akko Creamy Yellow",
+        "url":  "https://www.youtube.com/watch?v=vHPD1t7wCtU"
+    },
+    {
+        "id":  "lucky65-husky",
+        "name":  "Weikav Lucky65 V2",
+        "switch":  "Husky",
+        "url":  "https://www.youtube.com/watch?v=8P5YRp5ndgQ"
+    },
+    {
+        "id":  "lucky65-turtle-silent",
+        "name":  "Weikav Lucky65 V2",
+        "switch":  "Turtle Silent Tactile",
+        "url":  "https://www.youtube.com/watch?v=AK7_8pk-35Q"
+    },
+    {
+        "id":  "mchose-ace68-turbo",
+        "name":  "MCHOSE Ace 68 Turbo",
+        "switch":  "Switch theo máy",
+        "url":  "https://www.youtube.com/watch?v=F9A0nVLz0Kw"
+    },
+    {
+        "id":  "attack-shark-x85",
+        "name":  "Attack Shark X85",
+        "switch":  "Switch theo máy",
+        "url":  "https://www.youtube.com/watch?v=Bk5vONQeJao"
+    },
+    {
+        "switch":  "Kailh Cocoa",
+        "url":  "https://www.youtube.com/watch?v=Kvb3prJbcBY",
+        "name":  "WOBKEY Rainy75 Pro",
+        "id":  "wobkey-rainy75-pro"
+    },
+    {
+        "switch":  "Kailh Cocoa",
+        "url":  "https://www.youtube.com/watch?v=BiOV_MQJ6Oc",
+        "name":  "WOBKEY Crush 80 Reboot Pro",
+        "id":  "wobkey-crush80-pro"
+    },
+    {
+        "switch":  "SC Princess V2",
+        "url":  "https://www.youtube.com/watch?v=0hCFtMQ1KqM",
+        "name":  "Shortcut Studio Bridge75 Plus",
+        "id":  "bridge75-plus"
+    },
+    {
+        "id":  "keychron-q1-max",
+        "name":  "Keychron Q1 Max",
+        "switch":  "Gateron Jupiter Banana",
+        "start":  73,
+        "end":  133,
+        "url":  "https://www.youtube.com/watch?v=9dopQ-n9wFo"
+    },
+    {
+        "switch":  "Gateron Double-Rail Magnetic",
+        "url":  "https://www.youtube.com/watch?v=0qNnm-UiKIw",
+        "name":  "Keychron K2 HE Special Edition",
+        "id":  "keychron-k2-he-se"
+    },
+    {
+        "switch":  "NuPhy Raspberry",
+        "url":  "https://www.youtube.com/watch?v=T0xKQYG_aHs",
+        "name":  "NuPhy Halo75 V2",
+        "id":  "nuphy-halo75-v2"
+    },
+    {
+        "switch":  "WS Morandi",
+        "url":  "https://www.youtube.com/watch?v=HmFH3E1xahQ",
+        "name":  "Meletrix Zoom75 EE",
+        "id":  "zoom75-ee"
+    },
+    {
+        "switch":  "Lekker L45 V2",
+        "url":  "https://www.youtube.com/watch?v=7CB89nFIkPU",
+        "name":  "Wooting 80HE",
+        "id":  "wooting-80he"
+    },
+    {
+        "switch":  "HMX Xinhai",
+        "url":  "https://www.youtube.com/watch?v=ekRfFOoB3zc",
+        "name":  "Mode Envoy (Polycarbonate)",
+        "id":  "mode-envoy-pc"
+    },
+    {
+        "switch":  "HMX Sunset Gleam V2",
+        "url":  "https://www.youtube.com/watch?v=B1tixGFsUT0",
+        "name":  "Qwertykeys Neo65",
+        "id":  "neo65"
+    },
+    {
+        "switch":  "Akko V3 Piano Pro",
+        "url":  "https://www.youtube.com/watch?v=cu_Xb6eI03A",
+        "name":  "MonsGeek M1W V3",
+        "id":  "monsgeek-m1w-v3"
+    }
 ]

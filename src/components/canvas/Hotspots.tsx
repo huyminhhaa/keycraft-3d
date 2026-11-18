@@ -11,6 +11,7 @@ import type { KeyboardState } from '@/types/keyboard';
 import { CASE_COLORS, CASE_MATERIAL_LABELS } from '@/components/ui/DesignPanel';
 import { PLATE_OPTIONS, SWITCH_OPTIONS } from '@/components/ui/SoundPanel';
 import { getCaseDimensions, keyCenter } from './geometry/keyboardGeometry';
+import { TYPING_ANGLE } from './geometry/caseGeometry';
 
 export interface Hotspot {
   id: string;
@@ -66,8 +67,8 @@ export const Hotspots: React.FC = () => {
   if (!introDone || state.isExploded || getModelEntry(state.modelId).source === 'glb') return null;
 
   return (
-    // Cùng độ nghiêng với vỏ trong KeyboardModel
-    <group rotation={[0.05, 0, 0]}>
+    // Cùng góc gõ với vỏ trong KeyboardModel
+    <group rotation={[TYPING_ANGLE, 0, 0]}>
       {buildHotspots(state).map((spot) => (
         <Html key={spot.id} position={spot.position} center zIndexRange={[15, 0]}>
           <div className="hotspot">

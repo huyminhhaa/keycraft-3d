@@ -273,11 +273,18 @@ export const LAYOUTS: Record<KeyboardLayout, LayoutDefinition> = {
  * Phím mà núm xoay thay chỗ: phím ngoài cùng bên phải của hàng trên cùng
  * (AULA F75, Leobog Hi75C Pro, Attack Shark X85, AULA F99 Pro đều đặt núm ở góc này).
  */
-export const knobKeyCode = (id: KeyboardLayout): string | null => {
-  const top = LAYOUTS[id].keys.filter((key) => key.y === 0);
-  if (top.length === 0) return null;
-  return top.reduce((right, key) => (key.x > right.x ? key : right)).code;
-};
+export const knobKeyCode = (id: KeyboardLayout): string | null => topRowModuleCodes(id, 1)[0] ?? null;
+
+/**
+ * `count` phím ngoài cùng bên phải hàng trên — chỗ đặt module: núm xoay (1 phím),
+ * màn hình LCD 2U kiểu Meletrix Zoom75 (2 phím).
+ */
+export const topRowModuleCodes = (id: KeyboardLayout, count: number): string[] =>
+  LAYOUTS[id].keys
+    .filter((key) => key.y === 0)
+    .sort((a, b) => b.x - a.x)
+    .slice(0, count)
+    .map((key) => key.code);
 
 export const getLayout = (id: KeyboardLayout): LayoutDefinition => LAYOUTS[id];
 

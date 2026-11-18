@@ -72,3 +72,14 @@ export const KEYBOARD_MODELS: KeyboardModelEntry[] = modelListSchema.parse(MODEL
 
 export const getModelEntry = (id: string): KeyboardModelEntry =>
   KEYBOARD_MODELS.find((entry) => entry.id === id) ?? KEYBOARD_MODELS[0];
+
+/**
+ * Build phím thật có file .glb riêng (modelUrl) → mẫu .glb để GltfKeyboard nạp.
+ * File chụp/scan/mua giữ nguyên màu và texture gốc (recolor: false). Không có modelUrl thì null.
+ */
+export const buildModelEntry = (
+  build: { id: string; name: string; modelUrl?: string; look: { layout: '65%' | '75%' | 'TKL' | '96%' } } | undefined
+): GlbModelEntry | null =>
+  build?.modelUrl
+    ? { id: `build-${build.id}`, name: build.name, source: 'glb', url: build.modelUrl, layout: build.look.layout, recolor: false }
+    : null;

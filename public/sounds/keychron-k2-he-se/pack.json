@@ -1,0 +1,36 @@
+{
+  "id": "keychron-k2-he-se",
+  "name": "Keychron K2 HE Special Edition",
+  "switch": "Gateron Double-Rail Magnetic",
+  "noise": 0.016,
+  "sourceUrl": "https://www.youtube.com/watch?v=0qNnm-UiKIw",
+  "clips": {
+    "alpha": [
+      "alpha-01.wav",
+      "alpha-02.wav",
+      "alpha-03.wav",
+      "alpha-04.wav",
+      "alpha-05.wav",
+      "alpha-06.wav",
+      "alpha-07.wav",
+      "alpha-08.wav",
+      "alpha-09.wav",
+      "alpha-10.wav"
+    ],
+    "space": [
+      "space-01.wav"
+    ],
+    "up": [
+      "up-01.wav",
+      "up-02.wav",
+      "up-03.wav",
+      "up-04.wav",
+      "up-05.wav",
+      "up-06.wav",
+      "up-07.wav",
+      "up-08.wav",
+      "up-09.wav",
+      "up-10.wav"
+    ]
+  }
+}

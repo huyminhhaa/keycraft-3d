@@ -1,0 +1,47 @@
+{
+  "id": "wobkey-crush80-pro",
+  "name": "WOBKEY Crush 80 Reboot Pro",
+  "switch": "Kailh Cocoa",
+  "noise": 0.0056,
+  "sourceUrl": "https://www.youtube.com/watch?v=BiOV_MQJ6Oc",
+  "clips": {
+    "alpha": [
+      "alpha-01.wav",
+      "alpha-02.wav",
+      "alpha-03.wav",
+      "alpha-04.wav",
+      "alpha-05.wav",
+      "alpha-06.wav",
+      "alpha-07.wav",
+      "alpha-08.wav",
+      "alpha-09.wav",
+      "alpha-10.wav",
+      "alpha-11.wav",
+      "alpha-12.wav",
+      "alpha-13.wav",
+      "alpha-14.wav",
+      "alpha-15.wav",
+      "alpha-16.wav"
+    ],
+    "space": [
+      "space-01.wav",
+      "space-02.wav",
+      "space-03.wav",
+      "space-04.wav",
+      "space-05.wav",
+      "space-06.wav"
+    ],
+    "up": [
+      "up-01.wav",
+      "up-02.wav",
+      "up-03.wav",
+      "up-04.wav",
+      "up-05.wav",
+      "up-06.wav",
+      "up-07.wav",
+      "up-08.wav",
+      "up-09.wav",
+      "up-10.wav"
+    ]
+  }
+}

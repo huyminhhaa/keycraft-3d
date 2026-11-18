@@ -29,6 +29,23 @@ export interface SoundProfile {
 
 export const DEFAULT_CASE_SHAPE: CaseShape = { bezel: 0.22, cornerRadius: 0.16, knob: false };
 
+/**
+ * Dáng vỏ nhận diện theo dòng phím thật (chi tiết riêng dựng thêm trên vỏ CNC):
+ * aula: vỏ ABS 2 mảnh có rãnh ghép, chân chống 2 nấc, khe dongle, đèn báo cạnh cụm mũi tên
+ * hi75: nhôm khối góc vuông, núm to có vòng viền kim loại, badge kim loại ở đáy
+ * lucky65: chốt bi nam châm (ball-catch) trong lòng vỏ, tạ gương PVD dưới đáy
+ * x85: hai hông vát chéo kiểu thể thao, đèn báo
+ * halo-rgb: đáy nhựa trong mờ + dải đèn Halo chạy vòng quanh đáy
+ * wood-accent: hai thanh ốp gỗ hai bên hông
+ * lcd-75: module màn hình LCD góc trên phải
+ * frosted-pc: vỏ polycarbonate mờ thấy lờ mờ bên trong
+ */
+export const SHELL_STYLES = ['default', 'aula', 'hi75', 'lucky65', 'x85', 'halo-rgb', 'wood-accent', 'lcd-75', 'frosted-pc'] as const;
+export type ShellStyle = (typeof SHELL_STYLES)[number];
+
+/** Profile keycap: Cherry (thấp, lòng chảo trụ, nghiêng theo hàng) hoặc MOA (cao đều, bo tròn, lòng chảo cầu) */
+export type KeycapProfile = 'cherry' | 'moa';
+
 export interface KeyboardState {
   /** Mẫu bàn phím đang xem (id trong src/lib/keyboard/models.ts) */
   modelId: string;
@@ -39,6 +56,10 @@ export interface KeyboardState {
   buildId?: string | null;
   /** Dáng vỏ; thiếu thì dùng DEFAULT_CASE_SHAPE */
   caseShape?: CaseShape;
+  /** Chi tiết vỏ đặc trưng theo dòng phím; thiếu thì 'default' */
+  shellStyle?: ShellStyle;
+  /** Profile keycap; thiếu thì 'cherry' */
+  keycapProfile?: KeycapProfile;
 
   // Bố cục & Hình học (Layout & Geometry)
   layout: KeyboardLayout;

@@ -81,6 +81,8 @@ export const INITIAL_KEYBOARD_STATE: KeyboardState = {
   modelId: DEFAULT_MODEL_ID,
   buildId: null,
   caseShape: DEFAULT_CASE_SHAPE,
+  shellStyle: 'default',
+  keycapProfile: 'cherry',
   layout: 'TKL',
   isExploded: false,
   explosionOffset: 1.5,
@@ -123,6 +125,8 @@ export const useKeyboardStore = create<KeyboardStore>((set) => ({
       plateMaterial: look.plateMaterial,
       switchType: look.switchType,
       caseShape: look.caseShape,
+      shellStyle: look.shellStyle,
+      keycapProfile: look.keycapProfile,
       // Các build này không có dải LED hông như mẫu mặc định
       underglowEnabled: false,
       soundProfile: calculateSoundProfile(look.plateMaterial, look.switchType),

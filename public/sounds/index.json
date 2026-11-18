@@ -24,6 +24,24 @@
     "noise": 0.0163
   },
   {
+    "id": "bridge75-plus",
+    "name": "Shortcut Studio Bridge75 Plus",
+    "switch": "SC Princess V2",
+    "noise": 0.0053
+  },
+  {
+    "id": "keychron-k2-he-se",
+    "name": "Keychron K2 HE Special Edition",
+    "switch": "Gateron Double-Rail Magnetic",
+    "noise": 0.016
+  },
+  {
+    "id": "keychron-q1-max",
+    "name": "Keychron Q1 Max",
+    "switch": "Gateron Jupiter Banana",
+    "noise": 0.0083
+  },
+  {
     "id": "leobog-hi75-vertex",
     "name": "Leobog Hi75",
     "switch": "Vertex V1",
@@ -58,5 +76,53 @@
     "name": "MCHOSE Ace 68 Turbo",
     "switch": "Switch theo máy",
     "noise": 0.0899
+  },
+  {
+    "id": "mode-envoy-pc",
+    "name": "Mode Envoy (Polycarbonate)",
+    "switch": "HMX Xinhai",
+    "noise": 0.0078
+  },
+  {
+    "id": "monsgeek-m1w-v3",
+    "name": "MonsGeek M1W V3",
+    "switch": "Akko V3 Piano Pro",
+    "noise": 0.0125
+  },
+  {
+    "id": "neo65",
+    "name": "Qwertykeys Neo65",
+    "switch": "HMX Sunset Gleam V2",
+    "noise": 0.0112
+  },
+  {
+    "id": "nuphy-halo75-v2",
+    "name": "NuPhy Halo75 V2",
+    "switch": "NuPhy Raspberry",
+    "noise": 0.0072
+  },
+  {
+    "id": "wobkey-crush80-pro",
+    "name": "WOBKEY Crush 80 Reboot Pro",
+    "switch": "Kailh Cocoa",
+    "noise": 0.0056
+  },
+  {
+    "id": "wobkey-rainy75-pro",
+    "name": "WOBKEY Rainy75 Pro",
+    "switch": "Kailh Cocoa",
+    "noise": 0.0075
+  },
+  {
+    "id": "wooting-80he",
+    "name": "Wooting 80HE",
+    "switch": "Lekker L45 V2",
+    "noise": 0.0185
+  },
+  {
+    "id": "zoom75-ee",
+    "name": "Meletrix Zoom75 EE",
+    "switch": "WS Morandi",
+    "noise": 0.0159
   }
 ]

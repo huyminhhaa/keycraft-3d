@@ -1,4 +1,5 @@
 import type { SoundProfile } from '@/types/keyboard';
+import { calculateSoundProfile } from '@/store/useKeyboardStore';
 
 export interface HardwareCatalogItem {
   id: string;
@@ -330,5 +331,90 @@ export const HARDWARE_CATALOG: HardwareCatalogItem[] = [
       weightKg: 1.8,
       anodized: true,
     },
+  },
+
+  // ============================================================================
+  // 4. LINH KIỆN TRONG THƯ VIỆN BUILD PHÍM THẬT (src/lib/keyboard/builds.ts)
+  // Chỉ ghi thông số đã xác minh từ trang hãng/shop/review; soundProfile tính bằng
+  // cùng mô hình với store (calculateSoundProfile) theo loại switch/plate, không phải số đo thật.
+  // ============================================================================
+  {
+    id: 'switch-kailh-cocoa',
+    type: 'switch',
+    name: 'Kailh Cocoa',
+    material: 'Không công bố trong nguồn đã tra',
+    acousticDescription:
+      'Switch linear lube sẵn, là switch stock của WOBKEY Rainy75 Pro và Crush 80 Reboot Pro (plate FR4). Tom’s Hardware đánh giá Crush 80 Reboot Pro với Cocoa nghe còn hay hơn Rainy75 Pro.',
+    soundProfile: calculateSoundProfile('fr4', 'linear'),
+    specs: { switchType: 'linear', actuationForce: 45, preTravel: 2.0, totalTravel: 3.6, factoryLubed: true },
+  },
+  {
+    id: 'switch-hmx-violet',
+    type: 'switch',
+    name: 'HMX Violet',
+    material: 'Không công bố trong nguồn đã tra',
+    acousticDescription: 'Switch linear stock của WOBKEY Rainy75 bản Lite và Standard (plate PP).',
+    soundProfile: calculateSoundProfile('polycarbonate', 'linear'),
+    specs: { switchType: 'linear' },
+  },
+  {
+    id: 'switch-sc-princess',
+    type: 'switch',
+    name: 'Shortcut Studio Princess',
+    material: 'Không công bố trong nguồn đã tra',
+    acousticDescription:
+      'Switch linear nhẹ, stock của Shortcut Studio Bridge75 (bản Plus/Max dùng plate FR4 flex-cut). Một shop ghi tổng hành trình 3.6mm, shop khác ghi 3.5mm.',
+    soundProfile: calculateSoundProfile('fr4', 'linear'),
+    specs: { switchType: 'linear', actuationForce: 42, bottomOutForce: 48, totalTravel: 3.6 },
+  },
+  {
+    id: 'switch-gateron-jupiter-banana',
+    type: 'switch',
+    name: 'Gateron Jupiter Banana',
+    material: 'Vỏ trên PC, vỏ dưới Nylon, stem POM',
+    acousticDescription:
+      'Switch tactile lò xo hai tầng, là một lựa chọn stock của Keychron Q1 Max (plate PC, double-gasket).',
+    soundProfile: calculateSoundProfile('polycarbonate', 'tactile'),
+    specs: { switchType: 'tactile', actuationForce: 59, preTravel: 2.0, totalTravel: 3.4 },
+  },
+  {
+    id: 'switch-gateron-double-rail-magnetic',
+    type: 'switch',
+    name: 'Gateron Double-Rail Magnetic',
+    material: 'Không công bố trong nguồn đã tra',
+    acousticDescription:
+      'Switch từ Hall Effect của Keychron K2 HE: chỉnh được điểm kích hoạt 0.2–3.8mm, hỗ trợ Rapid Trigger, hợp chơi game cần phản hồi nhanh.',
+    soundProfile: calculateSoundProfile('aluminum', 'linear'),
+    specs: { switchType: 'hall_effect_linear', adjustableActuation: '0.2-3.8mm', rapidTrigger: true },
+  },
+  {
+    id: 'switch-lekker-linear',
+    type: 'switch',
+    name: 'Wooting Lekker (L45 / L60 V2)',
+    material: 'Không công bố trong nguồn đã tra',
+    acousticDescription:
+      'Switch Hall Effect linear của Wooting 80HE (stock: Lekker L60 V2; bản thu âm dùng Lekker Linear45 V2), lắp trên plate PC với pad silicone, gasket mount.',
+    soundProfile: calculateSoundProfile('polycarbonate', 'linear'),
+    specs: { switchType: 'hall_effect_linear' },
+  },
+  {
+    id: 'switch-nuphy-raspberry',
+    type: 'switch',
+    name: 'NuPhy Raspberry',
+    material: 'Không công bố trong nguồn đã tra',
+    acousticDescription: 'Switch linear của NuPhy (dòng hợp tác với Gateron), là một lựa chọn stock của NuPhy Halo75 V2.',
+    soundProfile: calculateSoundProfile('pom', 'linear'),
+    specs: { switchType: 'linear' },
+  },
+  {
+    id: 'plate-pp',
+    type: 'plate',
+    name: 'PP Plate (Polypropylene)',
+    material: 'Polypropylene',
+    acousticDescription:
+      'Plate nhựa polypropylene, dùng trên WOBKEY Rainy75 Lite/Standard và Crush 80 Lite (bản Pro của hai mẫu này đổi sang FR4). Một số shop ghi Leobog Hi75 dùng PP, nguồn khác ghi PC.',
+    // Nhựa mềm như PC/POM: dùng tham số plate PC của mô hình âm thanh làm gần đúng
+    soundProfile: calculateSoundProfile('polycarbonate', 'linear'),
+    specs: { material: 'polypropylene' },
   },
 ];

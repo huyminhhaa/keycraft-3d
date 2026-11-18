@@ -1,11 +1,20 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import Image from 'next/image';
-import { Check, Play } from 'lucide-react';
+import { Check, Play, Search } from 'lucide-react';
 import { useKeyboardStore } from '@/store/useKeyboardStore';
 import { useSoundStore } from '@/store/useSoundStore';
-import { KEYBOARD_BUILDS, buildPhotoUrl, type KeyboardBuild } from '@/lib/keyboard/builds';
+import { KEYBOARD_BUILDS, buildPhotoUrl, filterBuilds, type KeyboardBuild } from '@/lib/keyboard/builds';
+
+type LayoutFilter = KeyboardBuild['look']['layout'] | 'all';
+const LAYOUT_FILTERS: { value: LayoutFilter; label: string }[] = [
+  { value: 'all', label: 'Tất cả' },
+  { value: '65%', label: '65%' },
+  { value: '75%', label: '75%' },
+  { value: 'TKL', label: 'TKL / 80%' },
+  { value: '96%', label: '96%' },
+];
 import { pressKey, releaseKey } from '@/lib/keyboard/pressedKeys';
 
 /** Đoạn gõ thử: "keycraft" rồi phím cách, Enter — đủ nghe phím thường lẫn phím có stabilizer */
@@ -119,6 +128,9 @@ export const BuildsPanel: React.FC = () => {
   const selectPack = useSoundStore((s) => s.selectPack);
   const packs = useSoundStore((s) => s.packs);
   const stopDemo = React.useRef<(() => void) | null>(null);
+  const [layoutFilter, setLayoutFilter] = useState<LayoutFilter>('all');
+  const [query, setQuery] = useState('');
+  const visible = useMemo(() => filterBuilds(KEYBOARD_BUILDS, layoutFilter, query), [layoutFilter, query]);
 
   const choose = async (build: KeyboardBuild): Promise<void> => {
     applyBuild(build.id);
@@ -136,7 +148,47 @@ export const BuildsPanel: React.FC = () => {
       <p className="text-[12px] leading-relaxed text-muted">
         Build phím thật: chọn một build để đổi mô hình 3D, tiếng gõ và chú thích 7 lớp theo đúng linh kiện của nó.
       </p>
-      {KEYBOARD_BUILDS.map((build) => (
+
+      <div className="space-y-2">
+        <label className="block">
+          <span className="sr-only">Tìm build theo tên phím, switch hoặc chất liệu</span>
+          <span className="relative block">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" aria-hidden />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Tìm: Lucky65, Cocoa, nhôm…"
+              className="min-h-11 w-full rounded-lg border border-line bg-surface pl-9 pr-3 text-[13px] text-ink placeholder:text-faint focus:border-ink/60 focus:outline-none lg:min-h-9"
+            />
+          </span>
+        </label>
+        <div role="group" aria-label="Lọc theo layout" className="flex flex-wrap gap-1.5">
+          {LAYOUT_FILTERS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              aria-pressed={layoutFilter === option.value}
+              onClick={() => setLayoutFilter(option.value)}
+              className={`btn-press min-h-9 rounded-full border px-3 text-[12px] ${
+                layoutFilter === option.value ? 'border-ink bg-ink text-canvas' : 'border-line text-muted hover:text-ink'
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+        <p className="text-[12px] text-muted" aria-live="polite">
+          {visible.length} / {KEYBOARD_BUILDS.length} build
+        </p>
+      </div>
+
+      {visible.length === 0 && (
+        <p className="rounded-lg border border-line px-3 py-4 text-center text-[13px] text-muted">
+          Không có build nào khớp. Thử bỏ bớt từ khoá hoặc chọn “Tất cả”.
+        </p>
+      )}
+      {visible.map((build) => (
         <BuildCard
           key={build.id}
           build={build}
