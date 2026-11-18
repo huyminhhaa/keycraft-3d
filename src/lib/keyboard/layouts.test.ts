@@ -15,9 +15,23 @@ describe('Bố cục phím ANSI', () => {
     expect(getLayout('65%').depth).toBe(5);
   });
 
+  it('60% có 61 phím, rộng 15u; 100% có 108 phím, rộng 22.5u', () => {
+    expect(countKeys('60%')).toBe(61);
+    expect(getLayout('60%').width).toBe(15);
+    expect(countKeys('100%')).toBe(108);
+    expect(getLayout('100%').width).toBe(22.5);
+  });
+
   it('mỗi hàng kết thúc thẳng mép phải của khối chính hoặc của cả bàn phím', () => {
     // TKL: hàng Home không có cụm điều hướng (dừng ở 15u), hàng Shift dừng ở phím ↑ (giữa cụm, 17.25u)
-    const allowedEdges: Record<string, number[]> = { TKL: [15, 17.25, 18.25], '75%': [16], '65%': [16], '96%': [19] };
+    const allowedEdges: Record<string, number[]> = {
+      TKL: [15, 17.25, 18.25],
+      '75%': [16],
+      '65%': [16],
+      '96%': [19],
+      '60%': [15],
+      '100%': [21.5, 22.5],
+    };
     Object.values(LAYOUTS).forEach((layout) => {
       const rows = new Map<number, number>();
       layout.keys.forEach((key) => rows.set(key.y, Math.max(rows.get(key.y) ?? 0, key.x + key.w)));

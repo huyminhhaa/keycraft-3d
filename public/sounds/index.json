@@ -18,16 +18,64 @@
     "noise": 0.0113
   },
   {
+    "id": "aula-f87-pro",
+    "name": "AULA F87 Pro",
+    "switch": "Leobog Graywood V4",
+    "noise": 0.0072
+  },
+  {
     "id": "aula-f99-asura",
     "name": "AULA F99 Pro",
     "switch": "Asura",
     "noise": 0.0163
   },
   {
+    "id": "aula-l99",
+    "name": "AULA L99",
+    "switch": "AULA",
+    "noise": 0.0109
+  },
+  {
+    "id": "aula-nova75-pro",
+    "name": "AULA Nova75 Pro",
+    "switch": "AULA",
+    "noise": 0.0129
+  },
+  {
+    "id": "aula-s75-pro",
+    "name": "AULA S75 Pro",
+    "switch": "AULA Star Vector",
+    "noise": 0.015
+  },
+  {
     "id": "bridge75-plus",
     "name": "Shortcut Studio Bridge75 Plus",
     "switch": "SC Princess V2",
     "noise": 0.0053
+  },
+  {
+    "id": "chilkey-nd75",
+    "name": "Chilkey ND75",
+    "switch": "Chilkey Aster",
+    "noise": 0.0095
+  },
+  {
+    "id": "cidoo-qk61-v2",
+    "name": "CIDOO QK61 V2",
+    "switch": "CIDOO Pearl White",
+    "noise": 0.0079
+  },
+  {
+    "id": "cidoo-qk75",
+    "name": "CIDOO QK75",
+    "switch": "CIDOO",
+    "noise": 0.0145
+  },
+  {
+    "id": "gravastar-mercury-k1",
+    "name": "GravaStar Mercury K1",
+    "switch": "Leobog Graywood V4",
+    "noise": 0.004
   },
   {
     "id": "keychron-k2-he-se",
@@ -54,6 +102,18 @@
     "noise": 0.0061
   },
   {
+    "id": "leobog-hi8-se",
+    "name": "Leobog Hi8 SE",
+    "switch": "Leobog Barbie",
+    "noise": 0.0051
+  },
+  {
+    "id": "leobog-hi98c-pro",
+    "name": "Leobog Hi98C Pro",
+    "switch": "Leobog White Dragon",
+    "noise": 0.0192
+  },
+  {
     "id": "lucky65-creamy-yellow",
     "name": "Weikav Lucky65 V2",
     "switch": "Akko Creamy Yellow",
@@ -76,6 +136,18 @@
     "name": "MCHOSE Ace 68 Turbo",
     "switch": "Switch theo máy",
     "noise": 0.0899
+  },
+  {
+    "id": "mchose-g75-v2",
+    "name": "MCHOSE G75 V2",
+    "switch": "MCHOSE Quick Gold V3",
+    "noise": 0.0171
+  },
+  {
+    "id": "mchose-g87-v2",
+    "name": "MCHOSE G87 V2",
+    "switch": "TTC Quick Gold V2",
+    "noise": 0.0046
   },
   {
     "id": "mode-envoy-pc",
@@ -102,6 +174,54 @@
     "noise": 0.0072
   },
   {
+    "id": "pmo-aurora80",
+    "name": "PMO Aurora 80",
+    "switch": "Kailh Lunar Moon God",
+    "noise": 0.0061
+  },
+  {
+    "id": "pmo-wave75",
+    "name": "PMO Wave 75",
+    "switch": "HMX Bamboo",
+    "noise": 0.0098
+  },
+  {
+    "id": "riccks-rs8",
+    "name": "Riccks RS8",
+    "switch": "Bsun TaiChi",
+    "noise": 0.0065
+  },
+  {
+    "id": "weikav-nut108",
+    "name": "Weikav Nut108",
+    "switch": "Linear tự lắp",
+    "noise": 0.0048
+  },
+  {
+    "id": "weikav-nut65",
+    "name": "Weikav Nut65",
+    "switch": "HMX",
+    "noise": 0.0056
+  },
+  {
+    "id": "weikav-nut75",
+    "name": "Weikav Nut75",
+    "switch": "HMX Cream",
+    "noise": 0.0116
+  },
+  {
+    "id": "weikav-nut87",
+    "name": "Weikav Nut87",
+    "switch": "HMX",
+    "noise": 0.0044
+  },
+  {
+    "id": "weikav-stars75s",
+    "name": "Weikav Stars75 S",
+    "switch": "Weikav Coconut Latte",
+    "noise": 0.007
+  },
+  {
     "id": "wobkey-crush80-pro",
     "name": "WOBKEY Crush 80 Reboot Pro",
     "switch": "Kailh Cocoa",
@@ -112,6 +232,12 @@
     "name": "WOBKEY Rainy75 Pro",
     "switch": "Kailh Cocoa",
     "noise": 0.0075
+  },
+  {
+    "id": "wobkey-zen65",
+    "name": "Wobkey Zen65",
+    "switch": "HMX Violet",
+    "noise": 0.0022
   },
   {
     "id": "wooting-80he",

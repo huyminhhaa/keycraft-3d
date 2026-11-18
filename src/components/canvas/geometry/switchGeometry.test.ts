@@ -1,3 +1,4 @@
+import { KEYBOARD_LAYOUTS } from '@/types/keyboard';
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import { getLayout } from '@/lib/keyboard/layouts';
@@ -27,7 +28,7 @@ const bounds = (geometry: THREE.BufferGeometry): THREE.Box3 => {
 describe('switch MX 5-pin', () => {
   const sw = createSwitchGeometries();
 
-  it('vỏ trên ngồi trên plate, cao 4.5mm, đỉnh hẹp hơn đáy', () => {
+  it('vá» trÃªn ngá»“i trÃªn plate, cao 4.5mm, Ä‘á»‰nh háº¹p hÆ¡n Ä‘Ã¡y', () => {
     const box = bounds(sw.topHousing);
     expect(box.min.y).toBeCloseTo(0, 6);
     expect(box.max.y).toBeCloseTo(TOP_HOUSING_HEIGHT, 6);
@@ -38,7 +39,7 @@ describe('switch MX 5-pin', () => {
     }
   });
 
-  it('vỏ dưới lọt qua lỗ 14mm, đáy chạm PCB; trụ giữa và chân cắm xuyên PCB', () => {
+  it('vá» dÆ°á»›i lá»t qua lá»— 14mm, Ä‘Ã¡y cháº¡m PCB; trá»¥ giá»¯a vÃ  chÃ¢n cáº¯m xuyÃªn PCB', () => {
     const housing = bounds(sw.bottomHousing);
     expect(housing.max.x - housing.min.x).toBeCloseTo(14 * MM, 6);
     expect(housing.max.y).toBeCloseTo(0, 6);
@@ -46,20 +47,20 @@ describe('switch MX 5-pin', () => {
     expect(bounds(sw.pins).max.y).toBeLessThanOrEqual(-PLATE_TO_PCB + 1e-6);
   });
 
-  it('stem chữ thập nhô khỏi vỏ trên tới đỉnh 8.4mm', () => {
+  it('stem chá»¯ tháº­p nhÃ´ khá»i vá» trÃªn tá»›i Ä‘á»‰nh 8.4mm', () => {
     const stem = bounds(sw.stem);
     expect(stem.max.y).toBeCloseTo(STEM_TOP, 6);
     expect(stem.max.x - stem.min.x).toBeCloseTo(5.6 * MM, 6);
   });
 
-  it('thanh thép stabilizer dài đúng 1 đơn vị theo trục X (co giãn theo từng phím)', () => {
+  it('thanh thÃ©p stabilizer dÃ i Ä‘Ãºng 1 Ä‘Æ¡n vá»‹ theo trá»¥c X (co giÃ£n theo tá»«ng phÃ­m)', () => {
     const wire = bounds(createStabilizerGeometries().wire);
     expect(wire.max.x - wire.min.x).toBeCloseTo(1, 6);
   });
 });
 
 describe('stabilizerMatrices', () => {
-  it.each(['65%', '75%', 'TKL', '96%'] as const)('%s: 2 vỏ + 1 thanh thép cho mỗi phím ≥ 2u', (id) => {
+  it.each(KEYBOARD_LAYOUTS)('%s: 2 vá» + 1 thanh thÃ©p cho má»—i phÃ­m â‰¥ 2u', (id) => {
     const layout = getLayout(id);
     const long = layout.keys.filter((k) => k.w >= 2).length;
     const { housings, wires } = stabilizerMatrices(layout.keys, layout.width, layout.depth, -0.1);
@@ -67,7 +68,7 @@ describe('stabilizerMatrices', () => {
     expect(wires).toHaveLength(long);
   });
 
-  it('thanh thép phím cách dài bằng khoảng cách 2 vỏ (100mm)', () => {
+  it('thanh thÃ©p phÃ­m cÃ¡ch dÃ i báº±ng khoáº£ng cÃ¡ch 2 vá» (100mm)', () => {
     const layout = getLayout('TKL');
     const space = layout.keys.filter((k) => k.code === 'Space');
     const { wires } = stabilizerMatrices(space, layout.width, layout.depth, 0);
@@ -77,13 +78,13 @@ describe('stabilizerMatrices', () => {
   });
 });
 
-describe('keycap lõm (dish) và ký tự in', () => {
-  it('giữa mặt phím thấp hơn mép trái/phải đúng độ sâu lòng chảo', () => {
+describe('keycap lÃµm (dish) vÃ  kÃ½ tá»± in', () => {
+  it('giá»¯a máº·t phÃ­m tháº¥p hÆ¡n mÃ©p trÃ¡i/pháº£i Ä‘Ãºng Ä‘á»™ sÃ¢u lÃ²ng cháº£o', () => {
     const shape = getKeycapShape(1, 3);
     expect(keycapSurfaceY(shape, shape.topWidth / 2, 0) - keycapSurfaceY(shape, 0, 0)).toBeCloseTo(DISH_DEPTH, 6);
   });
 
-  it('điểm thấp nhất của mặt trên là ở giữa, không thấp hơn lòng chảo', () => {
+  it('Ä‘iá»ƒm tháº¥p nháº¥t cá»§a máº·t trÃªn lÃ  á»Ÿ giá»¯a, khÃ´ng tháº¥p hÆ¡n lÃ²ng cháº£o', () => {
     const shape = getKeycapShape(1, 3);
     const geometry = createKeycapGeometry(1, 3);
     const pos = geometry.attributes.position;
@@ -94,7 +95,7 @@ describe('keycap lõm (dish) và ký tự in', () => {
     expect(centerY).toBeCloseTo(shape.height - DISH_DEPTH, 6);
   });
 
-  it('mặt trên quay lên, thành keycap quay ra ngoài', () => {
+  it('máº·t trÃªn quay lÃªn, thÃ nh keycap quay ra ngoÃ i', () => {
     const geometry = createKeycapGeometry(1, 3);
     const pos = geometry.attributes.position;
     const normal = geometry.attributes.normal;
@@ -103,7 +104,7 @@ describe('keycap lõm (dish) và ký tự in', () => {
         expect(normal.getY(i)).toBeGreaterThan(0.9);
       }
     }
-    // Trung bình pháp tuyến các đỉnh ở mép phải (giữa chiều cao) hướng +x
+    // Trung bÃ¬nh phÃ¡p tuyáº¿n cÃ¡c Ä‘á»‰nh á»Ÿ mÃ©p pháº£i (giá»¯a chiá»u cao) hÆ°á»›ng +x
     let sumX = 0;
     for (let i = 0; i < pos.count; i++) {
       if (pos.getX(i) > 0.15 && pos.getY(i) > 0.02 && pos.getY(i) < 0.12) sumX += normal.getX(i);
@@ -111,7 +112,7 @@ describe('keycap lõm (dish) và ký tự in', () => {
     expect(sumX).toBeGreaterThan(0);
   });
 
-  it('ký tự in luôn nằm trên mặt phím (không chìm ở mép, không lơ lửng ở giữa)', () => {
+  it('kÃ½ tá»± in luÃ´n náº±m trÃªn máº·t phÃ­m (khÃ´ng chÃ¬m á»Ÿ mÃ©p, khÃ´ng lÆ¡ lá»­ng á»Ÿ giá»¯a)', () => {
     const shape = getKeycapShape(2.25, 2);
     const legend = createLegendGeometry(2.25, 2, shape.topWidth - 0.03, shape.topDepth - 0.03);
     const pos = legend.attributes.position;

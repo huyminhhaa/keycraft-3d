@@ -1,6 +1,6 @@
-export type KeyboardLayout = '65%' | '75%' | 'TKL' | '96%';
+export const KEYBOARD_LAYOUTS = ['60%', '65%', '75%', 'TKL', '96%', '100%'] as const;
 
-export const KEYBOARD_LAYOUTS: readonly KeyboardLayout[] = ['65%', '75%', 'TKL', '96%'];
+export type KeyboardLayout = (typeof KEYBOARD_LAYOUTS)[number];
 
 /** Dáng vỏ theo từng mẫu phím thật (đơn vị thế giới 3D, 1u phím = 0.38) */
 export interface CaseShape {
@@ -39,8 +39,20 @@ export const DEFAULT_CASE_SHAPE: CaseShape = { bezel: 0.22, cornerRadius: 0.16, 
  * wood-accent: hai thanh ốp gỗ hai bên hông
  * lcd-75: module màn hình LCD góc trên phải
  * frosted-pc: vỏ polycarbonate mờ thấy lờ mờ bên trong
+ * stars-s: hai dải đèn PC chạy chéo qua 2 góc vỏ (Weikav Stars75 S)
  */
-export const SHELL_STYLES = ['default', 'aula', 'hi75', 'lucky65', 'x85', 'halo-rgb', 'wood-accent', 'lcd-75', 'frosted-pc'] as const;
+export const SHELL_STYLES = [
+  'default',
+  'aula',
+  'hi75',
+  'lucky65',
+  'x85',
+  'halo-rgb',
+  'wood-accent',
+  'lcd-75',
+  'frosted-pc',
+  'stars-s',
+] as const;
 export type ShellStyle = (typeof SHELL_STYLES)[number];
 
 /** Profile keycap: Cherry (thấp, lòng chảo trụ, nghiêng theo hàng) hoặc MOA (cao đều, bo tròn, lòng chảo cầu) */

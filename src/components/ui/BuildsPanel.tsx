@@ -5,17 +5,22 @@ import Image from 'next/image';
 import { Check, Play, Search } from 'lucide-react';
 import { useKeyboardStore } from '@/store/useKeyboardStore';
 import { useSoundStore } from '@/store/useSoundStore';
-import { KEYBOARD_BUILDS, buildPhotoUrl, filterBuilds, type KeyboardBuild } from '@/lib/keyboard/builds';
+import { KEYBOARD_BUILDS, buildBrand, buildPhotoUrl, filterBuilds, type KeyboardBuild } from '@/lib/keyboard/builds';
+import { pressKey, releaseKey } from '@/lib/keyboard/pressedKeys';
+import { KEYBOARD_LAYOUTS } from '@/types/keyboard';
 
 type LayoutFilter = KeyboardBuild['look']['layout'] | 'all';
-const LAYOUT_FILTERS: { value: LayoutFilter; label: string }[] = [
-  { value: 'all', label: 'Tất cả' },
-  { value: '65%', label: '65%' },
-  { value: '75%', label: '75%' },
-  { value: 'TKL', label: 'TKL / 80%' },
-  { value: '96%', label: '96%' },
-];
-import { pressKey, releaseKey } from '@/lib/keyboard/pressedKeys';
+const LAYOUT_LABEL: Record<KeyboardBuild['look']['layout'], string> = {
+  '60%': '60%',
+  '65%': '65%',
+  '75%': '75%',
+  TKL: 'TKL / 80%',
+  '96%': '96–98%',
+  '100%': 'Full-size',
+};
+// Chỉ hiện layout đang có build
+const LAYOUT_FILTERS: LayoutFilter[] = ['all', ...KEYBOARD_LAYOUTS.filter((id) => KEYBOARD_BUILDS.some((b) => b.look.layout === id))];
+const BRANDS = [...new Set(KEYBOARD_BUILDS.map(buildBrand))].sort((a, b) => a.localeCompare(b));
 
 /** Đoạn gõ thử: "keycraft" rồi phím cách, Enter — đủ nghe phím thường lẫn phím có stabilizer */
 export const DEMO_SEQUENCE = ['KeyK', 'KeyE', 'KeyY', 'KeyC', 'KeyR', 'KeyA', 'KeyF', 'KeyT', 'Space', 'KeyG', 'KeyO', 'Enter'];
@@ -39,17 +44,17 @@ const SPEC_ROWS: { key: keyof KeyboardBuild['specs']; label: string }[] = [
   { key: 'switch', label: 'Switch' },
   { key: 'keycap', label: 'Keycap' },
   { key: 'plate', label: 'Plate' },
-  { key: 'foam', label: 'Foam' },
+  { key: 'mount', label: 'Mount' },
   { key: 'case', label: 'Vỏ' },
-  { key: 'mount', label: 'Kiểu mount' },
+  { key: 'foam', label: 'Foam' },
 ];
 
-const BuildPhoto: React.FC<{ build: KeyboardBuild }> = ({ build }) => {
+const BuildPhoto: React.FC<{ build: KeyboardBuild; className: string; sizes: string }> = ({ build, className, sizes }) => {
   const [failed, setFailed] = useState(false);
   return (
-    <div className="build-card__photo relative aspect-video overflow-hidden rounded-lg bg-surface">
+    <div className={`relative overflow-hidden bg-surface ${className}`}>
       {failed ? (
-        // Chưa tải ảnh (public/builds không có trong git): dải màu vỏ + keycap của build thay ảnh
+        // Không tải được ảnh: dải màu vỏ + keycap của build thay ảnh
         <div
           className="h-full w-full"
           style={{
@@ -62,7 +67,7 @@ const BuildPhoto: React.FC<{ build: KeyboardBuild }> = ({ build }) => {
           src={buildPhotoUrl(build)}
           alt={`${build.name} với switch ${build.specs.switch}`}
           fill
-          sizes="(min-width: 1024px) 320px, 100vw"
+          sizes={sizes}
           className="object-cover"
           onError={() => setFailed(true)}
         />
@@ -71,54 +76,102 @@ const BuildPhoto: React.FC<{ build: KeyboardBuild }> = ({ build }) => {
   );
 };
 
-interface BuildCardProps {
+/** Chấm màu thật: vỏ, keycap chính, keycap phụ, stem switch */
+const ColorDots: React.FC<{ build: KeyboardBuild }> = ({ build }) => {
+  const { caseColor, keycapColor, keycapModifierColor, switchColors } = build.look;
+  const dots = [caseColor, keycapColor, keycapModifierColor, switchColors?.stem].filter(Boolean) as string[];
+  return (
+    <span className="flex items-center" aria-hidden>
+      {dots.map((color, i) => (
+        <span
+          key={`${color}-${i}`}
+          className="-ml-1 h-3 w-3 rounded-full border border-canvas first:ml-0"
+          style={{ backgroundColor: color }}
+        />
+      ))}
+    </span>
+  );
+};
+
+interface BuildRowProps {
   build: KeyboardBuild;
   active: boolean;
   onSelect: () => void;
   onListen: () => void;
 }
 
-const BuildCard: React.FC<BuildCardProps> = ({ build, active, onSelect, onListen }) => (
-  <article className={`build-card rounded-xl border p-3 ${active ? 'border-ink/60 bg-surface-2' : 'border-line hover:bg-surface'}`}>
-    <button type="button" onClick={onSelect} aria-pressed={active} className="block w-full text-left">
-      <BuildPhoto build={build} />
-      <div className="mt-3 flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="truncate text-[14px] font-semibold text-ink">{build.name}</h3>
-          <p className="truncate text-[12px] text-muted">{build.specs.switch}</p>
-        </div>
-        {active && <Check className="mt-0.5 h-4 w-4 shrink-0 text-ink" aria-label="Đang dùng" />}
-      </div>
-      <div className="mt-2 flex flex-wrap gap-1.5">
-        {build.tags.map((tag) => (
-          <span key={tag} className="rounded-full border border-line px-2 py-0.5 text-[11px] text-muted">
-            {tag}
+const BuildRow: React.FC<BuildRowProps> = ({ build, active, onSelect, onListen }) => (
+  <li
+    className={`overflow-hidden rounded-xl border transition-colors ${
+      active ? 'border-ink/40 bg-surface-2' : 'border-line hover:border-ink/20 hover:bg-surface'
+    }`}
+  >
+    <div className="flex items-center gap-3 p-2">
+      <button
+        type="button"
+        onClick={onSelect}
+        aria-pressed={active}
+        className="flex min-w-0 flex-1 items-center gap-3 rounded-lg text-left"
+      >
+        <BuildPhoto build={build} className="aspect-[4/3] w-20 shrink-0 rounded-lg" sizes="80px" />
+        <span className="min-w-0 flex-1">
+          <span className="block text-[10px] font-medium uppercase tracking-[0.08em] text-faint">{buildBrand(build)}</span>
+          <span className="flex items-center gap-1.5">
+            <span className="truncate text-[14px] font-semibold text-ink">{build.name.split(' ').slice(1).join(' ')}</span>
+            {active && <Check className="h-3.5 w-3.5 shrink-0 text-ink" aria-label="Đang dùng" />}
           </span>
-        ))}
-      </div>
-    </button>
+          <span className="mt-1 flex items-center gap-2">
+            <ColorDots build={build} />
+            <span className="truncate text-[12px] text-muted">{build.specs.switch}</span>
+          </span>
+        </span>
+      </button>
+      <button
+        type="button"
+        onClick={onListen}
+        aria-label={`Nghe thử ${build.name}`}
+        className="btn-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line text-ink hover:bg-surface lg:h-9 lg:w-9"
+      >
+        <Play className="h-3.5 w-3.5" aria-hidden />
+      </button>
+    </div>
 
-    {/* Thông số chỉ mở ở build đang dùng để danh sách gọn */}
+    {/* Build đang dùng: ảnh lớn + lưới thông số thật */}
     {active && (
-      <dl className="mt-3 divide-y divide-line border-t border-line">
-        {SPEC_ROWS.map((row) => (
-          <div key={row.key} className="flex items-baseline justify-between gap-4 py-2 text-[12px]">
-            <dt className="shrink-0 text-muted">{row.label}</dt>
-            <dd className="text-right text-ink">{build.specs[row.key]}</dd>
-          </div>
-        ))}
-      </dl>
+      <div className="border-t border-line p-3">
+        <BuildPhoto build={build} className="aspect-video rounded-lg" sizes="(min-width: 1024px) 360px, 100vw" />
+        <dl className="mt-3 grid grid-cols-2 gap-2">
+          {SPEC_ROWS.map((row) => (
+            <div key={row.key} className="rounded-lg border border-line bg-canvas/40 px-2.5 py-2">
+              <dt className="text-[10px] uppercase tracking-[0.08em] text-faint">{row.label}</dt>
+              <dd className="mt-0.5 text-[12px] leading-snug text-ink">{build.specs[row.key]}</dd>
+            </div>
+          ))}
+        </dl>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          <span className="rounded-full border border-line px-2 py-0.5 text-[11px] text-muted">{LAYOUT_LABEL[build.look.layout]}</span>
+          {build.tags.map((tag) => (
+            <span key={tag} className="rounded-full border border-line px-2 py-0.5 text-[11px] text-muted">
+              {tag}
+            </span>
+          ))}
+        </div>
+      </div>
     )}
+  </li>
+);
 
-    <button
-      type="button"
-      onClick={onListen}
-      className="btn-press mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-line text-[13px] text-ink hover:bg-surface lg:min-h-9"
-    >
-      <Play className="h-3.5 w-3.5" aria-hidden />
-      Nghe thử
-    </button>
-  </article>
+const Chip: React.FC<{ pressed: boolean; onClick: () => void; children: React.ReactNode }> = ({ pressed, onClick, children }) => (
+  <button
+    type="button"
+    aria-pressed={pressed}
+    onClick={onClick}
+    className={`btn-press min-h-9 shrink-0 rounded-full border px-3 text-[12px] ${
+      pressed ? 'border-ink bg-ink text-canvas' : 'border-line text-muted hover:text-ink'
+    }`}
+  >
+    {children}
+  </button>
 );
 
 /** Thư viện build phím thật: chọn một build thì 3D, tiếng gõ và chú thích 7 lớp đổi theo build đó. */
@@ -129,8 +182,12 @@ export const BuildsPanel: React.FC = () => {
   const packs = useSoundStore((s) => s.packs);
   const stopDemo = React.useRef<(() => void) | null>(null);
   const [layoutFilter, setLayoutFilter] = useState<LayoutFilter>('all');
+  const [brand, setBrand] = useState<string | null>(null);
   const [query, setQuery] = useState('');
-  const visible = useMemo(() => filterBuilds(KEYBOARD_BUILDS, layoutFilter, query), [layoutFilter, query]);
+  const visible = useMemo(
+    () => filterBuilds(KEYBOARD_BUILDS, layoutFilter, query).filter((b) => !brand || buildBrand(b) === brand),
+    [layoutFilter, query, brand]
+  );
 
   const choose = async (build: KeyboardBuild): Promise<void> => {
     applyBuild(build.id);
@@ -146,7 +203,7 @@ export const BuildsPanel: React.FC = () => {
   return (
     <div className="space-y-3 px-5 py-5">
       <p className="text-[12px] leading-relaxed text-muted">
-        Build phím thật: chọn một build để đổi mô hình 3D, tiếng gõ và chú thích 7 lớp theo đúng linh kiện của nó.
+        {KEYBOARD_BUILDS.length} bàn phím thật: chọn một mẫu để đổi mô hình 3D, tiếng gõ và 7 lớp linh kiện theo đúng mẫu đó.
       </p>
 
       <div className="space-y-2">
@@ -158,45 +215,50 @@ export const BuildsPanel: React.FC = () => {
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Tìm: Lucky65, Cocoa, nhôm…"
+              placeholder="Tìm: Nut75, Cocoa, nhôm…"
               className="min-h-11 w-full rounded-lg border border-line bg-surface pl-9 pr-3 text-[13px] text-ink placeholder:text-faint focus:border-ink/60 focus:outline-none lg:min-h-9"
             />
           </span>
         </label>
-        <div role="group" aria-label="Lọc theo layout" className="flex flex-wrap gap-1.5">
-          {LAYOUT_FILTERS.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              aria-pressed={layoutFilter === option.value}
-              onClick={() => setLayoutFilter(option.value)}
-              className={`btn-press min-h-9 rounded-full border px-3 text-[12px] ${
-                layoutFilter === option.value ? 'border-ink bg-ink text-canvas' : 'border-line text-muted hover:text-ink'
-              }`}
-            >
-              {option.label}
-            </button>
+        <div role="group" aria-label="Lọc theo layout" className="scroll-thin -mx-5 flex gap-1.5 overflow-x-auto px-5 pb-1">
+          {LAYOUT_FILTERS.map((value) => (
+            <Chip key={value} pressed={layoutFilter === value} onClick={() => setLayoutFilter(value)}>
+              {value === 'all' ? 'Mọi layout' : LAYOUT_LABEL[value]}
+            </Chip>
+          ))}
+        </div>
+        <div role="group" aria-label="Lọc theo hãng" className="scroll-thin -mx-5 flex gap-1.5 overflow-x-auto px-5 pb-1">
+          <Chip pressed={brand === null} onClick={() => setBrand(null)}>
+            Mọi hãng
+          </Chip>
+          {BRANDS.map((name) => (
+            <Chip key={name} pressed={brand === name} onClick={() => setBrand(brand === name ? null : name)}>
+              {name}
+            </Chip>
           ))}
         </div>
         <p className="text-[12px] text-muted" aria-live="polite">
-          {visible.length} / {KEYBOARD_BUILDS.length} build
+          {visible.length} / {KEYBOARD_BUILDS.length} mẫu
         </p>
       </div>
 
-      {visible.length === 0 && (
+      {visible.length === 0 ? (
         <p className="rounded-lg border border-line px-3 py-4 text-center text-[13px] text-muted">
-          Không có build nào khớp. Thử bỏ bớt từ khoá hoặc chọn “Tất cả”.
+          Không có mẫu nào khớp. Thử bỏ bớt từ khoá hoặc chọn “Mọi layout”, “Mọi hãng”.
         </p>
+      ) : (
+        <ul className="space-y-2">
+          {visible.map((build) => (
+            <BuildRow
+              key={build.id}
+              build={build}
+              active={build.id === buildId}
+              onSelect={() => void choose(build)}
+              onListen={() => void listen(build)}
+            />
+          ))}
+        </ul>
       )}
-      {visible.map((build) => (
-        <BuildCard
-          key={build.id}
-          build={build}
-          active={build.id === buildId}
-          onSelect={() => void choose(build)}
-          onListen={() => void listen(build)}
-        />
-      ))}
     </div>
   );
 };

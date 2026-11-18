@@ -1,3 +1,4 @@
+import { KEYBOARD_LAYOUTS } from '@/types/keyboard';
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import { getLayout } from '@/lib/keyboard/layouts';
@@ -18,13 +19,13 @@ import { gasketTabPositions } from '../parts/InternalLayers';
 const overlaps = (a: Cutout, b: Cutout): boolean =>
   Math.abs(a.x - b.x) < (a.width + b.width) / 2 && Math.abs(a.z - b.z) < (a.depth + b.depth) / 2;
 
-describe('kích thước chuẩn MX', () => {
-  it('lỗ switch 14mm, 1u = 19.05mm', () => {
+describe('kÃ­ch thÆ°á»›c chuáº©n MX', () => {
+  it('lá»— switch 14mm, 1u = 19.05mm', () => {
     expect(SWITCH_CUTOUT / KEY_UNIT).toBeCloseTo(14 / 19.05, 6);
     expect(MM * 19.05).toBeCloseTo(KEY_UNIT, 9);
   });
 
-  it('khoảng cách stabilizer theo bảng Cherry; phím dưới 2u không có', () => {
+  it('khoáº£ng cÃ¡ch stabilizer theo báº£ng Cherry; phÃ­m dÆ°á»›i 2u khÃ´ng cÃ³', () => {
     expect(stabilizerSpacing(1.75)).toBeNull();
     expect(stabilizerSpacing(2)! / MM).toBeCloseTo(11.938, 3);
     expect(stabilizerSpacing(2.75)! / MM).toBeCloseTo(11.938, 3);
@@ -33,25 +34,25 @@ describe('kích thước chuẩn MX', () => {
   });
 });
 
-describe.each(['65%', '75%', 'TKL', '96%'] as const)('lỗ khoét plate layout %s', (id) => {
+describe.each(KEYBOARD_LAYOUTS)('lá»— khoÃ©t plate layout %s', (id) => {
   const layout = getLayout(id);
   const switches = switchCutouts(layout.keys, layout.width, layout.depth);
   const stabs = stabilizerCutouts(layout.keys, layout.width, layout.depth);
   const flex = flexCuts(layout.keys, layout.width, layout.depth);
   const all = [...switches, ...stabs, ...flex];
 
-  it('mỗi phím một lỗ, mỗi phím ≥ 2u hai lỗ stabilizer', () => {
+  it('má»—i phÃ­m má»™t lá»—, má»—i phÃ­m â‰¥ 2u hai lá»— stabilizer', () => {
     expect(switches).toHaveLength(layout.keys.length);
     expect(stabs).toHaveLength(layout.keys.filter((k) => k.w >= 2).length * 2);
   });
 
-  it('không lỗ nào chồng lên lỗ nào (plate vẫn liền khối)', () => {
+  it('khÃ´ng lá»— nÃ o chá»“ng lÃªn lá»— nÃ o (plate váº«n liá»n khá»‘i)', () => {
     for (let i = 0; i < all.length; i++) {
       for (let j = i + 1; j < all.length; j++) expect(overlaps(all[i], all[j])).toBe(false);
     }
   });
 
-  it('mọi lỗ nằm trọn trong plate', () => {
+  it('má»i lá»— náº±m trá»n trong plate', () => {
     const halfW = (layout.width * KEY_UNIT) / 2;
     const halfD = (layout.depth * KEY_UNIT) / 2;
     all.forEach((cut) => {
@@ -62,7 +63,7 @@ describe.each(['65%', '75%', 'TKL', '96%'] as const)('lỗ khoét plate layout %
 });
 
 describe('createCutoutSlab', () => {
-  it('dày đúng, nằm giữa y = ±thickness/2, có cache', () => {
+  it('dÃ y Ä‘Ãºng, náº±m giá»¯a y = Â±thickness/2, cÃ³ cache', () => {
     const cut: Cutout = { x: 0, z: 0.1, width: SWITCH_CUTOUT, depth: SWITCH_CUTOUT };
     const geometry = createCutoutSlab('test-slab', 1, 1, 0.04, [cut]);
     geometry.computeBoundingBox();
@@ -72,11 +73,11 @@ describe('createCutoutSlab', () => {
     expect(createCutoutSlab('test-slab', 1, 1, 0.04, [cut])).toBe(geometry);
   });
 
-  it('lỗ nằm đúng z thế giới (không bị lật dấu khi xoay shape)', () => {
+  it('lá»— náº±m Ä‘Ãºng z tháº¿ giá»›i (khÃ´ng bá»‹ láº­t dáº¥u khi xoay shape)', () => {
     const cut: Cutout = { x: 0, z: 0.3, width: 0.2, depth: 0.2 };
     const geometry = createCutoutSlab('test-hole-z', 1, 1, 0.04, [cut]);
     const pos = geometry.attributes.position;
-    // Không có đỉnh nào ở mặt trên nằm bên trong lỗ
+    // KhÃ´ng cÃ³ Ä‘á»‰nh nÃ o á»Ÿ máº·t trÃªn náº±m bÃªn trong lá»—
     for (let i = 0; i < pos.count; i++) {
       const inside = Math.abs(pos.getX(i)) < 0.09 && Math.abs(pos.getZ(i) - 0.3) < 0.09;
       expect(inside).toBe(false);
@@ -85,13 +86,13 @@ describe('createCutoutSlab', () => {
 });
 
 describe('gasketTabPositions', () => {
-  it('chia đều hai cạnh dài, tối thiểu 3 tai mỗi cạnh, nằm ngoài mép plate', () => {
+  it('chia Ä‘á»u hai cáº¡nh dÃ i, tá»‘i thiá»ƒu 3 tai má»—i cáº¡nh, náº±m ngoÃ i mÃ©p plate', () => {
     const tabs = gasketTabPositions(2, 1);
     expect(tabs).toHaveLength(6);
     tabs.forEach(([, z]) => expect(Math.abs(z)).toBeGreaterThan(0.5));
   });
 });
 
-it('lỗ stabilizer lệch về phía người gõ', () => {
+it('lá»— stabilizer lá»‡ch vá» phÃ­a ngÆ°á»i gÃµ', () => {
   expect(STAB_CUTOUT.offsetZ).toBeGreaterThan(0);
 });

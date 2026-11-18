@@ -216,9 +216,42 @@ export const ShellTopDetails: React.FC<TopDetailsProps> = ({ style, dims, caseMa
       return <WoodSidePanels dims={dims} topY={topY} />;
     case 'lcd-75':
       return modulePosition ? <LcdModule position={modulePosition} plateY={plateY} /> : null;
+    case 'stars-s':
+      return <DiagonalCornerStrips dims={dims} topY={topY} color={ledColor} />;
     default:
       return null;
   }
+};
+
+/** Weikav Stars75 S: hai dải đèn PC cắt kim cương chạy chéo qua góc trên-trái và dưới-phải ("phá kén") */
+const DiagonalCornerStrips: React.FC<{ dims: ShellDims; topY: number; color: string }> = ({ dims, topY, color }) => {
+  const bezel = (dims.outerDepth - dims.keysDepth) / 2;
+  const parts = useMemo(
+    () => ({
+      strip: new THREE.BoxGeometry(bezel * 2.6, 0.012, 0.045),
+      pc: new THREE.MeshPhysicalMaterial({ color: '#ffffff', roughness: 0.25, transparent: true, opacity: 0.85, emissiveIntensity: 0.9 }),
+    }),
+    [bezel]
+  );
+  useDisposable(useMemo(() => Object.values(parts), [parts]));
+  useEffect(() => {
+    parts.pc.emissive.set(color);
+  }, [parts, color]);
+  const inset = bezel * 0.75;
+  return (
+    <>
+      {[-1, 1].map((s) => (
+        <mesh
+          key={s}
+          name="Detail_DiagonalLightStrip"
+          geometry={parts.strip}
+          material={parts.pc}
+          position={[s * (dims.outerWidth / 2 - inset), topY + 0.004, -s * (dims.outerDepth / 2 - inset)]}
+          rotation={[0, s * (Math.PI / 4), 0]}
+        />
+      ))}
+    </>
+  );
 };
 
 /** Dải đèn báo mảnh trên viền trước, cạnh cụm phím mũi tên */

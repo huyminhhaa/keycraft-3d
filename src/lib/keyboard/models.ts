@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { KEYBOARD_LAYOUTS, type KeyboardLayout } from '@/types/keyboard';
 
 /**
  * Danh mục mẫu bàn phím hiện trên web.
@@ -9,7 +10,7 @@ import { z } from 'zod';
  * Sai định dạng thì Zod báo lỗi rõ ràng ngay khi chạy `npm run dev`.
  */
 
-const layoutSchema = z.enum(['65%', '75%', 'TKL', '96%']);
+const layoutSchema = z.enum(KEYBOARD_LAYOUTS);
 
 const baseSchema = z.object({
   id: z.string().regex(/^[a-z0-9-]+$/, 'id chỉ gồm chữ thường, số và dấu gạch ngang'),
@@ -78,7 +79,7 @@ export const getModelEntry = (id: string): KeyboardModelEntry =>
  * File chụp/scan/mua giữ nguyên màu và texture gốc (recolor: false). Không có modelUrl thì null.
  */
 export const buildModelEntry = (
-  build: { id: string; name: string; modelUrl?: string; look: { layout: '65%' | '75%' | 'TKL' | '96%' } } | undefined
+  build: { id: string; name: string; modelUrl?: string; look: { layout: KeyboardLayout } } | undefined
 ): GlbModelEntry | null =>
   build?.modelUrl
     ? { id: `build-${build.id}`, name: build.name, source: 'glb', url: build.modelUrl, layout: build.look.layout, recolor: false }

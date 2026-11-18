@@ -38,7 +38,7 @@ describe('AI Tools & Zod Schema Validation', () => {
 
     it('từ chối layout không được hỗ trợ', () => {
       const invalidLayout = {
-        layout: '100%', // Chỉ hỗ trợ '65%', '75%', 'TKL'
+        layout: '40%', // Chỉ hỗ trợ 60% → 100%
       };
 
       const result = updateKeyboardConfigSchema.safeParse(invalidLayout);

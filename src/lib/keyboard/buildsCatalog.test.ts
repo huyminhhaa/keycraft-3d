@@ -1,17 +1,25 @@
 import { describe, it, expect } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { KEYBOARD_BUILDS, buildSchema, filterBuilds, findBuild } from './builds';
+import { KEYBOARD_BUILDS, buildBrand, buildSchema, filterBuilds, findBuild } from './builds';
+import { KEYBOARD_LAYOUTS } from '@/types/keyboard';
 import { buildModelEntry } from './models';
 import { topRowModuleCodes } from './layouts';
 import { HARDWARE_CATALOG } from '@/lib/ai/hardwareCatalog';
 import { createKeycapGeometry, getKeycapShape, keycapSurfaceY, DISH_DEPTH } from '@/components/canvas/geometry/keyboardGeometry';
 
 describe('thư viện build mở rộng', () => {
-  it('có ít nhất 20 build, đủ layout 65%, 75%, TKL, 96%', () => {
-    expect(KEYBOARD_BUILDS.length).toBeGreaterThanOrEqual(20);
+  it('có 41 build, đủ mọi layout từ 60% tới full-size', () => {
+    expect(KEYBOARD_BUILDS.length).toBe(41);
     const layouts = new Set(KEYBOARD_BUILDS.map((b) => b.look.layout));
-    ['65%', '75%', 'TKL', '96%'].forEach((l) => expect(layouts.has(l as '65%')).toBe(true));
+    KEYBOARD_LAYOUTS.forEach((l) => expect(layouts.has(l)).toBe(true));
+  });
+
+  it('đợt 3: QK61 là 60%, Nut108 full-size mạch trắng, Stars75 S có dải đèn chéo 2 góc', () => {
+    expect(findBuild('cidoo-qk61-v2')?.look.layout).toBe('60%');
+    expect(findBuild('weikav-nut108')?.look).toMatchObject({ layout: '100%', pcbColor: '#ecebe6' });
+    expect(findBuild('weikav-stars75s')?.look.shellStyle).toBe('stars-s');
+    expect(buildBrand({ name: 'Weikav Nut75' })).toBe('Weikav');
   });
 
   it('mỗi build có gói tiếng và ảnh thật trong public/', () => {
@@ -46,8 +54,9 @@ describe('thư viện build mở rộng', () => {
 });
 
 describe('màu switch thật', () => {
-  it('mọi build đều có màu switch thật (Cocoa vỏ kem stem nâu, Ice Vein xanh ngọc stem trắng…)', () => {
-    expect(KEYBOARD_BUILDS.every((b) => b.look.switchColors)).toBe(true);
+  it('mọi build đều có màu switch thật, trừ các mẫu không nhìn thấy switch trong video', () => {
+    const unseen = ['weikav-nut75', 'weikav-nut87', 'aula-nova75-pro', 'weikav-nut65', 'weikav-nut108', 'riccks-rs8', 'aula-l99', 'mchose-g75-v2', 'cidoo-qk75'];
+    expect(KEYBOARD_BUILDS.filter((b) => !b.look.switchColors).map((b) => b.id).sort()).toEqual([...unseen].sort());
     expect(findBuild('wobkey-rainy75-pro')?.look.switchColors).toMatchObject({ stem: '#6b3a24' });
     expect(findBuild('aula-f75-ice-vein')?.look.switchColors).toMatchObject({ stem: '#f3f5f5' });
   });

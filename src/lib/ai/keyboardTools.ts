@@ -1,6 +1,7 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 import { searchHardwareComponents } from './semanticSearch';
+import { KEYBOARD_LAYOUTS } from '@/types/keyboard';
 
 // Regex chuẩn mã màu HEX (#RGB hoặc #RRGGBB)
 const hexColorRegex = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
@@ -10,9 +11,11 @@ const hexColorRegex = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 // -----------------------------------------------------------------------------
 export const updateKeyboardConfigSchema = z.object({
   layout: z
-    .enum(['65%', '75%', 'TKL', '96%'])
+    .enum(KEYBOARD_LAYOUTS)
     .optional()
-    .describe('Kích thước layout bàn phím: 65% (nhỏ gọn), 75% (có F-row), TKL (87 phím), 96% (có numpad, kiểu AULA F99)'),
+    .describe(
+      'Kích thước layout: 60% (không phím mũi tên), 65% (nhỏ gọn), 75% (có F-row), TKL (87 phím), 96% (numpad thu gọn, kiểu AULA F99), 100% (full-size 108 phím)'
+    ),
   plateMaterial: z
     .enum(['aluminum', 'polycarbonate', 'pom', 'fr4'])
     .optional()

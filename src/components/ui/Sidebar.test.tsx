@@ -26,7 +26,7 @@ describe('Sidebar', () => {
     render(<Sidebar />);
     fireEvent.click(screen.getAllByRole('button', { name: /AULA F99 Pro/ })[0]);
     expect(useKeyboardStore.getState()).toMatchObject({ buildId: 'aula-f99-asura', layout: '96%' });
-    expect(screen.getByText('Kiểu mount')).toBeDefined();
+    expect(screen.getByText('Mount')).toBeDefined();
   });
 
   it('đổi bố cục qua nhóm nút và hiển thị số phím', () => {

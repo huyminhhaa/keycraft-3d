@@ -1,4 +1,4 @@
-import type { KeyboardLayout } from '@/types/keyboard';
+import { KEYBOARD_LAYOUTS, type KeyboardLayout } from '@/types/keyboard';
 
 /**
  * Bố cục phím ANSI thật cho 3 layout. Đơn vị là "u" (1u = một phím chữ cái, 19.05mm).
@@ -218,6 +218,72 @@ const ROWS: Record<KeyboardLayout, RowSpec[]> = {
       ],
     },
   ],
+  // 100% / 108 phím (Weikav Nut108): TKL + numpad đủ 17 phím + 4 phím media trên numpad.
+  // Phím + và Enter của numpad ngoài đời cao 2u; ở đây vẽ 1u ở ô trên, ô dưới để trống.
+  '100%': [
+    {
+      y: 0,
+      profileRow: 1,
+      items: [
+        ESC, gap(1), ...F_KEYS(1, 4, 'alpha'), gap(0.5), ...F_KEYS(5, 8, 'modifier'), gap(0.5),
+        ...F_KEYS(9, 12, 'alpha'), gap(0.25),
+        m('PrintScreen', 'Prt Sc'), m('ScrollLock', 'Scroll'), m('Pause', 'Pause'), gap(0.25),
+        m('AudioVolumeMute', 'Mute'), m('AudioVolumeDown', 'Vol-'), m('AudioVolumeUp', 'Vol+'), m('LaunchApp2', 'Calc'),
+      ],
+    },
+    {
+      y: 1.25,
+      profileRow: 1,
+      items: [
+        ...NUMBER_ROW, gap(0.25), m('Insert', 'Insert'), m('Home', 'Home'), m('PageUp', 'PgUp'), gap(0.25),
+        m('NumLock', 'Num'), k('NumpadDivide', '/'), k('NumpadMultiply', '*'), k('NumpadSubtract', '-'),
+      ],
+    },
+    {
+      y: 2.25,
+      profileRow: 2,
+      items: [
+        ...QWERTY_ROW, gap(0.25), m('Delete', 'Delete'), m('End', 'End'), m('PageDown', 'PgDn'), gap(0.25),
+        k('Numpad7', '7'), k('Numpad8', '8'), k('Numpad9', '9'), m('NumpadAdd', '+'),
+      ],
+    },
+    { y: 3.25, profileRow: 3, items: [...HOME_ROW, gap(3.5), k('Numpad4', '4'), k('Numpad5', '5'), k('Numpad6', '6')] },
+    {
+      y: 4.25,
+      profileRow: 4,
+      items: [
+        m('ShiftLeft', 'Shift', 2.25), ...SHIFT_ROW_ALPHAS, m('ShiftRight', 'Shift', 2.75), gap(1.25), ARROW_UP, gap(1.25),
+        k('Numpad1', '1'), k('Numpad2', '2'), k('Numpad3', '3'), k('NumpadEnter', 'Ent', 1, 'accent'),
+      ],
+    },
+    {
+      y: 5.25,
+      profileRow: 4,
+      items: [
+        m('ControlLeft', 'Ctrl', 1.25), m('MetaLeft', 'Win', 1.25), m('AltLeft', 'Alt', 1.25),
+        k('Space', '', 6.25),
+        m('AltRight', 'Alt', 1.25), m('Fn', 'Fn', 1.25), m('ContextMenu', 'Menu', 1.25), m('ControlRight', 'Ctrl', 1.25),
+        gap(0.25), ARROW_LEFT, ARROW_DOWN, ARROW_RIGHT, gap(0.25),
+        k('Numpad0', '0', 2), k('NumpadDecimal', '.'),
+      ],
+    },
+  ],
+  // 60% (CIDOO QK61): bỏ hàng F, cụm mũi tên và cụm điều hướng; mũi tên nằm ở lớp Fn.
+  '60%': [
+    { y: 0, profileRow: 1, items: [{ ...ESC, legend: ['~', 'Esc'] }, ...NUMBER_ROW.slice(1)] },
+    { y: 1, profileRow: 2, items: [...QWERTY_ROW] },
+    { y: 2, profileRow: 3, items: [...HOME_ROW] },
+    { y: 3, profileRow: 4, items: [m('ShiftLeft', 'Shift', 2.25), ...SHIFT_ROW_ALPHAS, m('ShiftRight', 'Shift', 2.75)] },
+    {
+      y: 4,
+      profileRow: 4,
+      items: [
+        m('ControlLeft', 'Ctrl', 1.25), m('MetaLeft', 'Win', 1.25), m('AltLeft', 'Alt', 1.25),
+        k('Space', '', 6.25),
+        m('AltRight', 'Alt', 1.25), m('Fn', 'Fn', 1.25), m('ContextMenu', 'Menu', 1.25), m('ControlRight', 'Ctrl', 1.25),
+      ],
+    },
+  ],
   '65%': [
     { y: 0, profileRow: 1, items: [{ ...ESC, legend: ['~', 'Esc'] }, ...NUMBER_ROW.slice(1), m('Delete', 'Del')] },
     { y: 1, profileRow: 2, items: [...QWERTY_ROW, m('PageUp', 'PgUp')] },
@@ -262,12 +328,10 @@ const buildLayout = (id: KeyboardLayout): LayoutDefinition => {
   return { id, width, depth, keys };
 };
 
-export const LAYOUTS: Record<KeyboardLayout, LayoutDefinition> = {
-  '65%': buildLayout('65%'),
-  '75%': buildLayout('75%'),
-  TKL: buildLayout('TKL'),
-  '96%': buildLayout('96%'),
-};
+export const LAYOUTS = Object.fromEntries(KEYBOARD_LAYOUTS.map((id) => [id, buildLayout(id)])) as Record<
+  KeyboardLayout,
+  LayoutDefinition
+>;
 
 /**
  * Phím mà núm xoay thay chỗ: phím ngoài cùng bên phải của hàng trên cùng
