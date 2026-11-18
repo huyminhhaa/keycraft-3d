@@ -27,6 +27,8 @@ describe('Bố cục phím ANSI', () => {
     const allowedEdges: Record<string, number[]> = {
       TKL: [15, 17.25, 18.25],
       '75%': [16],
+      // L99: hàng F kéo dài tới Print/Scroll/Pause trên màn hình (19.25u), các hàng dưới dừng ở cột điều hướng
+      '75%-screen': [16, 19.25],
       '65%': [16],
       '96%': [19],
       '60%': [15],

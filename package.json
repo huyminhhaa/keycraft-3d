@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest",
-    "sounds": "tsx scripts/sounds/make-pack.ts"
+    "sounds": "tsx scripts/sounds/make-pack.ts",
+    "photos": "tsx scripts/builds/sync-photos.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.121",

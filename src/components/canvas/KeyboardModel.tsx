@@ -5,9 +5,10 @@ import * as THREE from 'three';
 import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import { useKeyboardStore } from '@/store/useKeyboardStore';
-import { getLayout, knobKeyCode, topRowModuleCodes, type PlacedKey } from '@/lib/keyboard/layouts';
+import { getLayout, type PlacedKey } from '@/lib/keyboard/layouts';
 import { findBuild, type KeyboardBuild } from '@/lib/keyboard/builds';
-import { legendColorFor } from '@/lib/keyboard/keycapSets';
+import { replacedKeyCodes, resolveModules } from '@/lib/keyboard/modules';
+import { keycapRowIndex, resolveKeycapSlot, type KeycapSlot, type KeycapTheme } from '@/lib/keyboard/keycapTheme';
 import { isKeyPressed, pressKey, releaseKey } from '@/lib/keyboard/pressedKeys';
 import { prefersReducedMotion, stepColorToward } from '@/lib/ui/cinematic';
 import {
@@ -29,10 +30,11 @@ import {
   keyCenter,
   keycapSurfaceY,
 } from './geometry/keyboardGeometry';
-import { getSurfaceTexture, getWoodColorTexture } from './geometry/proceduralTextures';
+import { getForgedCarbonTexture, getSurfaceTexture, getWoodColorTexture } from './geometry/proceduralTextures';
 import { TYPING_ANGLE } from './geometry/caseGeometry';
-import { BottomCaseBody, RotaryKnob } from './parts/CaseParts';
-import { ShellBottomDetails, ShellTopDetails } from './parts/ShellParts';
+import { BottomCaseBody } from './parts/CaseParts';
+import { LightStrips, ShellBottomDetails, ShellTopDetails } from './parts/ShellParts';
+import { ModuleLayer } from './parts/Modules';
 import { createLegendTexture } from './geometry/legendTexture';
 import { EXPORT_ROOT_NAME } from '@/lib/keyboard/exportGlb';
 import { FoamLayer, PCB_THICKNESS, PLATE_THICKNESS, PcbLayer, PlateLayer } from './parts/InternalLayers';
@@ -275,24 +277,88 @@ const SWITCH_PLATE_TOP_Y = REST.plate + PLATE_THICKNESS / 2 - REST.switches;
 /** Tốc độ chuyển màu: ~0.4s để đổi gần hết màu */
 const COLOR_SPEED = 7;
 
-type KeycapMaterials = Record<PlacedKey['role'], THREE.MeshPhysicalMaterial>;
+/** Carbon forged đã có màu trong texture: tint gần trắng để không tối thêm */
+const slotTint = (slot: KeycapSlot): string => (slot.finish === 'forged-carbon' ? '#e4e4e4' : slot.color);
 
-const createKeycapMaterials = (colors: Record<PlacedKey['role'], string>): KeycapMaterials => {
-  // Nhựa PBT double-shot: hạt li ti (bumpMap) + nhám lì (roughnessMap), không bóng như ABS
+/** Vật liệu keycap theo hoàn thiện: PBT nhám, nhựa trong (jelly) hoặc carbon forged */
+const createKeycapMaterial = (slot: KeycapSlot): THREE.MeshPhysicalMaterial => {
   const grain = getSurfaceTexture('pbt');
-  const make = (hex: string) =>
-    new THREE.MeshPhysicalMaterial({
-      color: hex,
-      roughness: 0.68,
+  if (slot.finish === 'translucent') {
+    // Không dùng transmission (tốn thêm một lượt render cả cảnh): nhựa trong giả bằng độ trong suốt + clearcoat
+    return new THREE.MeshPhysicalMaterial({
+      color: slot.color,
+      roughness: 0.3,
       metalness: 0,
-      bumpMap: grain,
-      bumpScale: 0.35,
-      roughnessMap: grain,
-      sheen: 0.25,
-      sheenRoughness: 0.85,
+      clearcoat: 0.6,
+      clearcoatRoughness: 0.35,
+      transparent: true,
+      // Nhựa trong màu khói: thấy lờ mờ switch bên dưới nhưng keycap vẫn đặc khối như ảnh thật
+      opacity: 0.84,
     });
-  return { alpha: make(colors.alpha), modifier: make(colors.modifier), accent: make(colors.accent) };
+  }
+  if (slot.finish === 'forged-carbon') {
+    return new THREE.MeshPhysicalMaterial({
+      color: slotTint(slot),
+      map: getForgedCarbonTexture(),
+      roughness: 0.42,
+      metalness: 0.25,
+      clearcoat: 0.7,
+      clearcoatRoughness: 0.25,
+    });
+  }
+  // Nhựa PBT double-shot: hạt li ti (bumpMap) + nhám lì (roughnessMap), không bóng như ABS
+  return new THREE.MeshPhysicalMaterial({
+    color: slot.color,
+    roughness: 0.68,
+    metalness: 0,
+    bumpMap: grain,
+    bumpScale: 0.35,
+    roughnessMap: grain,
+    sheen: 0.25,
+    sheenRoughness: 0.85,
+  });
 };
+
+/**
+ * Kho vật liệu keycap theo slot (màu theo vai trò / theo hàng + hoàn thiện). Phím cùng slot dùng chung
+ * một material; đổi màu thì kéo dần màu cũ về màu mới; slot không còn dùng thì dispose ngay.
+ */
+class KeycapMaterialPool {
+  private materials = new Map<string, THREE.MeshPhysicalMaterial>();
+  private targets = new Map<string, THREE.Color>();
+
+  get(slot: KeycapSlot): THREE.MeshPhysicalMaterial {
+    let material = this.materials.get(slot.id);
+    if (!material) {
+      material = createKeycapMaterial(slot);
+      this.materials.set(slot.id, material);
+    }
+    const target = this.targets.get(slot.id) ?? new THREE.Color();
+    target.set(slotTint(slot));
+    this.targets.set(slot.id, target);
+    return material;
+  }
+
+  step(amount: number): void {
+    this.materials.forEach((material, id) => {
+      const target = this.targets.get(id);
+      if (target) stepColorToward(material.color, target, amount);
+    });
+  }
+
+  keepOnly(ids: Set<string>): void {
+    this.materials.forEach((material, id) => {
+      if (ids.has(id)) return;
+      material.dispose();
+      this.materials.delete(id);
+      this.targets.delete(id);
+    });
+  }
+
+  dispose(): void {
+    this.keepOnly(new Set());
+  }
+}
 
 /** Đưa màu của các vật liệu dần về màu đích (thao tác imperative trên đối tượng Three.js). */
 const stepMaterials = (
@@ -322,29 +388,23 @@ export const KeyboardModel: React.FC = () => {
   const shellStyle = useKeyboardStore((s) => s.shellStyle ?? 'default');
   const keycapProfile = useKeyboardStore((s) => s.keycapProfile ?? 'cherry');
   const switchColors = useKeyboardStore((s) => s.switchColors);
-  const build = findBuild(useKeyboardStore((s) => s.buildId ?? null));
+  const buildId = useKeyboardStore((s) => s.buildId ?? null);
+  const build = useMemo(() => findBuild(buildId), [buildId]);
 
   const layout = useMemo(() => getLayout(layoutId), [layoutId]);
   const dims = useMemo(() => getCaseDimensions(layout.width, layout.depth, caseShape.bezel), [layout, caseShape.bezel]);
 
-  // Núm xoay chiếm chỗ phím ngoài cùng bên phải hàng trên (giống AULA F75, Hi75C Pro…)
-  const knobCode = caseShape.knob ? knobKeyCode(layoutId) : null;
-  // Module LCD 2U (kiểu Zoom75) chiếm 2 phím ngoài cùng bên phải hàng trên
-  const lcdCodes = useMemo(() => (shellStyle === 'lcd-75' ? topRowModuleCodes(layoutId, 2) : []), [shellStyle, layoutId]);
-  const keys = useMemo(
-    () => layout.keys.filter((key) => key.code !== knobCode && !lcdCodes.includes(key.code)),
-    [layout, knobCode, lcdCodes]
+  // Build chỉ áp dụng module/màu riêng khi vẫn đúng layout của build (người dùng đổi layout thì về kiểu chung)
+  const buildLook = useMemo(() => (build && build.look.layout === layoutId ? build.look : undefined), [build, layoutId]);
+
+  // Module phần cứng (núm, con lăn, màn hình, đèn báo, badge, ô trống) + màn hình cố định của layout (L99)
+  const modules = useMemo(
+    () => resolveModules({ layout, modules: buildLook?.modules, legacyKnob: caseShape.knob, shellStyle }),
+    [layout, buildLook, caseShape.knob, shellStyle]
   );
-  const lcdPosition = useMemo((): [number, number] | null => {
-    const centers = layout.keys.filter((key) => lcdCodes.includes(key.code)).map((key) => keyCenter(key, layout.width, layout.depth));
-    if (centers.length === 0) return null;
-    return [centers.reduce((s, [x]) => s + x, 0) / centers.length, centers[0][1]];
-  }, [layout, lcdCodes]);
+  const replaced = useMemo(() => replacedKeyCodes(modules), [modules]);
+  const keys = useMemo(() => layout.keys.filter((key) => !replaced.has(key.code)), [layout, replaced]);
   const keyPositions = useMemo(() => keys.map((key) => keyCenter(key, layout.width, layout.depth)), [keys, layout]);
-  const knobPosition = useMemo(() => {
-    const knobKey = layout.keys.find((key) => key.code === knobCode);
-    return knobKey ? keyCenter(knobKey, layout.width, layout.depth) : null;
-  }, [layout, knobCode]);
 
   const topCaseGeometry = useMemo(
     () =>
@@ -367,9 +427,9 @@ export const KeyboardModel: React.FC = () => {
       layoutDepth: layout.depth,
       keysWidth: dims.keysWidth,
       keysDepth: dims.keysDepth,
-      cacheKey: `${layoutId}:${knobCode ?? 'no-knob'}:${lcdCodes.join('+') || 'no-lcd'}`,
+      cacheKey: `${layoutId}:${[...replaced].sort().join('+') || 'full'}`,
     }),
-    [keys, layout, dims, layoutId, knobCode, lcdCodes]
+    [keys, layout, dims, layoutId, replaced]
   );
 
   const caseMaterialProps = useMemo(() => getCaseMaterialProps(caseMaterial, caseColor), [caseMaterial, caseColor]);
@@ -433,24 +493,36 @@ export const KeyboardModel: React.FC = () => {
     // eslint-disable-next-line react-hooks/immutability -- vật liệu Three.js là đối tượng mutable, cần báo shader biên dịch lại
     caseMaterialObject.needsUpdate = true;
   }, [caseMaterialObject, caseMaterial, caseRestProps]);
-  const keycapMaterials = useMemo(
-    () =>
-      createKeycapMaterials({
-        alpha: useKeyboardStore.getState().keycapColor,
-        modifier: useKeyboardStore.getState().keycapModifierColor,
-        accent: useKeyboardStore.getState().keycapAccentColor,
-      }),
-    []
-  );
-  useEffect(() => () => Object.values(keycapMaterials).forEach((m) => m.dispose()), [keycapMaterials]);
-  const keycapTargets = useMemo(
-    () => ({
-      alpha: new THREE.Color(keycapColor),
-      modifier: new THREE.Color(keycapModifierColor),
-      accent: new THREE.Color(keycapAccentColor),
+  /* ---------------- Keycap: phối màu theo ảnh thật (theo hàng, phím nhấn riêng, keycap trong/carbon) ---------------- */
+  // Người dùng tự đổi màu keycap thì bỏ màu theo hàng + màu chữ riêng của build, giữ các phím nhấn
+  const keycapCustomized =
+    !buildLook ||
+    buildLook.keycapColor !== keycapColor ||
+    buildLook.keycapModifierColor !== keycapModifierColor ||
+    buildLook.keycapAccentColor !== keycapAccentColor;
+  const keycapTheme = useMemo(
+    (): KeycapTheme => ({
+      alpha: keycapColor,
+      modifier: keycapModifierColor,
+      accent: keycapAccentColor,
+      accentKeys: buildLook?.accentKeys,
+      modifierKeys: buildLook?.modifierKeys,
+      alphaKeys: buildLook?.alphaKeys,
+      finish: buildLook?.keycapFinish,
+      jellyAccent: buildLook?.jellyAccent,
+      rows: keycapCustomized ? undefined : buildLook?.keycapRows,
+      legend: keycapCustomized ? undefined : buildLook?.legendColor,
     }),
-    [keycapColor, keycapModifierColor, keycapAccentColor]
+    [keycapColor, keycapModifierColor, keycapAccentColor, buildLook, keycapCustomized]
   );
+  const keySlots = useMemo(
+    () => keys.map((key) => resolveKeycapSlot(key, keycapRowIndex(key, layout), keycapTheme)),
+    [keys, layout, keycapTheme]
+  );
+  const [materialPool] = useState(() => new KeycapMaterialPool());
+  const keyMaterials = useMemo(() => keySlots.map((slot) => materialPool.get(slot)), [keySlots, materialPool]);
+  useEffect(() => materialPool.keepOnly(new Set(keySlots.map((slot) => slot.id))), [keySlots, materialPool]);
+  useEffect(() => () => materialPool.dispose(), [materialPool]);
 
   /* ---------------- Refs cho 7 lớp và từng keycap ---------------- */
   const bottomCaseRef = useRef<THREE.Group>(null);
@@ -493,15 +565,8 @@ export const KeyboardModel: React.FC = () => {
 
     // Đổi màu vỏ và keycap dần trong ~0.4s
     const colorStep = reduceMotion ? 1 : Math.min(1, delta * COLOR_SPEED);
-    stepMaterials(
-      [
-        [caseMaterialObject, caseTarget],
-        [keycapMaterials.alpha, keycapTargets.alpha],
-        [keycapMaterials.modifier, keycapTargets.modifier],
-        [keycapMaterials.accent, keycapTargets.accent],
-      ],
-      colorStep
-    );
+    stepMaterials([[caseMaterialObject, caseTarget]], colorStep);
+    materialPool.step(colorStep);
 
     // Nhấn phím: keycap lún xuống nhanh, bật lên chậm hơn một chút như switch thật
     keyGroups.current.forEach((group, code) => {
@@ -513,11 +578,6 @@ export const KeyboardModel: React.FC = () => {
 
   const initial = calculateLayerPositions(isExploded ? explosionOffset : 0);
   const labelX = dims.outerWidth / 2 + 0.15;
-  const legendColors: Record<PlacedKey['role'], string> = {
-    alpha: legendColorFor(keycapColor),
-    modifier: legendColorFor(keycapModifierColor),
-    accent: legendColorFor(keycapAccentColor),
-  };
 
   const details = layerDetails(build, plateMaterial, switchType);
   const ledIntensity = ledEnabled ? 1.5 + ledBrightness * 5 : 0;
@@ -541,7 +601,8 @@ export const KeyboardModel: React.FC = () => {
           material={shellStyle === 'halo-rgb' ? haloBottomMaterial : caseMaterialObject}
           showWeight={!build}
         />
-        <ShellBottomDetails style={shellStyle} dims={shellDims} />
+        <ShellBottomDetails style={shellStyle} dims={shellDims} glowColor={buildLook?.glowColor} />
+        <LightStrips dims={shellDims} placement={buildLook?.lightStrip ?? 'none'} />
 
         {/* Dải LED hai bên hông (chỉ mẫu tự phối; build thật không có) */}
         {!build && [-1, 1].map((side) => (
@@ -610,8 +671,8 @@ export const KeyboardModel: React.FC = () => {
             key={`${layoutId}-${key.code}`}
             keyDef={key}
             position={[keyPositions[i][0], KEYCAP_BASE_Y, keyPositions[i][1]]}
-            material={keycapMaterials[key.role]}
-            legendColor={legendColors[key.role]}
+            material={keyMaterials[i]}
+            legendColor={keySlots[i].legend}
             profile={keycapProfile}
             registerRef={registerKey}
           />
@@ -622,25 +683,22 @@ export const KeyboardModel: React.FC = () => {
       {/* LỚP 7: TOP CASE (khung) */}
       <group ref={topCaseRef} name="TopCase" position={[0, initial.topCase, 0]}>
         <mesh geometry={topCaseGeometry} material={caseMaterialObject} castShadow receiveShadow />
-        {/* Núm xoay nhôm CNC khía rãnh: chân trên mặt plate, đỉnh ngang mặt keycap */}
-        {knobPosition && (
-          <RotaryKnob
-            position={[knobPosition[0], KNOB_BASE_Y, knobPosition[1]]}
-            color={knobColorFor(caseColor)}
-            // AULA: khía mịn; Hi75: núm to có vòng viền kim loại nhấn màu
-            ridges={shellStyle === 'aula' ? 60 : 36}
-            radius={shellStyle === 'hi75' ? 0.185 : undefined}
-            accentRing={shellStyle === 'hi75' ? '#c9a35a' : undefined}
-          />
-        )}
+        {/* Núm xoay, con lăn, màn hình, đèn báo, badge: chân trên mặt plate (hoặc mặt viền vỏ), đặt đúng chỗ như ảnh thật */}
+        <ModuleLayer
+          modules={modules}
+          layoutWidth={layout.width}
+          layoutDepth={layout.depth}
+          plateY={KNOB_BASE_Y}
+          caseTopY={TOP_CASE.yBottom + TOP_CASE.height}
+          defaultKnobColor={knobColorFor(caseColor)}
+        />
         <ShellTopDetails
           style={shellStyle}
           dims={shellDims}
           caseMaterial={caseMaterialObject}
           ledColor={ledColor}
-          modulePosition={lcdPosition}
           topY={TOP_CASE.yBottom + TOP_CASE.height}
-          plateY={KNOB_BASE_Y}
+          restY={REST.topCase}
         />
         <LayerLabel index="06" name="Vỏ trên" detail={details.topCase} visible={isExploded} x={labelX} />
       </group>

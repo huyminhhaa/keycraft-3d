@@ -1,4 +1,4 @@
-export const KEYBOARD_LAYOUTS = ['60%', '65%', '75%', 'TKL', '96%', '100%'] as const;
+export const KEYBOARD_LAYOUTS = ['60%', '65%', '75%', '75%-screen', 'TKL', '96%', '100%'] as const;
 
 export type KeyboardLayout = (typeof KEYBOARD_LAYOUTS)[number];
 
@@ -31,15 +31,16 @@ export const DEFAULT_CASE_SHAPE: CaseShape = { bezel: 0.22, cornerRadius: 0.16, 
 
 /**
  * Dáng vỏ nhận diện theo dòng phím thật (chi tiết riêng dựng thêm trên vỏ CNC):
- * aula: vỏ ABS 2 mảnh có rãnh ghép, chân chống 2 nấc, khe dongle, đèn báo cạnh cụm mũi tên
- * hi75: nhôm khối góc vuông, núm to có vòng viền kim loại, badge kim loại ở đáy
+ * aula: vỏ ABS 2 mảnh có rãnh ghép, chân chống 2 nấc, khe dongle
+ * hi75: nhôm khối góc vuông, badge kim loại ở đáy
  * lucky65: chốt bi nam châm (ball-catch) trong lòng vỏ, tạ gương PVD dưới đáy
  * x85: hai hông vát chéo kiểu thể thao, đèn báo
- * halo-rgb: đáy nhựa trong mờ + dải đèn Halo chạy vòng quanh đáy
+ * halo-rgb: đáy nhựa trong mờ có gân dọc + dải đèn Halo chạy vòng quanh đáy
  * wood-accent: hai thanh ốp gỗ hai bên hông
- * lcd-75: module màn hình LCD góc trên phải
- * frosted-pc: vỏ polycarbonate mờ thấy lờ mờ bên trong
+ * lcd-75: (cũ) module màn hình LCD góc trên phải — build mới khai báo bằng module `screen`
+ * frosted-pc: vỏ polycarbonate mờ, đèn ruột hắt sáng xuyên vỏ
  * stars-s: hai dải đèn PC chạy chéo qua 2 góc vỏ (Weikav Stars75 S)
+ * skeletal: khung xương sci-fi khoét lỗ bầu dục quanh hông, đèn ruột tím/xanh (GravaStar Mercury K1)
  */
 export const SHELL_STYLES = [
   'default',
@@ -52,11 +53,16 @@ export const SHELL_STYLES = [
   'lcd-75',
   'frosted-pc',
   'stars-s',
+  'skeletal',
 ] as const;
 export type ShellStyle = (typeof SHELL_STYLES)[number];
 
-/** Profile keycap: Cherry (thấp, lòng chảo trụ, nghiêng theo hàng) hoặc MOA (cao đều, bo tròn, lòng chảo cầu) */
-export type KeycapProfile = 'cherry' | 'moa';
+/**
+ * Profile keycap: Cherry (thấp, lòng chảo trụ, nghiêng theo hàng), OEM (như Cherry nhưng cao hơn ~18%),
+ * MOA (cao đều, bo tròn, lòng chảo cầu)
+ */
+export const KEYCAP_PROFILES = ['cherry', 'oem', 'moa'] as const;
+export type KeycapProfile = (typeof KEYCAP_PROFILES)[number];
 
 /** Màu thật của switch (lấy theo ảnh sản phẩm): vỏ trên, vỏ dưới, stem; độ đục vỏ trên (PC trong ~0.3, POM/nylon đục ~0.95) */
 export interface SwitchColors {

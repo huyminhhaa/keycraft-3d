@@ -1,7 +1,7 @@
 {
   "id": "mchose-ace68-turbo",
   "name": "MCHOSE Ace 68 Turbo",
-  "switch": "Switch theo máy",
+  "switch": "Switch từ tính Hall Effect",
   "noise": 0.0899,
   "sourceUrl": "https://www.youtube.com/watch?v=F9A0nVLz0Kw",
   "clips": {

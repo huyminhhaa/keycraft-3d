@@ -200,6 +200,187 @@ export const getLcdTexture = (): THREE.CanvasTexture | null =>
   });
 
 /* -------------------------------------------------------------------------- */
+/* Màn hình TFT/IPS theo từng mẫu, dải đèn RGB, keycap carbon forged, đá marble */
+/* -------------------------------------------------------------------------- */
+
+export type ScreenUi = 'clock' | 'calculator' | 'status' | 'off';
+
+/** Kích thước canvas theo tỉ lệ màn hình thật (đủ nét khi zoom cận) */
+export const SCREEN_CANVAS: Record<'mini' | 'medium' | 'large', [number, number]> = {
+  mini: [160, 320],
+  medium: [384, 192],
+  large: [384, 640],
+};
+
+const roundRectPath = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void => {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+};
+
+/** Hình nền trời đêm/biển xanh như giao diện mặc định của màn hình AULA */
+const paintWallpaper = (ctx: CanvasRenderingContext2D, w: number, h: number): void => {
+  const sky = ctx.createLinearGradient(0, 0, w, h);
+  sky.addColorStop(0, '#0e2a5c');
+  sky.addColorStop(0.55, '#2c6fc0');
+  sky.addColorStop(1, '#8fd3ff');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  for (let i = 0; i < 3; i++) {
+    ctx.beginPath();
+    ctx.ellipse(w * (0.2 + i * 0.3), h * 0.78, w * 0.32, h * 0.07, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+};
+
+/**
+ * Giao diện màn hình. `off`: kính đen bóng (màn tắt như ảnh chụp ND75/Zoom75).
+ * clock: đồng hồ lớn + ngày + pin; status: icon kết nối/pin dọc (màn mini S75);
+ * calculator: máy tính bỏ túi + đồng hồ như màn cảm ứng của AULA L99.
+ */
+export const getScreenTexture = (ui: ScreenUi, size: keyof typeof SCREEN_CANVAS): THREE.CanvasTexture | null =>
+  cached(`screen:${ui}:${size}`, () => {
+    const [w, h] = SCREEN_CANVAS[size];
+    const screen = createCanvas(w, h);
+    if (!screen) return null;
+    const { ctx } = screen;
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'center';
+    if (ui === 'off') {
+      const glass = ctx.createLinearGradient(0, 0, w, h);
+      glass.addColorStop(0, '#0b0c0f');
+      glass.addColorStop(0.5, '#15171c');
+      glass.addColorStop(1, '#0a0b0d');
+      ctx.fillStyle = glass;
+      ctx.fillRect(0, 0, w, h);
+      return toTexture(screen.canvas, true);
+    }
+    paintWallpaper(ctx, w, h);
+    ctx.fillStyle = '#ffffff';
+    if (ui === 'clock') {
+      ctx.font = `700 ${Math.round(h * 0.38)}px Arial, sans-serif`;
+      ctx.fillText('18:30', w / 2, h * 0.47);
+      ctx.font = `600 ${Math.round(h * 0.1)}px Arial, sans-serif`;
+      ctx.textAlign = 'left';
+      ctx.fillText('11/18  WED', w * 0.06, h * 0.12);
+      ctx.textAlign = 'right';
+      ctx.fillText('2.4G', w * 0.94, h * 0.12);
+    } else if (ui === 'status') {
+      ctx.font = `700 ${Math.round(w * 0.24)}px Arial, sans-serif`;
+      ctx.fillText('10:50', w / 2, h * 0.14);
+      const icons = ['#ff6b6b', '#ffd166', '#5ec2ff', '#b28dff'];
+      icons.forEach((color, i) => {
+        const cx = w * (i % 2 ? 0.7 : 0.3);
+        const cy = h * (0.38 + Math.floor(i / 2) * 0.24);
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(cx, cy, w * 0.14, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `600 ${Math.round(w * 0.11)}px Arial, sans-serif`;
+      ctx.fillText('BT · 85%', w / 2, h * 0.9);
+    } else {
+      // Máy tính bỏ túi: đồng hồ ở trên, lưới nút 4 cột × 5 hàng, cột phải màu cam
+      ctx.font = `700 ${Math.round(h * 0.075)}px Arial, sans-serif`;
+      ctx.fillText('10:50', w / 2, h * 0.09);
+      const labels = ['AC', '&', '%', '÷', '7', '8', '9', '×', '4', '5', '6', '−', '1', '2', '3', '+', '0', '', '.', '='];
+      const top = h * 0.18;
+      const cellW = w / 4;
+      const cellH = (h - top - h * 0.03) / 5;
+      labels.forEach((label, i) => {
+        const col = i % 4;
+        const row = Math.floor(i / 4);
+        if (row === 4 && col === 1) return; // phím 0 rộng 2 ô
+        const wide = row === 4 && col === 0;
+        const x = col * cellW + cellW * 0.08;
+        const y = top + row * cellH + cellH * 0.08;
+        roundRectPath(ctx, x, y, (wide ? 2 : 1) * cellW - cellW * 0.16, cellH * 0.84, cellH * 0.18);
+        ctx.fillStyle = col === 3 ? '#f6b52c' : 'rgba(225,240,255,0.88)';
+        ctx.fill();
+        ctx.fillStyle = col === 3 ? '#ffffff' : '#27405f';
+        ctx.font = `600 ${Math.round(cellH * 0.38)}px Arial, sans-serif`;
+        ctx.fillText(label, x + ((wide ? 2 : 1) * cellW - cellW * 0.16) / 2, y + cellH * 0.42);
+      });
+    }
+    return toTexture(screen.canvas, true);
+  });
+
+/** Dải màu cầu vồng cho đèn RGB (map của vật liệu phát sáng) */
+export const getRainbowTexture = (): THREE.CanvasTexture | null =>
+  cached('color:rainbow', () => {
+    const strip = createCanvas(256, 4);
+    if (!strip) return null;
+    const gradient = strip.ctx.createLinearGradient(0, 0, 256, 0);
+    ['#ff4d6d', '#ffb347', '#f9f871', '#4dff9a', '#3fc5ff', '#7b6bff', '#ff4dd2'].forEach((color, i, all) =>
+      gradient.addColorStop(i / (all.length - 1), color)
+    );
+    strip.ctx.fillStyle = gradient;
+    strip.ctx.fillRect(0, 0, 256, 4);
+    const texture = toTexture(strip.canvas, true);
+    texture.wrapS = THREE.ClampToEdgeWrapping;
+    return texture;
+  });
+
+/** Vân carbon forged: mảnh sợi xám bạc vụn ngẫu nhiên trên nền đen (keycap Weikav Nut65) */
+export const getForgedCarbonTexture = (): THREE.CanvasTexture | null =>
+  cached('color:forged', () => {
+    const surface = createCanvas(256, 256);
+    if (!surface) return null;
+    const { ctx } = surface;
+    const random = seededRandom(97);
+    ctx.fillStyle = '#141416';
+    ctx.fillRect(0, 0, 256, 256);
+    for (let i = 0; i < 260; i++) {
+      const shade = 70 + Math.floor(random() * 150);
+      ctx.fillStyle = `rgb(${shade},${shade},${shade + 4})`;
+      ctx.save();
+      ctx.translate(random() * 256, random() * 256);
+      ctx.rotate(random() * Math.PI);
+      ctx.beginPath();
+      const size = 6 + random() * 18;
+      ctx.moveTo(0, 0);
+      ctx.lineTo(size, random() * size * 0.5);
+      ctx.lineTo(size * (0.4 + random() * 0.6), size * (0.4 + random() * 0.4));
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+    return toTexture(surface.canvas, true, [0.8, 0.8]);
+  });
+
+/** Đá marble đen vân trắng (badge cụm điều hướng Weikav Nut108) */
+export const getMarbleTexture = (): THREE.CanvasTexture | null =>
+  cached('color:marble', () => {
+    const surface = createCanvas(256, 128);
+    if (!surface) return null;
+    const { ctx } = surface;
+    const random = seededRandom(131);
+    ctx.fillStyle = '#121215';
+    ctx.fillRect(0, 0, 256, 128);
+    ctx.strokeStyle = 'rgba(235,235,240,0.75)';
+    for (let i = 0; i < 5; i++) {
+      ctx.lineWidth = 0.6 + random() * 1.6;
+      ctx.beginPath();
+      let x = random() * 256;
+      let y = 0;
+      ctx.moveTo(x, y);
+      while (y < 128) {
+        x += (random() - 0.5) * 30;
+        y += 8 + random() * 10;
+        ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+    return toTexture(surface.canvas, true);
+  });
+
+/* -------------------------------------------------------------------------- */
 /* PCB: mạch đồng, lỗ via, pad mạ vàng ENIG, chữ in lụa                        */
 /* -------------------------------------------------------------------------- */
 

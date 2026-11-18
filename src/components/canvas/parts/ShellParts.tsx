@@ -6,7 +6,7 @@ import { useFrame } from '@react-three/fiber';
 import type { ShellStyle } from '@/types/keyboard';
 import { TYPING_ANGLE, wedgeBottomY } from '../geometry/caseGeometry';
 import { CASE_BEVEL } from '../geometry/keyboardGeometry';
-import { getLcdTexture, getSurfaceTexture, getWoodColorTexture } from '../geometry/proceduralTextures';
+import { getRainbowTexture, getSurfaceTexture, getWoodColorTexture } from '../geometry/proceduralTextures';
 import { StaticInstances, composeMatrix } from './StaticInstances';
 
 /**
@@ -37,9 +37,11 @@ const useDisposable = <T extends { dispose: () => void }>(items: T[]): void => {
 interface BottomDetailsProps {
   style: ShellStyle;
   dims: ShellDims;
+  /** Màu đèn ruột (vỏ PC mờ, khung skeletal) */
+  glowColor?: string;
 }
 
-export const ShellBottomDetails: React.FC<BottomDetailsProps> = ({ style, dims }) => {
+export const ShellBottomDetails: React.FC<BottomDetailsProps> = ({ style, dims, glowColor }) => {
   switch (style) {
     case 'aula':
       return <AulaBottom dims={dims} />;
@@ -48,10 +50,214 @@ export const ShellBottomDetails: React.FC<BottomDetailsProps> = ({ style, dims }
     case 'lucky65':
       return <BallCatchAndMirror dims={dims} />;
     case 'halo-rgb':
-      return <HaloRing dims={dims} />;
+      return (
+        <>
+          <HaloRing dims={dims} />
+          <HaloRibs dims={dims} />
+        </>
+      );
+    case 'frosted-pc':
+      return glowColor ? <InnerGlow dims={dims} color={glowColor} /> : null;
+    case 'skeletal':
+      return <SkeletalFrame dims={dims} color={glowColor ?? '#8a5cff'} />;
     default:
       return null;
   }
+};
+
+/* -------------------------------------------------------------------------- */
+/* Hông vỏ theo nêm: dùng chung cho khung skeletal và ốp gỗ                     */
+/* -------------------------------------------------------------------------- */
+
+/** Mặt ngoài vỏ (tính cả vát cạnh) */
+const outerX = (dims: ShellDims): number => dims.outerWidth / 2 + CASE_BEVEL;
+const outerZ = (dims: ShellDims): number => dims.outerDepth / 2 + CASE_BEVEL;
+
+/**
+ * Tấm hông theo biên dạng nêm (đáy dốc theo góc gõ), ép đùn `thickness` theo trục X.
+ * Toạ độ hình vẽ (u = −z, v = y) rồi xoay quanh Y 90° để u → z, phần ép đùn → x.
+ */
+const createSideProfile = (
+  depth: number,
+  bottomAt: (z: number) => number,
+  topY: number,
+  thickness: number,
+  holes: { z: number; y: number; rz: number; ry: number }[] = []
+): THREE.ExtrudeGeometry => {
+  const front = depth / 2;
+  const back = -depth / 2;
+  const shape = new THREE.Shape();
+  shape.moveTo(-front, bottomAt(front));
+  shape.lineTo(-back, bottomAt(back));
+  shape.lineTo(-back, topY);
+  shape.lineTo(-front, topY);
+  shape.closePath();
+  holes.forEach((h) => {
+    const path = new THREE.Path();
+    path.absellipse(-h.z, h.y, h.rz, h.ry, 0, Math.PI * 2, false, 0);
+    shape.holes.push(path);
+  });
+  return new THREE.ExtrudeGeometry(shape, { depth: thickness, bevelEnabled: false, curveSegments: 20 })
+    .translate(0, 0, -thickness / 2)
+    .rotateY(Math.PI / 2);
+};
+
+/** Tấm mặt trước/sau phẳng có lỗ bầu dục, ép đùn theo trục Z */
+const createFacePlate = (width: number, bottomY: number, topY: number, thickness: number, holes: number): THREE.ExtrudeGeometry => {
+  const shape = new THREE.Shape();
+  shape.moveTo(-width / 2, bottomY);
+  shape.lineTo(width / 2, bottomY);
+  shape.lineTo(width / 2, topY);
+  shape.lineTo(-width / 2, topY);
+  shape.closePath();
+  const pitch = width / holes;
+  const height = topY - bottomY;
+  for (let i = 0; i < holes; i++) {
+    const path = new THREE.Path();
+    // Lỗ to nhỏ xen kẽ, lệch lên xuống như khung xương hữu cơ
+    const wobble = i % 2 ? 0.08 : -0.06;
+    path.absellipse(-width / 2 + pitch * (i + 0.5), bottomY + height * (0.5 + wobble), pitch * (i % 2 ? 0.36 : 0.42), height * 0.3, 0, Math.PI * 2, false, 0);
+    shape.holes.push(path);
+  }
+  return new THREE.ExtrudeGeometry(shape, { depth: thickness, bevelEnabled: false, curveSegments: 16 }).translate(0, 0, -thickness / 2);
+};
+
+/** Khung skeletal cao hơn mép ghép vỏ dưới bao nhiêu (vỏ trên cao 0.44, chừa 0.05 cho viền trên) */
+const SKELETAL_RISE = 0.39;
+
+/**
+ * GravaStar Mercury K1: khung xương sci-fi bọc quanh vỏ, khoét lỗ bầu dục;
+ * phía sau mỗi lỗ là tấm phát sáng tím/xanh như đèn ruột hắt ra trong ảnh.
+ */
+const SkeletalFrame: React.FC<{ dims: ShellDims; color: string }> = ({ dims, color }) => {
+  const { seamY } = dims;
+  const ox = outerX(dims);
+  const oz = outerZ(dims);
+  // Khung phủ cả hông vỏ dưới lẫn vỏ trên (tới sát mép trên vỏ) như ảnh thật
+  const frameTop = seamY + SKELETAL_RISE;
+  const parts = useMemo(() => {
+    const frontBottom = wedgeBottomY(oz) + 0.005;
+    const backBottom = wedgeBottomY(-oz) + 0.005;
+    const sideHoles = [-0.3, 0, 0.3].map((t, i) => {
+      const z = t * dims.outerDepth;
+      const bottom = wedgeBottomY(z);
+      const h = frameTop - bottom;
+      return { z, y: bottom + h * (i === 1 ? 0.52 : 0.46), rz: dims.outerDepth * 0.12, ry: h * 0.3 };
+    });
+    return {
+      front: createFacePlate(dims.outerWidth * 0.96, frontBottom, frameTop, 0.03, 9),
+      back: createFacePlate(dims.outerWidth * 0.96, backBottom, frameTop, 0.03, 9),
+      side: createSideProfile(dims.outerDepth * 0.94, (z) => wedgeBottomY(z) + 0.005, frameTop, 0.03, sideHoles),
+      glowFront: new THREE.BoxGeometry(dims.outerWidth * 0.92, (frameTop - frontBottom) * 0.8, 0.006),
+      glowBack: new THREE.BoxGeometry(dims.outerWidth * 0.92, (frameTop - backBottom) * 0.8, 0.006),
+      glowSide: createSideProfile(dims.outerDepth * 0.88, (z) => wedgeBottomY(z) + 0.02, frameTop - 0.03, 0.006),
+      frame: new THREE.MeshPhysicalMaterial({ color: '#121316', roughness: 0.38, metalness: 0.6, clearcoat: 0.7, clearcoatRoughness: 0.2 }),
+      glow: new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: color, emissiveIntensity: 2.4, toneMapped: false }),
+      glowCyan: new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: '#37e0ff', emissiveIntensity: 2.2, toneMapped: false }),
+    };
+  }, [dims.outerWidth, dims.outerDepth, frameTop, oz, color]);
+  useDisposable(useMemo(() => Object.values(parts), [parts]));
+  const frontMid = (wedgeBottomY(oz) + frameTop) / 2;
+  const backMid = (wedgeBottomY(-oz) + frameTop) / 2;
+  return (
+    <group name="Detail_SkeletalFrame">
+      {/* Tấm phát sáng nằm sát vách vỏ, khung khoét lỗ ở ngoài cùng */}
+      <mesh geometry={parts.glowFront} material={parts.glow} position={[0, frontMid, oz + 0.006]} />
+      <mesh geometry={parts.glowBack} material={parts.glowCyan} position={[0, backMid, -oz - 0.006]} />
+      {[-1, 1].map((s) => (
+        <mesh key={`g${s}`} geometry={parts.glowSide} material={s < 0 ? parts.glow : parts.glowCyan} position={[s * (ox + 0.006), 0, 0]} />
+      ))}
+      <mesh geometry={parts.front} material={parts.frame} position={[0, 0, oz + 0.026]} castShadow />
+      <mesh geometry={parts.back} material={parts.frame} position={[0, 0, -oz - 0.026]} castShadow />
+      {[-1, 1].map((s) => (
+        <mesh key={`f${s}`} geometry={parts.side} material={parts.frame} position={[s * (ox + 0.026), 0, 0]} castShadow />
+      ))}
+    </group>
+  );
+};
+
+/** Vỏ PC mờ (Mode Envoy, Wooting 80HE, CIDOO QK61/QK75): đèn ruột dưới PCB hắt sáng xuyên vỏ */
+const InnerGlow: React.FC<{ dims: ShellDims; color: string }> = ({ dims, color }) => {
+  const parts = useMemo(
+    () => ({
+      geometry: new THREE.BoxGeometry(dims.keysWidth * 0.96, 0.01, dims.keysDepth * 0.9),
+      material: new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: color, emissiveIntensity: 2.2, toneMapped: false }),
+    }),
+    [dims.keysWidth, dims.keysDepth, color]
+  );
+  useDisposable(useMemo(() => Object.values(parts), [parts]));
+  return <mesh name="Detail_InnerGlow" geometry={parts.geometry} material={parts.material} position={[0, wedgeBottomY(0) + 0.05, 0]} rotation={[-TYPING_ANGLE, 0, 0]} />;
+};
+
+/** NuPhy Halo: gân dọc trên đáy nhựa trong mờ (mặt trước và hai hông) — một InstancedMesh */
+const HaloRibs: React.FC<{ dims: ShellDims }> = ({ dims }) => {
+  const { seamY } = dims;
+  const ox = outerX(dims);
+  const oz = outerZ(dims);
+  const parts = useMemo(
+    () => ({
+      rib: new THREE.BoxGeometry(0.014, 1, 0.014),
+      // Không dùng transmission (đắt): nhựa mờ giả bằng độ trong suốt
+      material: new THREE.MeshPhysicalMaterial({ color: '#f2f5f2', roughness: 0.35, clearcoat: 0.4, transparent: true, opacity: 0.82 }),
+    }),
+    []
+  );
+  useDisposable(useMemo(() => Object.values(parts), [parts]));
+  const matrices = useMemo(() => {
+    const pitch = 0.055;
+    const list: THREE.Matrix4[] = [];
+    const rib = (x: number, z: number) => {
+      const bottom = wedgeBottomY(z) + 0.012;
+      const height = seamY - 0.09 - bottom;
+      if (height > 0.01) list.push(composeMatrix(x, bottom + height / 2, z, [0, 0, 0], [1, height, 1]));
+    };
+    for (let x = -ox + 0.12; x <= ox - 0.12; x += pitch) rib(x, oz + 0.004);
+    for (let z = -oz + 0.12; z <= oz - 0.12; z += pitch) {
+      rib(-ox - 0.004, z);
+      rib(ox + 0.004, z);
+    }
+    return list;
+  }, [ox, oz, seamY]);
+  return <StaticInstances name="Detail_HaloRibs" geometry={parts.rib} material={parts.material} matrices={matrices} />;
+};
+
+/* -------------------------------------------------------------------------- */
+/* Dải đèn RGB trên vỏ (Nut108 mép trước, F87 Pro hai hông, Nut87 mặt sau)      */
+/* -------------------------------------------------------------------------- */
+
+export const LightStrips: React.FC<{ dims: ShellDims; placement: 'none' | 'front' | 'sides' | 'rear' }> = ({ dims, placement }) => {
+  const ox = outerX(dims);
+  const oz = outerZ(dims);
+  const parts = useMemo(() => {
+    const rainbow = getRainbowTexture();
+    return {
+      long: new THREE.BoxGeometry(dims.outerWidth * 0.94, 0.022, 0.01),
+      side: new THREE.BoxGeometry(0.01, 0.022, dims.outerDepth * 0.82),
+      material: new THREE.MeshBasicMaterial({ map: rainbow, color: rainbow ? '#ffffff' : '#7b6bff', toneMapped: false }),
+    };
+  }, [dims.outerWidth, dims.outerDepth]);
+  useDisposable(useMemo(() => Object.values(parts), [parts]));
+  if (placement === 'none') return null;
+  if (placement === 'front') {
+    return <mesh name="Detail_LightStrip" geometry={parts.long} material={parts.material} position={[0, wedgeBottomY(oz) + 0.035, oz + 0.006]} />;
+  }
+  if (placement === 'rear') {
+    return <mesh name="Detail_LightStrip" geometry={parts.long} material={parts.material} position={[0, (wedgeBottomY(-oz) + dims.seamY) / 2, -oz - 0.006]} />;
+  }
+  return (
+    <>
+      {[-1, 1].map((s) => (
+        <mesh
+          key={s}
+          name="Detail_LightStrip"
+          geometry={parts.side}
+          material={parts.material}
+          position={[s * (ox + 0.006), wedgeBottomY(0) + 0.045, 0]}
+          rotation={[-TYPING_ANGLE, 0, 0]}
+        />
+      ))}
+    </>
+  );
 };
 
 /** AULA: rãnh ghép 2 mảnh ABS, 2 chân chống gập 2 nấc, khe cất dongle 2.4G */
@@ -194,17 +400,15 @@ interface TopDetailsProps {
   dims: ShellDims;
   caseMaterial: THREE.Material;
   ledColor: string;
-  /** Tâm module LCD 2U (lcd-75) */
-  modulePosition: [number, number] | null;
-  /** Mặt trên vỏ trên và mặt trên plate trong toạ độ group vỏ trên */
+  /** Mặt trên vỏ trên trong toạ độ group vỏ trên */
   topY: number;
-  plateY: number;
+  /** Độ cao gốc group vỏ trên khi đã ghép (để chi tiết phủ kín cả hông vỏ dưới) */
+  restY: number;
 }
 
-export const ShellTopDetails: React.FC<TopDetailsProps> = ({ style, dims, caseMaterial, ledColor, modulePosition, topY, plateY }) => {
+/** Màn hình, núm, con lăn… nay là module riêng (parts/Modules.tsx), không nằm trong shellStyle nữa */
+export const ShellTopDetails: React.FC<TopDetailsProps> = ({ style, dims, caseMaterial, ledColor, topY, restY }) => {
   switch (style) {
-    case 'aula':
-      return <IndicatorBar dims={dims} topY={topY} color="#f4f6ff" />;
     case 'x85':
       return (
         <>
@@ -213,9 +417,7 @@ export const ShellTopDetails: React.FC<TopDetailsProps> = ({ style, dims, caseMa
         </>
       );
     case 'wood-accent':
-      return <WoodSidePanels dims={dims} topY={topY} />;
-    case 'lcd-75':
-      return modulePosition ? <LcdModule position={modulePosition} plateY={plateY} /> : null;
+      return <WoodSidePanels dims={dims} topY={topY} restY={restY} />;
     case 'stars-s':
       return <DiagonalCornerStrips dims={dims} topY={topY} color={ledColor} />;
     default:
@@ -299,11 +501,15 @@ const SportSideFacets: React.FC<{ dims: ShellDims; material: THREE.Material; top
   );
 };
 
-/** Keychron K2 HE Special Edition: hai thanh ốp gỗ hồng mộc hai bên hông */
-const WoodSidePanels: React.FC<{ dims: ShellDims; topY: number }> = ({ dims, topY }) => {
+/**
+ * Keychron K2 HE Special Edition: hai thanh ốp gỗ hồng mộc phủ kín hai hông, từ mặt bàn lên ngang mặt vỏ
+ * (nhìn từ trên thấy rõ hai dải gỗ như ảnh). Biên dạng theo nêm nên đáy gỗ nằm phẳng trên bàn.
+ */
+const WOOD_THICKNESS = 0.13;
+const WoodSidePanels: React.FC<{ dims: ShellDims; topY: number; restY: number }> = ({ dims, topY, restY }) => {
   const parts = useMemo(
     () => ({
-      panel: new THREE.BoxGeometry(0.07, 0.36, dims.outerDepth - 0.16),
+      panel: createSideProfile(dims.outerDepth + CASE_BEVEL * 2, (z) => wedgeBottomY(z) - restY, topY, WOOD_THICKNESS),
       wood: new THREE.MeshPhysicalMaterial({
         color: '#f3e6da',
         map: getWoodColorTexture(),
@@ -314,7 +520,7 @@ const WoodSidePanels: React.FC<{ dims: ShellDims; topY: number }> = ({ dims, top
         clearcoatRoughness: 0.5,
       }),
     }),
-    [dims.outerDepth]
+    [dims.outerDepth, topY, restY]
   );
   useDisposable(useMemo(() => Object.values(parts), [parts]));
   return (
@@ -325,32 +531,11 @@ const WoodSidePanels: React.FC<{ dims: ShellDims; topY: number }> = ({ dims, top
           name="Detail_WoodPanel"
           geometry={parts.panel}
           material={parts.wood}
-          position={[s * (dims.outerWidth / 2 + CASE_BEVEL + 0.035), topY - 0.25, 0]}
+          position={[s * (dims.outerWidth / 2 + CASE_BEVEL + WOOD_THICKNESS / 2 - 0.01), 0, 0]}
           castShadow
           receiveShadow
         />
       ))}
     </>
-  );
-};
-
-/** Meletrix Zoom75: module màn hình LCD 2U góc trên phải */
-const LcdModule: React.FC<{ position: [number, number]; plateY: number }> = ({ position, plateY }) => {
-  const parts = useMemo(
-    () => ({
-      body: new THREE.BoxGeometry(0.68, 0.2, 0.33),
-      screen: new THREE.PlaneGeometry(0.56, 0.24).rotateX(-Math.PI / 2),
-      bezel: new THREE.MeshPhysicalMaterial({ color: '#141518', roughness: 0.25, clearcoat: 0.8 }),
-      lcd: new THREE.MeshBasicMaterial({ map: getLcdTexture(), color: getLcdTexture() ? '#ffffff' : '#163447', toneMapped: false }),
-    }),
-    []
-  );
-  useDisposable(useMemo(() => Object.values(parts), [parts]));
-  return (
-    <group name="Detail_LcdModule" position={[position[0], plateY, position[1]]}>
-      <mesh geometry={parts.body} material={parts.bezel} position={[0, 0.1, 0]} castShadow />
-      {/* Mặt kính nghiêng nhẹ về phía người dùng */}
-      <mesh geometry={parts.screen} material={parts.lcd} position={[0, 0.201, 0]} rotation={[0.04, 0, 0]} />
-    </group>
   );
 };

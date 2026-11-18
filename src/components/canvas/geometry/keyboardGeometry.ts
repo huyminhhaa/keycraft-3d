@@ -63,13 +63,15 @@ export const getKeycapShape = (
     };
   }
   const { height, tilt } = KEYCAP_PROFILE[row];
+  // OEM: cùng kiểu điêu khắc theo hàng như Cherry nhưng thân cao hơn và nghiêng rõ hơn
+  const oem = profile === 'oem';
   return {
     bottomWidth,
     bottomDepth,
     topWidth: bottomWidth - 2 * TAPER_X,
     topDepth: bottomDepth - 2 * TAPER_Z,
-    height,
-    tilt,
+    height: oem ? height * 1.18 : height,
+    tilt: oem ? tilt * 1.15 : tilt,
     dish: 'cylindrical',
     cornerBottom: 0.028,
     cornerTop: 0.04,

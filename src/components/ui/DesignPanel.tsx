@@ -12,7 +12,7 @@ import { KEYBOARD_LAYOUTS, type CaseMaterial, type KeyboardLayout } from '@/type
 import { ColorStrip, ListOption, Section, Segmented, Slider, SwatchGroup, Toggle, type Swatch } from './controls';
 
 const LAYOUT_OPTIONS: { value: KeyboardLayout; label: string; hint: string }[] = KEYBOARD_LAYOUTS.map(
-  (id) => ({ value: id, label: id, hint: `${countKeys(id)} phím` })
+  (id) => ({ value: id, label: id === '75%-screen' ? '75% + màn hình' : id, hint: `${countKeys(id)} phím` })
 );
 
 export const CASE_MATERIAL_LABELS: Record<CaseMaterial, string> = {

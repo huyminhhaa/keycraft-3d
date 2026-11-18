@@ -11,6 +11,7 @@ const oscillators = vi.fn();
 
 class Param {
   value = 1;
+  cancelScheduledValues = vi.fn();
   setValueAtTime = vi.fn();
   setTargetAtTime = vi.fn();
   linearRampToValueAtTime = vi.fn();
@@ -57,6 +58,8 @@ describe('SoundEngine phát bản thu thật', () => {
 
   beforeAll(() => {
     (window as unknown as { AudioContext: typeof FakeContext }).AudioContext = FakeContext;
+    // Các test này gõ liên tục trong cùng một mili-giây: tắt cổng chống dính tiếng (đã có test riêng)
+    soundEngine.setPressGate({ sameKeyMs: 0, anyKeyMs: 0 });
     globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url.endsWith('pack.json')) return new Response(JSON.stringify(MANIFEST));

@@ -30,6 +30,14 @@ export interface PlacedKey extends KeyDef {
   profileRow: 1 | 2 | 3 | 4;
 }
 
+/** Ô màn hình cố định của layout (u, góc trên-trái), ví dụ màn hình cảm ứng 3 cột × 5 hàng của AULA L99 */
+export interface DisplayArea {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 export interface LayoutDefinition {
   id: KeyboardLayout;
   /** Tổng bề rộng (u) */
@@ -37,6 +45,8 @@ export interface LayoutDefinition {
   /** Tổng chiều sâu (u) */
   depth: number;
   keys: PlacedKey[];
+  /** Vùng màn hình không có phím */
+  displays?: DisplayArea[];
 }
 
 const k = (code: string, legend: KeyDef['legend'], w = 1, role: KeyRole = 'alpha'): KeyDef => ({
@@ -150,6 +160,37 @@ const ROWS: Record<KeyboardLayout, RowSpec[]> = {
       items: [
         ESC, gap(0.25), ...F_KEYS(1, 4, 'alpha'), gap(0.25), ...F_KEYS(5, 8, 'modifier'), gap(0.25),
         ...F_KEYS(9, 12, 'alpha'), gap(0.25), m('PrintScreen', 'Prt Sc'), m('Delete', 'Del'),
+      ],
+    },
+    { y: 1.25, profileRow: 1, items: [...NUMBER_ROW, m('Home', 'Home')] },
+    { y: 2.25, profileRow: 2, items: [...QWERTY_ROW, m('PageUp', 'PgUp')] },
+    { y: 3.25, profileRow: 3, items: [...HOME_ROW, m('PageDown', 'PgDn')] },
+    {
+      y: 4.25,
+      profileRow: 4,
+      items: [m('ShiftLeft', 'Shift', 2.25), ...SHIFT_ROW_ALPHAS, m('ShiftRight', 'Shift', 1.75), ARROW_UP, m('End', 'End')],
+    },
+    {
+      y: 5.25,
+      profileRow: 4,
+      items: [
+        m('ControlLeft', 'Ctrl', 1.25), m('MetaLeft', 'Win', 1.25), m('AltLeft', 'Alt', 1.25),
+        k('Space', '', 6.25),
+        m('AltRight', 'Alt'), m('Fn', 'Fn'), m('ControlRight', 'Ctrl'),
+        ARROW_LEFT, ARROW_DOWN, ARROW_RIGHT,
+      ],
+    },
+  ],
+  // 75% + khối màn hình (AULA L99): cột điều hướng như 75%, bên phải thêm Print/Scroll/Pause
+  // trên hàng F và màn hình cảm ứng 3u × 5 hàng (từ hàng số tới hàng dưới cùng) thay cho numpad.
+  '75%-screen': [
+    {
+      y: 0,
+      profileRow: 1,
+      items: [
+        ESC, gap(0.25), ...F_KEYS(1, 4, 'alpha'), gap(0.25), ...F_KEYS(5, 8, 'modifier'), gap(0.25),
+        ...F_KEYS(9, 12, 'alpha'), gap(1.25), m('Delete', 'Del'), gap(0.25),
+        m('PrintScreen', 'Print'), m('ScrollLock', 'Scroll'), m('Pause', 'Pause'),
       ],
     },
     { y: 1.25, profileRow: 1, items: [...NUMBER_ROW, m('Home', 'Home')] },
@@ -321,12 +362,20 @@ const placeRows = (rows: RowSpec[]): PlacedKey[] =>
     return placed;
   });
 
+const DISPLAYS: Partial<Record<KeyboardLayout, DisplayArea[]>> = {
+  '75%-screen': [{ x: 16.25, y: 1.25, w: 3, h: 5 }],
+};
+
 const buildLayout = (id: KeyboardLayout): LayoutDefinition => {
   const keys = placeRows(ROWS[id]);
-  const width = Math.max(...keys.map((key) => key.x + key.w));
-  const depth = Math.max(...keys.map((key) => key.y + 1));
-  return { id, width, depth, keys };
+  const displays = DISPLAYS[id];
+  const width = Math.max(...keys.map((key) => key.x + key.w), ...(displays ?? []).map((d) => d.x + d.w));
+  const depth = Math.max(...keys.map((key) => key.y + 1), ...(displays ?? []).map((d) => d.y + d.h));
+  return displays ? { id, width, depth, keys, displays } : { id, width, depth, keys };
 };
+
+/** Layout có hàng F riêng (60%/65% gộp Esc vào hàng số) */
+export const hasFunctionRow = (id: KeyboardLayout): boolean => id !== '60%' && id !== '65%';
 
 export const LAYOUTS = Object.fromEntries(KEYBOARD_LAYOUTS.map((id) => [id, buildLayout(id)])) as Record<
   KeyboardLayout,

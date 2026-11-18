@@ -28,15 +28,37 @@ import {
   type PackManifest,
   type SoundCategory,
 } from './soundPacks';
+import { computeClipGains, measureLevel, type ClipLevel } from './loudness';
+import { DEFAULT_PRESS_GATE, createPressGate, type PressGate, type PressGateOptions } from './pressGate';
 
-interface LoadedPack {
+export interface LoadedPack {
   id: string;
+  manifest: PackManifest;
   buffers: Record<SoundCategory, AudioBuffer[]>;
+  /** Gain cân bằng âm lượng của từng đoạn (loudness.ts) */
+  gains: Record<SoundCategory, number[]>;
 }
 
 const CATEGORIES: SoundCategory[] = ['alpha', 'space', 'up'];
-/** Tiếng nhả phím nhỏ hơn tiếng nhấn */
-const UP_GAIN = 0.7;
+/** Số gói giữ trong RAM: đổi qua lại giữa các phím đã nghe là có tiếng ngay (0ms) */
+export const PACK_CACHE_LIMIT = 12;
+/** Số tiếng phát cùng lúc tối đa; vượt thì tắt dần tiếng cũ nhất trong 10ms */
+export const MAX_VOICES = 8;
+const VOICE_FADE_SECONDS = 0.01;
+
+/** Limiter trước loa: gõ dồn nhiều phím không cộng biên độ thành tiếng nổ */
+export const LIMITER = { threshold: -10, knee: 4, ratio: 12, attack: 0.002, release: 0.08 } as const;
+
+interface Voice {
+  gain: GainNode;
+  endsAt: number;
+  stop: (when: number) => void;
+}
+
+const isAbort = (error: unknown): boolean => error instanceof DOMException && error.name === 'AbortError';
+
+const levelOf = (buffer: AudioBuffer): ClipLevel =>
+  typeof buffer.getChannelData === 'function' ? measureLevel(buffer.getChannelData(0), buffer.sampleRate) : { rms: 0, peak: 0 };
 
 export interface SoundEngineOptions {
   volume?: number; // 0.0 -> 1.0 (mặc định 0.7)
@@ -46,17 +68,31 @@ export interface SoundEngineOptions {
 class SoundEngine {
   private ctx: AudioContext | null = null;
   private masterGain: GainNode | null = null;
+  private limiter: DynamicsCompressorNode | null = null;
   private volume: number = 0.7;
   private muted: boolean = false;
   private initialized: boolean = false;
   private pack: LoadedPack | null = null;
+  /** Gói đã giải mã, xếp theo lần dùng gần nhất (LRU) */
+  private packCache = new Map<string, LoadedPack>();
+  /** Lần tải đang chạy: đổi phím khác thì huỷ ngay */
+  private loadController: AbortController | null = null;
   /** Mỗi lần gọi loadPack tăng số này: kết quả của lần gọi cũ về muộn thì bỏ */
   private packRequest = 0;
   private lastVariant: Record<SoundCategory, number> = { alpha: -1, space: -1, up: -1 };
+  private voices: Voice[] = [];
+  private downGate: PressGate = createPressGate();
+  private upGate: PressGate = createPressGate();
 
   constructor(options?: SoundEngineOptions) {
     if (options?.volume !== undefined) this.volume = Math.max(0, Math.min(1, options.volume));
     if (options?.muted !== undefined) this.muted = options.muted;
+  }
+
+  /** Đổi ngưỡng chống dính tiếng (test đặt 0 để phát liên tục) */
+  public setPressGate(options: PressGateOptions = DEFAULT_PRESS_GATE): void {
+    this.downGate = createPressGate(options);
+    this.upGate = createPressGate(options);
   }
 
   /**
@@ -77,7 +113,21 @@ class SoundEngine {
         this.ctx = new AudioContextClass();
         this.masterGain = this.ctx.createGain();
         this.masterGain.gain.setValueAtTime(this.muted ? 0 : this.volume, this.ctx.currentTime);
-        this.masterGain.connect(this.ctx.destination);
+        // masterGain → limiter → loa
+        if (typeof this.ctx.createDynamicsCompressor === 'function') {
+          const limiter = this.ctx.createDynamicsCompressor();
+          const now = this.ctx.currentTime;
+          limiter.threshold.setValueAtTime(LIMITER.threshold, now);
+          limiter.knee.setValueAtTime(LIMITER.knee, now);
+          limiter.ratio.setValueAtTime(LIMITER.ratio, now);
+          limiter.attack.setValueAtTime(LIMITER.attack, now);
+          limiter.release.setValueAtTime(LIMITER.release, now);
+          this.masterGain.connect(limiter);
+          limiter.connect(this.ctx.destination);
+          this.limiter = limiter;
+        } else {
+          this.masterGain.connect(this.ctx.destination);
+        }
         this.initialized = true;
       } catch {
         return null;
@@ -122,42 +172,140 @@ class SoundEngine {
   /* Bản thu thật                                                              */
   /* ------------------------------------------------------------------------ */
 
-  /** Tải và giải mã toàn bộ đoạn tiếng của một gói. `null` = bỏ gói, quay về tiếng tổng hợp. */
+  /**
+   * Chuyển sang gói tiếng `id` (`null` = bỏ gói, dùng tiếng tổng hợp).
+   * - Gói cũ bị gỡ NGAY khi gọi: trong lúc chờ gói mới, gõ phím ra tiếng tổng hợp khớp plate/switch
+   *   của phím mới (store đã đổi), không bao giờ ra tiếng của phím cũ.
+   * - Gói đã nghe rồi nằm trong cache RAM: đổi lại là có tiếng ngay, không tải/giải mã lại.
+   * - Lần tải trước còn dở thì huỷ (AbortController), kết quả về muộn bị bỏ qua.
+   * Trả về manifest; `null` khi bỏ gói hoặc lần tải đã bị lần gọi sau thay thế.
+   */
   public async loadPack(id: string | null): Promise<PackManifest | null> {
     const request = ++this.packRequest;
-    if (!id) {
-      this.pack = null;
-      return null;
+    this.loadController?.abort();
+    this.loadController = null;
+    this.pack = null;
+    this.lastVariant = { alpha: -1, space: -1, up: -1 };
+    if (!id) return null;
+
+    const cached = this.packCache.get(id);
+    if (cached) {
+      // Đưa lên cuối Map: gói vừa dùng là gói "mới nhất" của LRU
+      this.packCache.delete(id);
+      this.packCache.set(id, cached);
+      this.pack = cached;
+      return cached.manifest;
     }
+
     const ctx = this.initContext();
     if (!ctx) throw new Error('Trình duyệt không hỗ trợ Web Audio');
+    const controller = new AbortController();
+    this.loadController = controller;
 
-    const response = await fetch(`${SOUND_ROOT}/${id}/pack.json`);
+    try {
+      const loaded = await this.fetchPack(id, ctx, controller.signal);
+      this.remember(loaded);
+      if (request !== this.packRequest) return null;
+      this.loadController = null;
+      this.pack = loaded;
+      return loaded.manifest;
+    } catch (error) {
+      if (isAbort(error) || request !== this.packRequest) return null;
+      if (this.loadController === controller) this.loadController = null;
+      throw error;
+    }
+  }
+
+  private async fetchPack(id: string, ctx: AudioContext, signal: AbortSignal): Promise<LoadedPack> {
+    const response = await fetch(`${SOUND_ROOT}/${id}/pack.json`, { signal });
     if (!response.ok) throw new Error(`Không tìm thấy gói âm thanh "${id}"`);
     const manifest = packManifestSchema.parse(await response.json());
 
     const decode = async (file: string): Promise<AudioBuffer> => {
-      const clip = await fetch(`${SOUND_ROOT}/${id}/${file}`);
+      const clip = await fetch(`${SOUND_ROOT}/${id}/${file}`, { signal });
       if (!clip.ok) throw new Error(`Thiếu file ${file} trong gói "${id}"`);
-      return ctx.decodeAudioData(await clip.arrayBuffer());
+      const data = await clip.arrayBuffer();
+      signal.throwIfAborted();
+      return ctx.decodeAudioData(data);
     };
-    const decoded = await Promise.all(CATEGORIES.map((category) => Promise.all(manifest.clips[category].map(decode))));
+    const [alpha, space, up] = await Promise.all(CATEGORIES.map((category) => Promise.all(manifest.clips[category].map(decode))));
+    signal.throwIfAborted();
+    const buffers = { alpha, space, up };
+    const gains = computeClipGains({
+      alpha: alpha.map(levelOf),
+      space: space.map(levelOf),
+      up: up.map(levelOf),
+    });
+    return { id, manifest, buffers, gains };
+  }
 
-    if (request === this.packRequest) {
-      this.pack = { id, buffers: { alpha: decoded[0], space: decoded[1], up: decoded[2] } };
-      this.lastVariant = { alpha: -1, space: -1, up: -1 };
+  private remember(pack: LoadedPack): void {
+    this.packCache.delete(pack.id);
+    this.packCache.set(pack.id, pack);
+    while (this.packCache.size > PACK_CACHE_LIMIT) {
+      const oldest = this.packCache.keys().next().value;
+      if (oldest === undefined || oldest === this.pack?.id) break;
+      this.packCache.delete(oldest);
     }
-    return manifest;
   }
 
   public getLoadedPackId(): string | null {
     return this.pack?.id ?? null;
   }
 
+  public isPackCached(id: string): boolean {
+    return this.packCache.has(id);
+  }
+
+  /** Gain cân bằng của gói đang phát (để kiểm tra/hiển thị) */
+  public getPackGains(): Record<SoundCategory, number[]> | null {
+    return this.pack ? this.pack.gains : null;
+  }
+
+  /** Đã lắp limiter (DynamicsCompressor) trước loa chưa */
+  public hasLimiter(): boolean {
+    return this.limiter !== null;
+  }
+
+  public getActiveVoiceCount(): number {
+    this.pruneVoices();
+    return this.voices.length;
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /* Giới hạn số tiếng phát cùng lúc                                          */
+  /* ------------------------------------------------------------------------ */
+
+  private pruneVoices(): void {
+    const now = this.ctx?.currentTime ?? 0;
+    this.voices = this.voices.filter((voice) => voice.endsAt > now);
+  }
+
+  /** Tạo nút gain cho một tiếng mới; quá MAX_VOICES thì tắt dần tiếng cũ nhất trong 10ms rồi dừng. */
+  private openVoice(duration: number, stop: Voice['stop']): GainNode | null {
+    if (!this.ctx || !this.masterGain) return null;
+    this.pruneVoices();
+    const now = this.ctx.currentTime;
+    while (this.voices.length >= MAX_VOICES) {
+      const oldest = this.voices.shift();
+      if (!oldest) break;
+      const param = oldest.gain.gain;
+      if (typeof param.cancelScheduledValues === 'function') param.cancelScheduledValues(now);
+      param.setValueAtTime(param.value, now);
+      param.linearRampToValueAtTime(0, now + VOICE_FADE_SECONDS);
+      oldest.stop(now + VOICE_FADE_SECONDS + 0.002);
+    }
+    const gain = this.ctx.createGain();
+    gain.connect(this.masterGain);
+    this.voices.push({ gain, endsAt: now + duration, stop });
+    return gain;
+  }
+
   /** Phát một biến thể của nhóm; false nếu chưa có gói hoặc nhóm rỗng. */
-  private playSample(category: SoundCategory, rate: number, gain: number): boolean {
-    const list = this.pack?.buffers[category];
-    if (!list || list.length === 0 || !this.ctx || !this.masterGain) return false;
+  private playSample(category: SoundCategory, rate: number): boolean {
+    const pack = this.pack;
+    const list = pack?.buffers[category];
+    if (!pack || !list || list.length === 0 || !this.ctx || !this.masterGain) return false;
 
     const index = pickVariant(list.length, this.lastVariant[category]);
     this.lastVariant[category] = index;
@@ -165,20 +313,29 @@ class SoundEngine {
     const source = this.ctx.createBufferSource();
     source.buffer = list[index];
     // Lệch ±1.5% tốc độ và tới −8% âm lượng: hai lần gõ cùng một đoạn vẫn nghe khác nhau chút ít như tay người
-    source.playbackRate.value = rate * (0.985 + Math.random() * 0.03);
-    const amp = this.ctx.createGain();
-    amp.gain.value = gain * (0.92 + Math.random() * 0.08);
+    const playbackRate = rate * (0.985 + Math.random() * 0.03);
+    source.playbackRate.value = playbackRate;
+    const duration = (list[index].duration || 0.4) / playbackRate;
+    const amp = this.openVoice(duration, (when) => {
+      try {
+        source.stop(when);
+      } catch {
+        // Đã dừng
+      }
+    });
+    if (!amp) return false;
+    amp.gain.value = (pack.gains[category][index] ?? 1) * (0.92 + Math.random() * 0.08);
     source.connect(amp);
-    amp.connect(this.masterGain);
     source.start();
     return true;
   }
 
   /** Tiếng nhả phím (chỉ có khi gói có bản thu tiếng nhả). */
-  public playKeyUp(): void {
+  public playKeyUp(code = 'Key'): void {
     if (this.muted || !this.pack) return;
     if (!this.initContext()) return;
-    this.playSample('up', 1, UP_GAIN);
+    if (!this.upGate(code, performance.now())) return;
+    this.playSample('up', 1);
   }
 
   /**
@@ -213,12 +370,14 @@ class SoundEngine {
 
     const ctx = this.initContext();
     if (!ctx || !this.masterGain) return;
+    // Chống dính tiếng: cùng phím < 22ms hoặc phím bất kỳ < 12ms (bộ gõ tiếng Việt bắn dồn sự kiện)
+    if (!this.downGate(code, performance.now())) return;
 
     // Có bản thu thật thì phát bản thu. customConfig (trang giới thiệu so sánh plate) vẫn dùng tiếng tổng hợp.
     if (this.pack && !customConfig) {
       const buffers = this.pack.buffers;
       const plan = planForKey(code, { alpha: buffers.alpha.length, space: buffers.space.length, up: buffers.up.length });
-      if (this.playSample(plan.category, plan.rate, 1)) return;
+      if (this.playSample(plan.category, plan.rate)) return;
     }
 
     const store = useKeyboardStore.getState();
@@ -280,10 +439,24 @@ class SoundEngine {
       baseFreq *= 0.8;
     }
 
+    // Mọi lớp của một lần gõ đi qua chung một "voice": bị giới hạn số tiếng như bản thu thật
+    const nodes: AudioScheduledSourceNode[] = [];
+    const voice = this.openVoice(decayTime + 0.04, (when) =>
+      nodes.forEach((node) => {
+        try {
+          node.stop(when);
+        } catch {
+          // Đã dừng
+        }
+      })
+    );
+    if (!voice) return;
+
     // =========================================================================
     // 2. LAYER 1: SÓNG BOTTOM-OUT IMPACT (Va đập đáy Switch + Plate)
     // =========================================================================
     const osc = ctx.createOscillator();
+    nodes.push(osc);
     const oscGain = ctx.createGain();
     const filter = ctx.createBiquadFilter();
 
@@ -308,7 +481,7 @@ class SoundEngine {
 
     osc.connect(filter);
     filter.connect(oscGain);
-    oscGain.connect(this.masterGain);
+    oscGain.connect(voice);
 
     osc.start(now);
     osc.stop(now + decayTime + 0.01);
@@ -326,6 +499,7 @@ class SoundEngine {
 
       const noiseSource = ctx.createBufferSource();
       noiseSource.buffer = noiseBuffer;
+      nodes.push(noiseSource);
 
       const noiseFilter = ctx.createBiquadFilter();
       noiseFilter.type = 'highpass';
@@ -338,7 +512,7 @@ class SoundEngine {
 
       noiseSource.connect(noiseFilter);
       noiseFilter.connect(noiseGain);
-      noiseGain.connect(this.masterGain);
+      noiseGain.connect(voice);
 
       noiseSource.start(now);
       noiseSource.stop(now + 0.03);
@@ -350,6 +524,7 @@ class SoundEngine {
     if (swType === 'clicky') {
       // Tiếng "Click" đặc trưng của lá đồng kim loại (Click Jacket / Click Bar)
       const clickOsc = ctx.createOscillator();
+      nodes.push(clickOsc);
       const clickGain = ctx.createGain();
       const clickFilter = ctx.createBiquadFilter();
 
@@ -367,13 +542,14 @@ class SoundEngine {
 
       clickOsc.connect(clickFilter);
       clickFilter.connect(clickGain);
-      clickGain.connect(this.masterGain);
+      clickGain.connect(voice);
 
       clickOsc.start(now);
       clickOsc.stop(now + 0.02);
     } else if (swType === 'tactile') {
       // Tiếng vượt khấc tactile bump (Một xung tần số thấp nhẹ đi trước 4ms)
       const bumpOsc = ctx.createOscillator();
+      nodes.push(bumpOsc);
       const bumpGain = ctx.createGain();
 
       bumpOsc.type = 'sine';
@@ -384,7 +560,7 @@ class SoundEngine {
       bumpGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.02);
 
       bumpOsc.connect(bumpGain);
-      bumpGain.connect(this.masterGain);
+      bumpGain.connect(voice);
 
       bumpOsc.start(now);
       bumpOsc.stop(now + 0.025);

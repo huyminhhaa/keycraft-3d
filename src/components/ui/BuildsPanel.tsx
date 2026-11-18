@@ -14,6 +14,7 @@ const LAYOUT_LABEL: Record<KeyboardBuild['look']['layout'], string> = {
   '60%': '60%',
   '65%': '65%',
   '75%': '75%',
+  '75%-screen': '75% + màn hình',
   TKL: 'TKL / 80%',
   '96%': '96–98%',
   '100%': 'Full-size',
@@ -96,8 +97,8 @@ const ColorDots: React.FC<{ build: KeyboardBuild }> = ({ build }) => {
 interface BuildRowProps {
   build: KeyboardBuild;
   active: boolean;
-  onSelect: () => void;
-  onListen: () => void;
+  onSelect: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  onListen: (event: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
 const BuildRow: React.FC<BuildRowProps> = ({ build, active, onSelect, onListen }) => (
@@ -179,8 +180,10 @@ export const BuildsPanel: React.FC = () => {
   const buildId = useKeyboardStore((s) => s.buildId ?? null);
   const applyBuild = useKeyboardStore((s) => s.applyBuild);
   const selectPack = useSoundStore((s) => s.selectPack);
-  const packs = useSoundStore((s) => s.packs);
   const stopDemo = React.useRef<(() => void) | null>(null);
+  /** Lần bấm "Nghe thử" mới nhất: lần bấm cũ tải xong muộn thì không tự gõ demo nữa */
+  const listenToken = React.useRef(0);
+  React.useEffect(() => () => stopDemo.current?.(), []);
   const [layoutFilter, setLayoutFilter] = useState<LayoutFilter>('all');
   const [brand, setBrand] = useState<string | null>(null);
   const [query, setQuery] = useState('');
@@ -189,15 +192,29 @@ export const BuildsPanel: React.FC = () => {
     [layoutFilter, query, brand]
   );
 
-  const choose = async (build: KeyboardBuild): Promise<void> => {
+  /**
+   * Chọn mẫu: dừng demo đang gõ, đổi 3D, rồi luôn đổi gói tiếng (kể cả khi danh sách gói chưa tải xong).
+   * Gói cũ bị gỡ ngay trong soundEngine.loadPack; không có gói thì phát tiếng tổng hợp theo plate/switch mới.
+   */
+  const choose = async (build: KeyboardBuild): Promise<number> => {
+    const token = ++listenToken.current;
+    stopDemo.current?.();
+    stopDemo.current = null;
     applyBuild(build.id);
-    if (packs.some((pack) => pack.id === build.soundPackId)) await selectPack(build.soundPackId);
+    await selectPack(build.soundPackId);
+    return token;
   };
 
   const listen = async (build: KeyboardBuild): Promise<void> => {
-    stopDemo.current?.();
-    await choose(build);
+    const token = await choose(build);
+    // Chỉ gõ demo khi gói đã tải xong và người dùng chưa bấm mẫu khác trong lúc chờ
+    if (token !== listenToken.current) return;
     stopDemo.current = playDemo();
+  };
+
+  /** Bấm bằng chuột thì bỏ focus khỏi nút: gõ Space thử tiếng sau đó không "bấm" lại nút */
+  const releaseFocus = (event: React.MouseEvent<HTMLButtonElement>): void => {
+    if (event.detail > 0) event.currentTarget.blur();
   };
 
   return (
@@ -253,8 +270,14 @@ export const BuildsPanel: React.FC = () => {
               key={build.id}
               build={build}
               active={build.id === buildId}
-              onSelect={() => void choose(build)}
-              onListen={() => void listen(build)}
+              onSelect={(event) => {
+                releaseFocus(event);
+                void choose(build);
+              }}
+              onListen={(event) => {
+                releaseFocus(event);
+                void listen(build);
+              }}
             />
           ))}
         </ul>

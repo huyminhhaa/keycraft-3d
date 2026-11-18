@@ -178,10 +178,40 @@ interface RotaryKnobProps {
   ridges?: number;
   /** Vòng viền kim loại nhấn màu quanh đỉnh núm (kiểu Leobog Hi75) */
   accentRing?: string;
+  /** Chiều cao thân núm (mặc định ngang mặt keycap; núm phẳng MCHOSE G75 thấp hơn) */
+  height?: number;
+  /** Độ sâu rãnh khía (núm phẳng gần như nhẵn) */
+  ridgeDepth?: number;
+  /** Mặt đỉnh khác màu thân (Leobog Hi75C: mặt đen in logo trong vòng khía bạc) */
+  cap?: string;
 }
 
-export const RotaryKnob: React.FC<RotaryKnobProps> = ({ position, color, radius = KNOB.radius, ridges = 36, accentRing }) => {
-  const geometry = useMemo(() => createKnurledKnobGeometry({ radius, height: KNOB.height, ridges }), [radius, ridges]);
+export const RotaryKnob: React.FC<RotaryKnobProps> = ({
+  position,
+  color,
+  radius = KNOB.radius,
+  ridges = 36,
+  accentRing,
+  height = KNOB.height,
+  ridgeDepth,
+  cap,
+}) => {
+  const geometry = useMemo(
+    () => createKnurledKnobGeometry({ radius, height, ridges, depth: ridgeDepth }),
+    [radius, height, ridges, ridgeDepth]
+  );
+  const capGeometry = useMemo(() => new THREE.CylinderGeometry(radius * 0.72, radius * 0.72, 0.008, 40), [radius]);
+  const capMaterial = useMemo(() => new THREE.MeshPhysicalMaterial({ roughness: 0.3, clearcoat: 0.8 }), []);
+  useEffect(
+    () => () => {
+      capGeometry.dispose();
+      capMaterial.dispose();
+    },
+    [capGeometry, capMaterial]
+  );
+  useEffect(() => {
+    if (cap) capMaterial.color.set(cap);
+  }, [capMaterial, cap]);
   const ring = useMemo(() => new THREE.TorusGeometry(radius * 0.86, radius * 0.07, 10, 64).rotateX(Math.PI / 2), [radius]);
   useEffect(() => () => ring.dispose(), [ring]);
   const ringMaterial = useMemo(() => new THREE.MeshStandardMaterial({ metalness: 1, roughness: 0.2 }), []);
@@ -220,8 +250,9 @@ export const RotaryKnob: React.FC<RotaryKnobProps> = ({ position, color, radius 
     <group name="Detail_Knob" position={position}>
       <mesh geometry={geometry} material={materials.body} castShadow receiveShadow />
       {/* Vạch chỉ báo trên mặt đỉnh */}
-      <mesh geometry={marker} material={materials.marker} position={[0, KNOB.height + 0.002, radius * 0.45]} />
-      {accentRing && <mesh name="Detail_KnobRing" geometry={ring} material={ringMaterial} position={[0, KNOB.height - radius * 0.1, 0]} />}
+      {cap && <mesh name="Detail_KnobCap" geometry={capGeometry} material={capMaterial} position={[0, height + 0.003, 0]} />}
+      <mesh geometry={marker} material={materials.marker} position={[0, height + (cap ? 0.009 : 0.002), radius * 0.45]} />
+      {accentRing && <mesh name="Detail_KnobRing" geometry={ring} material={ringMaterial} position={[0, height - radius * 0.1, 0]} />}
     </group>
   );
 };

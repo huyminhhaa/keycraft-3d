@@ -56,17 +56,21 @@ export const useSoundStore = create<SoundState>((set, get) => ({
       return;
     }
     set({ packs });
+    // Người dùng đã chọn một mẫu phím trong lúc danh sách đang tải: giữ đúng gói của mẫu đó
+    if (get().selectedId) return;
     const saved = remembered();
     await get().selectPack(packs.some((p) => p.id === saved) ? (saved as string) : packs[0].id);
   },
 
   selectPack: async (id) => {
+    // Gỡ gói cũ ngay trong loadPack (đồng bộ), trạng thái đổi ngay để nút "Nghe thử" biết đang chờ
     set({ selectedId: id, status: 'loading', error: null });
     remember(id);
     try {
       await soundEngine.loadPack(id);
-      if (get().selectedId === id) set({ status: 'ready' });
+      if (get().selectedId === id) set({ status: soundEngine.getLoadedPackId() === id ? 'ready' : 'error' });
     } catch (error) {
+      // Không có gói: bộ phát tự dùng tiếng tổng hợp theo plate/switch của mẫu đang chọn, không kẹt tiếng cũ
       if (get().selectedId === id) set({ status: 'error', error: error instanceof Error ? error.message : String(error) });
     }
   },
