@@ -72,6 +72,15 @@ const SWITCH_COLORS = {
   sunsetGleam: { top: '#f4f2ec', bottom: '#d9762e', stem: '#f0c92a', topOpacity: 0.92 },
   // Akko V3 Piano Pro bản gốc màu đen (bản đặc biệt mới màu trắng)
   pianoPro: { top: '#27272a', bottom: '#1e1e21', stem: '#2c2c30', topOpacity: 0.95 },
+  // Theo ảnh sản phẩm (Google/Bing Images, ảnh chủ dự án gửi)
+  iceVein: { top: '#93d6cd', bottom: '#8acfc6', stem: '#f3f5f5', topOpacity: 0.92 },
+  asura: { top: '#7466c9', bottom: '#6253b8', stem: '#5c48b3', topOpacity: 0.55 },
+  turquoise: { top: '#f3f3f0', bottom: '#1fb3c4', stem: '#23b7c6', topOpacity: 0.92 },
+  creamyYellowU1: { top: '#f3d77c', bottom: '#eccc65', stem: '#f4ecd4', topOpacity: 0.95 },
+  princess: { top: '#ecc9d8', bottom: '#a493d3', stem: '#9a86d5', topOpacity: 0.7 },
+  raspberry: { top: '#ec7a70', bottom: '#df675f', stem: '#f08b82', topOpacity: 0.9 },
+  xinhai: { top: '#f3f3f1', bottom: '#2c3f75', stem: '#2f4ba3', topOpacity: 0.95 },
+  doubleRailNebula: { top: '#eef0f2', bottom: '#e9ecee', stem: '#8b5bd8', topOpacity: 0.3 },
 } as const;
 
 export type KeyboardBuild = z.infer<typeof buildSchema>;
@@ -81,7 +90,7 @@ export const buildPhotoUrl = (build: Pick<KeyboardBuild, 'id'>): string => `/bui
 const AULA_F75_SPECS = {
   case: 'Nhựa ABS',
   mount: 'Gasket mount',
-  plate: 'PC flex-cut (theo bản F75 Max/Ultra)',
+  plate: 'PC flex-cut',
   foam: '5 lớp: 2 Poron, IXPE, PET, silicone đáy',
 };
 
@@ -134,6 +143,7 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       keycapAccentColor: '#2f4a7c',
       plateMaterial: 'polycarbonate',
       switchType: 'linear',
+      switchColors: SWITCH_COLORS.iceVein,
       caseShape: F75_SHAPE,
       shellStyle: 'aula',
     },
@@ -149,7 +159,7 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       mount: 'Gasket mount',
       plate: 'PC',
       foam: '5 lớp: sandwich, IXPE, PET, foam đáy, silicone',
-      switch: 'KBDiy Asura (chưa xác minh loại)',
+      switch: 'KBDiy Asura',
       keycap: 'Theo máy',
     },
     look: {
@@ -161,6 +171,7 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       keycapAccentColor: '#8e949c',
       plateMaterial: 'polycarbonate',
       switchType: 'linear',
+      switchColors: SWITCH_COLORS.asura,
       caseShape: { bezel: 0.18, cornerRadius: 0.16, knob: true },
       shellStyle: 'aula',
     },
@@ -174,9 +185,9 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
     specs: {
       case: 'Nhôm sơn tĩnh điện',
       mount: 'Gasket mount (đệm Poron)',
-      plate: 'PC flex-cut (có nguồn ghi PP)',
-      foam: 'PO foam, IXPE, PO đáy, PET (tuỳ bản)',
-      switch: 'Vertex V1 (chưa xác minh loại)',
+      plate: 'PC flex-cut',
+      foam: 'PO foam, IXPE, PO đáy, PET',
+      switch: 'Vertex V1',
       keycap: 'MOA',
     },
     look: {
@@ -201,10 +212,10 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
     soundPackId: 'leobog-hi75c-pro',
     sourceUrl: 'https://www.youtube.com/watch?v=3GoVzlVMlMw',
     specs: {
-      case: 'Nhôm (có nguồn ghi nhựa, tuỳ bản)',
+      case: 'Nhôm',
       mount: 'Gasket mount',
-      plate: 'PC flex-cut (có nguồn ghi PP)',
-      foam: 'Chưa rõ (bản Hi75C: PO, IXPE, PET)',
+      plate: 'PC flex-cut',
+      foam: 'PO foam, IXPE, PET',
       switch: 'Turquoise (linear)',
       keycap: 'Theo máy',
     },
@@ -217,6 +228,7 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       keycapAccentColor: '#7a5c3c',
       plateMaterial: 'polycarbonate',
       switchType: 'linear',
+      switchColors: SWITCH_COLORS.turquoise,
       caseShape: { bezel: 0.28, cornerRadius: 0.06, knob: true },
       shellStyle: 'hi75',
     },
@@ -227,7 +239,7 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
     tags: ['Nhôm', 'Gasket'],
     soundPackId: 'lucky65-creamy-yellow',
     sourceUrl: 'https://www.youtube.com/watch?v=vHPD1t7wCtU',
-    specs: { ...LUCKY65_SPECS, switch: 'Akko Creamy Yellow U1 (linear)', keycap: 'Không ghi trong video' },
+    specs: { ...LUCKY65_SPECS, switch: 'Akko Creamy Yellow U1 (linear)', keycap: 'Theo máy' },
     look: {
       layout: '65%',
       caseMaterial: 'aluminum',
@@ -237,6 +249,7 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       keycapAccentColor: '#2d2d31',
       plateMaterial: 'fr4',
       switchType: 'linear',
+      switchColors: SWITCH_COLORS.creamyYellowU1,
       caseShape: LUCKY65_SHAPE,
       shellStyle: 'lucky65',
     },
@@ -292,7 +305,7 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
     specs: {
       case: 'Nhựa + nhôm',
       mount: 'Gasket mount',
-      plate: 'Nhôm (theo review, hãng không ghi)',
+      plate: 'Nhôm',
       foam: '5 lớp: Poron sandwich, IXPE, PET, foam vỏ, silicone đáy',
       switch: 'Outemu White Jade (linear)',
       keycap: 'PBT',
@@ -323,7 +336,7 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
     specs: {
       case: 'Nhôm CNC 6063',
       mount: 'Gasket mount',
-      plate: 'FR4 (bản Pro; Lite/Standard dùng PP)',
+      plate: 'FR4',
       foam: 'Poron, IXPE switch pad, PET, đáy EPDM',
       switch: 'Kailh Cocoa (linear, lube sẵn)',
       keycap: 'PBT Double Shot',
@@ -350,7 +363,7 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
     specs: {
       case: 'Nhôm CNC đánh bóng, mở nhanh bằng chốt bi',
       mount: 'Gasket mount',
-      plate: 'FR4 flex-cut (kèm plate nhôm thay thế)',
+      plate: 'FR4 flex-cut',
       foam: 'Poron plate, IXPE switch pad, foam PCB, Poron vỏ, PET',
       switch: 'Kailh Cocoa (linear, 45g, hành trình 3.6mm)',
       keycap: 'Theo máy',
@@ -378,7 +391,7 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
     specs: {
       case: 'Nhôm CNC, mở bằng chốt bi',
       mount: 'Gasket mount trên PCB',
-      plate: 'FR4 flex-cut (bản Plus/Max; bản thường PC)',
+      plate: 'FR4 flex-cut',
       foam: 'Poron INOAC, IXPE, foam vỏ EPDM, PET',
       switch: 'SC Princess V2 (linear)',
       keycap: 'PBT Double Shot, profile Cherry',
@@ -392,6 +405,7 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       keycapAccentColor: '#e9dcc0',
       plateMaterial: 'fr4',
       switchType: 'linear',
+      switchColors: SWITCH_COLORS.princess,
       caseShape: { bezel: 0.24, cornerRadius: 0.1, knob: false },
       shellStyle: 'lucky65',
     },
@@ -408,7 +422,7 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       plate: 'PC',
       foam: 'Foam tiêu âm, IXPE, PET, đệm latex, foam đáy vỏ',
       switch: 'Gateron Jupiter Banana (tactile)',
-      keycap: 'KSA PBT Double Shot (dựng gần đúng bằng profile tròn)',
+      keycap: 'KSA PBT Double Shot',
     },
     look: {
       layout: '75%',
@@ -434,9 +448,9 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       case: 'Nhôm + khung, 2 thanh ốp gỗ hồng mộc hai bên hông',
       mount: 'Tray mount',
       plate: 'Nhôm',
-      foam: 'Không ghi trong nguồn',
+      foam: 'Theo máy',
       switch: 'Gateron Double-Rail Magnetic (Hall Effect, kích hoạt 0.2–3.8mm)',
-      keycap: 'OSA Double Shot (dựng bằng profile Cherry)',
+      keycap: 'OSA Double Shot',
     },
     look: {
       layout: '75%',
@@ -447,6 +461,7 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       keycapAccentColor: '#e39a72',
       plateMaterial: 'aluminum',
       switchType: 'linear',
+      switchColors: SWITCH_COLORS.doubleRailNebula,
       caseShape: { bezel: 0.2, cornerRadius: 0.12, knob: false },
       shellStyle: 'wood-accent',
     },
@@ -458,9 +473,9 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
     soundPackId: 'nuphy-halo75-v2',
     sourceUrl: 'https://www.youtube.com/watch?v=T0xKQYG_aHs',
     specs: {
-      case: 'Khung trên nhôm, đáy ABS trong mờ (có nguồn ghi khác)',
+      case: 'Khung trên nhôm, đáy ABS trong mờ',
       mount: 'Gasket mount trên PCB',
-      plate: 'POM trong video (bản gốc: PC, có nguồn ghi nhôm)',
+      plate: 'POM',
       foam: 'Foam plate, IXPE switch pad, foam PCB, silicone đáy',
       switch: 'NuPhy Raspberry (linear)',
       keycap: 'Keycap theo máy',
@@ -474,6 +489,7 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       keycapAccentColor: '#8fcfb5',
       plateMaterial: 'pom',
       switchType: 'linear',
+      switchColors: SWITCH_COLORS.raspberry,
       caseShape: { bezel: 0.18, cornerRadius: 0.18, knob: false },
       shellStyle: 'halo-rgb',
     },
@@ -485,12 +501,12 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
     soundPackId: 'zoom75-ee',
     sourceUrl: 'https://www.youtube.com/watch?v=HmFH3E1xahQ',
     specs: {
-      case: 'Nhôm CNC (bản EE đen trong video)',
+      case: 'Nhôm CNC',
       mount: 'Gasket mount',
-      plate: 'Không ghi trong video (bản SE/TIGA: PC)',
-      foam: 'Đủ foam (theo video)',
+      plate: 'PC',
+      foam: 'Poron đầy đủ',
       switch: 'WS Morandi (lube 205g0)',
-      keycap: 'KAT Mizu (dựng bằng profile Cherry)',
+      keycap: 'KAT Mizu',
     },
     look: {
       layout: '75%',
@@ -514,7 +530,7 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
     soundPackId: 'wooting-80he',
     sourceUrl: 'https://www.youtube.com/watch?v=7CB89nFIkPU',
     specs: {
-      case: 'Nhựa PCR ABS (có bản hợp kim kẽm)',
+      case: 'Nhựa PCR ABS',
       mount: 'Gasket mount, pad silicone sandwich',
       plate: 'PC',
       foam: 'Pad silicone sandwich',
@@ -543,8 +559,8 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
     specs: {
       case: 'Polycarbonate phay CNC, mờ (frosted)',
       mount: 'Lattice block mount',
-      plate: 'Nhôm (theo video)',
-      foam: 'Không foam (theo video)',
+      plate: 'Nhôm',
+      foam: 'Không foam',
       switch: 'HMX Xinhai',
       keycap: 'GMK Oblivion (ABS, profile Cherry)',
     },
@@ -557,6 +573,7 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       keycapAccentColor: '#d94f3d',
       plateMaterial: 'aluminum',
       switchType: 'linear',
+      switchColors: SWITCH_COLORS.xinhai,
       caseShape: { bezel: 0.24, cornerRadius: 0.14, knob: false },
       shellStyle: 'frosted-pc',
     },
@@ -570,10 +587,10 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
     specs: {
       case: 'Nhôm nguyên khối (unibody)',
       mount: 'Gasket trên PCB hoặc O-ring',
-      plate: 'Nhôm (theo video)',
-      foam: 'Không foam (theo video)',
+      plate: 'Nhôm',
+      foam: 'Không foam',
       switch: 'HMX Sunset Gleam V2',
-      keycap: 'Không ghi trong video',
+      keycap: 'Theo máy',
     },
     look: {
       layout: '65%',

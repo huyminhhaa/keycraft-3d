@@ -363,7 +363,7 @@ export const HARDWARE_CATALOG: HardwareCatalogItem[] = [
     name: 'Shortcut Studio Princess',
     material: 'Không công bố trong nguồn đã tra',
     acousticDescription:
-      'Switch linear nhẹ, stock của Shortcut Studio Bridge75 (bản Plus/Max dùng plate FR4 flex-cut). Một shop ghi tổng hành trình 3.6mm, shop khác ghi 3.5mm.',
+      'Switch linear nhẹ (42g kích hoạt, 48g chạm đáy), stock của Shortcut Studio Bridge75; bản Plus/Max lắp trên plate FR4 flex-cut.',
     soundProfile: calculateSoundProfile('fr4', 'linear'),
     specs: { switchType: 'linear', actuationForce: 42, bottomOutForce: 48, totalTravel: 3.6 },
   },
@@ -412,7 +412,7 @@ export const HARDWARE_CATALOG: HardwareCatalogItem[] = [
     name: 'PP Plate (Polypropylene)',
     material: 'Polypropylene',
     acousticDescription:
-      'Plate nhựa polypropylene, dùng trên WOBKEY Rainy75 Lite/Standard và Crush 80 Lite (bản Pro của hai mẫu này đổi sang FR4). Một số shop ghi Leobog Hi75 dùng PP, nguồn khác ghi PC.',
+      'Plate nhựa polypropylene, dùng trên WOBKEY Rainy75 Lite/Standard và Crush 80 Lite (bản Pro của hai mẫu này đổi sang FR4).',
     // Nhựa mềm như PC/POM: dùng tham số plate PC của mô hình âm thanh làm gần đúng
     soundProfile: calculateSoundProfile('polycarbonate', 'linear'),
     specs: { material: 'polypropylene' },

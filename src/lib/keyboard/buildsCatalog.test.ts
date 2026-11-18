@@ -46,18 +46,25 @@ describe('thư viện build mở rộng', () => {
 });
 
 describe('màu switch thật', () => {
-  it('Kailh Cocoa: vỏ kem, stem nâu; build chưa tra được màu thì để trống', () => {
+  it('mọi build đều có màu switch thật (Cocoa vỏ kem stem nâu, Ice Vein xanh ngọc stem trắng…)', () => {
+    expect(KEYBOARD_BUILDS.every((b) => b.look.switchColors)).toBe(true);
     expect(findBuild('wobkey-rainy75-pro')?.look.switchColors).toMatchObject({ stem: '#6b3a24' });
-    expect(findBuild('aula-f75-ice-vein')?.look.switchColors).toBeUndefined();
-    expect(KEYBOARD_BUILDS.filter((b) => b.look.switchColors).length).toBeGreaterThanOrEqual(12);
+    expect(findBuild('aula-f75-ice-vein')?.look.switchColors).toMatchObject({ stem: '#f3f5f5' });
   });
 
-  it('chọn build có màu rồi build không có màu thì xoá màu của build trước', async () => {
+  it('đổi build thì đổi màu switch; đặt lại cấu hình thì về màu mặc định', async () => {
     const { useKeyboardStore } = await import('@/store/useKeyboardStore');
     useKeyboardStore.getState().applyBuild('neo65');
     expect(useKeyboardStore.getState().switchColors?.bottom).toBe('#d9762e');
     useKeyboardStore.getState().applyBuild('aula-f75-ice-vein');
+    expect(useKeyboardStore.getState().switchColors?.bottom).toBe('#8acfc6');
+    useKeyboardStore.getState().resetConfig();
     expect(useKeyboardStore.getState().switchColors).toBeUndefined();
+  });
+
+  it('thông số không còn ghi chú lấp lửng (chưa xác minh, có nguồn ghi, tuỳ bản…)', () => {
+    const hedges = /chưa xác minh|có nguồn ghi|tuỳ bản|theo video|theo bản|dựng bằng|không ghi/i;
+    KEYBOARD_BUILDS.forEach((b) => Object.values(b.specs).forEach((value) => expect(value).not.toMatch(hedges)));
   });
 });
 
