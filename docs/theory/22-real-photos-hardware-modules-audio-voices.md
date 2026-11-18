@@ -120,5 +120,19 @@ FPS đo bằng Edge headless (GPU, dev mode): 60–103 FPS ở các mẫu nặng
 **Q2. Limiter đã chống vỡ tiếng rồi, sao còn cần giới hạn số voice và debounce?**
 Limiter chỉ ép biên độ tổng; 20 tiếng chồng nhau vẫn bị ép thành một mảng ồn và tốn CPU tạo node. Giới hạn 8 voice (fade 10ms để không có tiếng "tách") giữ số node thấp, còn gate 12ms loại các sự kiện giả của bộ gõ — vốn là nguyên nhân chính của "dính chữ".
 
+**Q3 (xem bên dưới).**
+
+---
+
+## Phụ lục — Trang chủ `/` làm lại (18/11/2026)
+
+- **Bỏ:** tiếng tổng hợp + số Hz tự đặt, "Web Audio Synth 0ms", bảng công nghệ, khối bảo mật, mô tả "tạ đồng" (build thật không có).
+- **Hero 3D** (`src/components/canvas/HeroKeyboard.tsx`): dùng lại đúng `KeyboardModel` của Studio (tắt nhãn bằng `showLabels={false}`), ánh sáng chung `StudioLighting.tsx`. Mỗi mẫu một chu kỳ 8 giây: ghép 3.4s → tách 7 lớp 2.8s → ghép lại 1.8s → mẫu kế (`showcasePhase`). Camera tự lùi theo bề rộng mẫu và độ cao khi tách lớp. Cuộn khỏi màn hình thì `frameloop="never"`; `prefers-reduced-motion` thì đứng yên. Canvas không nhận chuột để không phát tiếng sai khi chưa nạp gói.
+- **Nghe thử** (`src/app/page.tsx`, danh sách ở `src/lib/ui/landing.ts`): bấm một mẫu → `applyBuild` (mô hình hero đổi theo, dừng luân phiên) → `selectPack` gói thật → `playDemo`; sau đó gõ bàn phím thật cũng ra tiếng mẫu đó.
+- **Số liệu** (41 mẫu, 19 hãng) tính từ `KEYBOARD_BUILDS`, đếm hãng không phân biệt hoa/thường ("WOBKEY" = "Wobkey").
+- **Thử tự sửa:** đổi `SHOWCASE_TIMING.exploded` trong `HeroKeyboard.tsx` từ `2.8` thành `4` để lớp tách ra lâu hơn; thêm id vào `SHOWCASE_BUILDS` để hero trình diễn thêm mẫu.
+
+---
+
 **Q3. Thiết kế module bằng `replaces` (mã phím) thay vì toạ độ cố định có lợi gì?**
 Plate/PCB/switch/keycap đều sinh từ danh sách phím, nên chỉ cần bỏ các mã phím bị thay là mọi lớp tự đúng (không khoét lỗ thừa, không vẽ switch dưới màn hình). Toạ độ suy từ layout nên đổi bezel hay layout không phải sửa số. Khi module nằm ở ô trống (khoảng cụm điều hướng TKL) hoặc trên viền vỏ thì dùng `at`.

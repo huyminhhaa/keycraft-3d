@@ -370,7 +370,12 @@ const stepMaterials = (
   });
 };
 
-export const KeyboardModel: React.FC = () => {
+interface KeyboardModelProps {
+  /** Nhãn chú thích 7 lớp khi tách (trang chủ tắt để hoạt cảnh gọn) */
+  showLabels?: boolean;
+}
+
+export const KeyboardModel: React.FC<KeyboardModelProps> = ({ showLabels = true }) => {
   const layoutId = useKeyboardStore((s) => s.layout);
   const isExploded = useKeyboardStore((s) => s.isExploded);
   const explosionOffset = useKeyboardStore((s) => s.explosionOffset);
@@ -621,7 +626,7 @@ export const KeyboardModel: React.FC = () => {
           </mesh>
         ))}
 
-        <LayerLabel index="01" name="Vỏ dưới" detail={details.bottomCase} visible={isExploded} x={labelX} />
+        <LayerLabel index="01" name="Vỏ dưới" detail={details.bottomCase} visible={showLabels && isExploded} x={labelX} />
       </group>
 
       {/* LỚP 2: PCB */}
@@ -633,20 +638,20 @@ export const KeyboardModel: React.FC = () => {
           ledBrightness={ledBrightness}
           pcbColor={build?.look.pcbColor}
         />
-        <LayerLabel index="02" name="PCB" detail={details.pcb} visible={isExploded} x={labelX} />
+        <LayerLabel index="02" name="PCB" detail={details.pcb} visible={showLabels && isExploded} x={labelX} />
       </group>
 
       {/* LỚP 3: FOAM */}
       <group ref={foamRef} name="Foam" position={[0, initial.foam, 0]}>
         {/* Build ghi "Không foam" (Neo65, Mode Envoy trong video): không vẽ lớp foam, chỉ giữ nhãn */}
         {!hasNoFoam(build) && <FoamLayer {...layerProps} foamColor={build?.look.foamColor} />}
-        <LayerLabel index="03" name={build ? 'Foam' : 'Foam Poron'} detail={details.foam} visible={isExploded} x={labelX} />
+        <LayerLabel index="03" name={build ? 'Foam' : 'Foam Poron'} detail={details.foam} visible={showLabels && isExploded} x={labelX} />
       </group>
 
       {/* LỚP 4: PLATE */}
       <group ref={plateRef} name="Plate" position={[0, initial.plate, 0]}>
         <PlateLayer {...layerProps} plateMaterial={plateMaterial} materialProps={plateMaterialProps} />
-        <LayerLabel index="04" name="Plate" detail={details.plate} visible={isExploded} x={labelX} />
+        <LayerLabel index="04" name="Plate" detail={details.plate} visible={showLabels && isExploded} x={labelX} />
       </group>
 
       {/* LỚP 5: SWITCHES */}
@@ -661,7 +666,7 @@ export const KeyboardModel: React.FC = () => {
           plateTopY={SWITCH_PLATE_TOP_Y}
           getKeyOffset={getKeyOffset}
         />
-        <LayerLabel index="05" name="Switch" detail={details.switches} visible={isExploded} x={labelX} />
+        <LayerLabel index="05" name="Switch" detail={details.switches} visible={showLabels && isExploded} x={labelX} />
       </group>
 
       {/* LỚP 6: KEYCAPS */}
@@ -677,7 +682,7 @@ export const KeyboardModel: React.FC = () => {
             registerRef={registerKey}
           />
         ))}
-        <LayerLabel index="07" name="Keycap" detail={details.keycaps} visible={isExploded} x={labelX} />
+        <LayerLabel index="07" name="Keycap" detail={details.keycaps} visible={showLabels && isExploded} x={labelX} />
       </group>
 
       {/* LỚP 7: TOP CASE (khung) */}
@@ -700,7 +705,7 @@ export const KeyboardModel: React.FC = () => {
           topY={TOP_CASE.yBottom + TOP_CASE.height}
           restY={REST.topCase}
         />
-        <LayerLabel index="06" name="Vỏ trên" detail={details.topCase} visible={isExploded} x={labelX} />
+        <LayerLabel index="06" name="Vỏ trên" detail={details.topCase} visible={showLabels && isExploded} x={labelX} />
       </group>
 
       {/* Ánh LED hắt xuống mặt bàn hai bên */}

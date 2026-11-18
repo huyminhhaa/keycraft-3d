@@ -4,8 +4,6 @@ import React, { Suspense, useEffect, useMemo, useRef } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import {
   ContactShadows,
-  Environment,
-  Lightformer,
   MeshReflectorMaterial,
   OrbitControls,
   PerformanceMonitor,
@@ -27,6 +25,7 @@ import { GltfKeyboard, ModelErrorBoundary } from './GltfKeyboard';
 import { CanvasLoader } from './CanvasLoader';
 import { BASE_TARGET_Y, CAMERA_FOV, CameraFraming, explodedTargetY } from './CameraFraming';
 import { Hotspots } from './Hotspots';
+import { StudioLighting } from './StudioLighting';
 
 const TARGET: [number, number, number] = [0, BASE_TARGET_Y, 0];
 /** Mặt bàn: ngay dưới chân cao su (tính cả độ nghiêng của vỏ) */
@@ -149,45 +148,6 @@ const KeyboardListener: React.FC = () => {
   useEffect(() => attachKeyboardListeners(window), []);
   return null;
 };
-
-/**
- * Ánh sáng studio chụp sản phẩm: softbox trên đầu, dải sáng hai bên và một viền sáng phía sau
- * để mép nhôm vát bắt highlight. Chỉ dùng Lightformer, không tải file HDR nào từ mạng.
- */
-const StudioLighting: React.FC = () => (
-  <>
-    <Environment resolution={512} frames={1} environmentIntensity={0.95}>
-      {/* Softbox trên đầu: ánh sáng chính, phản chiếu thành mảng sáng mềm trên keycap và mặt nhôm */}
-      <Lightformer form="rect" intensity={2.6} position={[0, 6, 1]} rotation-x={Math.PI / 2} scale={[12, 5, 1]} />
-      <Lightformer form="rect" intensity={1.7} position={[-7, 2.5, 2]} rotation-y={Math.PI / 2} scale={[7, 2.2, 1]} />
-      <Lightformer form="rect" intensity={1.2} position={[7, 3, -3]} rotation-y={-Math.PI / 2} scale={[7, 1.4, 1]} />
-      {/* Dải rim mảnh, sáng gắt phía sau: vạch một đường sáng sắc dọc cạnh vát chamfer 45° */}
-      <Lightformer form="rect" intensity={4.5} position={[0, 2.6, -6.5]} scale={[16, 0.25, 1]} />
-      <Lightformer form="rect" intensity={1.4} position={[0, 2.2, -7]} scale={[14, 0.8, 1]} />
-      <Lightformer form="rect" intensity={0.5} position={[0, 1.2, 9]} rotation-y={Math.PI} scale={[12, 1.2, 1]} />
-      {/* Đèn vòng nhỏ phía trên-trái: điểm bắt sáng trên chân đồng mạ vàng và tạ đồng */}
-      <Lightformer form="ring" intensity={3} position={[-3, 5, 3]} scale={1.2} />
-    </Environment>
-    <ambientLight intensity={0.1} />
-    <directionalLight
-      position={[3.5, 8, 5]}
-      intensity={1.15}
-      castShadow
-      shadow-mapSize={[2048, 2048]}
-      // bias âm nhỏ + normalBias theo pháp tuyến: hết sọc "shadow acne" trên mặt nghiêng mà bóng không bị hở chân
-      shadow-bias={-0.00015}
-      shadow-normalBias={0.035}
-      shadow-camera-left={-6}
-      shadow-camera-right={6}
-      shadow-camera-top={4}
-      shadow-camera-bottom={-4}
-      shadow-camera-near={1}
-      shadow-camera-far={20}
-    />
-    {/* Rim light ngược sáng (không đổ bóng): tách viền bàn phím khỏi nền tối */}
-    <directionalLight position={[-4, 3, -6]} intensity={0.55} color="#dfe7ff" />
-  </>
-);
 
 /** Bệ trưng bày tròn: rộng bằng thân vỏ TKL, góc vỏ chỉ chìa ra một chút khi xoay chéo như hàng trưng bày thật. */
 export const PLINTH = { radius: 3.7, height: 0.3 } as const;
