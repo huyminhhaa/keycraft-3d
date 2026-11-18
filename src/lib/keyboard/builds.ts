@@ -51,8 +51,28 @@ export const buildSchema = z.object({
     }),
     shellStyle: z.enum(SHELL_STYLES).default('default'),
     keycapProfile: z.enum(['cherry', 'moa']).default('cherry'),
+    /** Màu switch thật, lấy theo ảnh sản phẩm/review; không tra được thì bỏ trống (dùng màu mặc định) */
+    switchColors: z
+      .object({ top: hex, bottom: hex, stem: hex, topOpacity: z.number().min(0.1).max(1) })
+      .optional(),
   }),
 });
+
+/* Màu switch theo ảnh thật (kbd.news, Kinetic Labs, thumbnail video review switch) */
+const SWITCH_COLORS = {
+  reaper: { top: '#f1f1ec', bottom: '#f3f3ef', stem: '#9bd84a', topOpacity: 0.6 },
+  vertexV1: { top: '#1f1f23', bottom: '#1a1a1d', stem: '#6c4ed8', topOpacity: 0.95 },
+  husky: { top: '#d8dbe0', bottom: '#4b4e56', stem: '#d2d5da', topOpacity: 0.6 },
+  turtle: { top: '#1e1e20', bottom: '#1b1b1d', stem: '#232326', topOpacity: 0.95 },
+  outemuJade: { top: '#eef3f4', bottom: '#e6eef0', stem: '#f6f6f3', topOpacity: 0.3 },
+  cocoa: { top: '#efe4cd', bottom: '#ece0c8', stem: '#6b3a24', topOpacity: 0.97 },
+  jupiterBanana: { top: '#f4f4f0', bottom: '#f3f2ec', stem: '#e8e690', topOpacity: 0.3 },
+  morandi: { top: '#eef0f7', bottom: '#eceef6', stem: '#f2f3f8', topOpacity: 0.92 },
+  lekkerL45: { top: '#eef2f2', bottom: '#e8eeee', stem: '#f2c94c', topOpacity: 0.3 },
+  sunsetGleam: { top: '#f4f2ec', bottom: '#d9762e', stem: '#f0c92a', topOpacity: 0.92 },
+  // Akko V3 Piano Pro bản gốc màu đen (bản đặc biệt mới màu trắng)
+  pianoPro: { top: '#27272a', bottom: '#1e1e21', stem: '#2c2c30', topOpacity: 0.95 },
+} as const;
 
 export type KeyboardBuild = z.infer<typeof buildSchema>;
 
@@ -93,6 +113,7 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       keycapAccentColor: '#4f78b5',
       plateMaterial: 'polycarbonate',
       switchType: 'linear',
+      switchColors: SWITCH_COLORS.reaper,
       caseShape: F75_SHAPE,
       shellStyle: 'aula',
     },
@@ -167,6 +188,7 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       keycapAccentColor: '#e3a0b6',
       plateMaterial: 'polycarbonate',
       switchType: 'linear',
+      switchColors: SWITCH_COLORS.vertexV1,
       caseShape: { bezel: 0.3, cornerRadius: 0.06, knob: false },
       shellStyle: 'hi75',
       keycapProfile: 'moa',
@@ -235,6 +257,7 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       keycapAccentColor: '#3d4148',
       plateMaterial: 'fr4',
       switchType: 'linear',
+      switchColors: SWITCH_COLORS.husky,
       caseShape: LUCKY65_SHAPE,
       shellStyle: 'lucky65',
     },
@@ -255,6 +278,7 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       keycapAccentColor: '#5f7d52',
       plateMaterial: 'fr4',
       switchType: 'tactile',
+      switchColors: SWITCH_COLORS.turtle,
       caseShape: LUCKY65_SHAPE,
       shellStyle: 'lucky65',
     },
@@ -282,6 +306,7 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       keycapAccentColor: '#5a5d62',
       plateMaterial: 'aluminum',
       switchType: 'linear',
+      switchColors: SWITCH_COLORS.outemuJade,
       caseShape: { bezel: 0.22, cornerRadius: 0.16, knob: true },
       shellStyle: 'x85',
     },
@@ -312,6 +337,7 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       keycapAccentColor: '#f3ece4',
       plateMaterial: 'fr4',
       switchType: 'linear',
+      switchColors: SWITCH_COLORS.cocoa,
       caseShape: { bezel: 0.24, cornerRadius: 0.12, knob: false },
     },
   },
@@ -338,6 +364,7 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       keycapAccentColor: '#ece4d0',
       plateMaterial: 'fr4',
       switchType: 'linear',
+      switchColors: SWITCH_COLORS.cocoa,
       caseShape: { bezel: 0.24, cornerRadius: 0.1, knob: false },
       shellStyle: 'lucky65',
     },
@@ -392,6 +419,7 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       keycapAccentColor: '#3fb6a8',
       plateMaterial: 'polycarbonate',
       switchType: 'tactile',
+      switchColors: SWITCH_COLORS.jupiterBanana,
       caseShape: { bezel: 0.26, cornerRadius: 0.1, knob: true },
       keycapProfile: 'moa',
     },
@@ -473,6 +501,7 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       keycapAccentColor: '#eef3f6',
       plateMaterial: 'polycarbonate',
       switchType: 'linear',
+      switchColors: SWITCH_COLORS.morandi,
       caseShape: { bezel: 0.24, cornerRadius: 0.1, knob: false },
       // Module góc phải 2U: bản gốc là màn hình LCD; bản EE trong video dùng núm
       shellStyle: 'lcd-75',
@@ -501,6 +530,7 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       keycapAccentColor: '#2b2b30',
       plateMaterial: 'polycarbonate',
       switchType: 'linear',
+      switchColors: SWITCH_COLORS.lekkerL45,
       caseShape: { bezel: 0.2, cornerRadius: 0.14, knob: false },
     },
   },
@@ -554,6 +584,7 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       keycapAccentColor: '#c8442f',
       plateMaterial: 'aluminum',
       switchType: 'linear',
+      switchColors: SWITCH_COLORS.sunsetGleam,
       caseShape: { bezel: 0.26, cornerRadius: 0.12, knob: false },
     },
   },
@@ -580,6 +611,7 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       keycapAccentColor: '#9fa3a8',
       plateMaterial: 'polycarbonate',
       switchType: 'linear',
+      switchColors: SWITCH_COLORS.pianoPro,
       caseShape: { bezel: 0.24, cornerRadius: 0.12, knob: false },
     },
   },

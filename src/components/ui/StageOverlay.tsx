@@ -5,6 +5,7 @@ import { Keyboard, Layers, PanelLeftClose, PanelLeftOpen, Pause, Play, Sparkles 
 import { useKeyboardStore } from '@/store/useKeyboardStore';
 import { useStageStore } from '@/store/useStageStore';
 import { findKeycapSet } from '@/lib/keyboard/keycapSets';
+import { findBuild, type KeyboardBuild } from '@/lib/keyboard/builds';
 import type { CameraPreset, CaseMaterial, KeyboardLayout, PlateMaterial, SwitchType } from '@/types/keyboard';
 import { CASE_COLORS, CASE_MATERIAL_LABELS } from './DesignPanel';
 import { PLATE_OPTIONS, SWITCH_OPTIONS } from './SoundPanel';
@@ -24,13 +25,25 @@ export interface BuildSummary {
   keycapSetName?: string;
   plateMaterial: PlateMaterial;
   switchType: SwitchType;
+  /** Build phím thật đang chọn (nếu có) */
+  realBuild?: KeyboardBuild;
 }
 
 /**
  * Tiêu đề sân khấu kiểu trang sản phẩm: tên máy lớn, một dòng mô tả cấu hình đang dựng.
  * Ví dụ: "KeyCraft TKL" / "Vỏ nhôm đỏ, keycap Đỏ hai tông, plate FR4, switch Linear."
+ * Đang chọn build thật: "Meletrix Zoom75" / "WS Morandi, plate …, Nhôm CNC …" (linh kiện thật của build;
+ * plate/switch người dùng đã đổi khác build thì ghi theo lựa chọn mới).
  */
 export const buildStageTitle = (build: BuildSummary): { brand: string; model: string; subtitle: string } => {
+  const real = build.realBuild;
+  if (real) {
+    const [brand, ...rest] = real.name.split(' ');
+    const sw = real.look.switchType === build.switchType ? real.specs.switch : SWITCH_OPTIONS.find((s) => s.id === build.switchType)?.name;
+    const plate =
+      real.look.plateMaterial === build.plateMaterial ? real.specs.plate : PLATE_OPTIONS.find((p) => p.id === build.plateMaterial)?.name;
+    return { brand, model: rest.join(' '), subtitle: `Switch ${sw}, plate ${plate}, ${real.specs.case.toLowerCase()}.` };
+  }
   const colorName =
     build.caseMaterial === 'wood'
       ? undefined
@@ -60,6 +73,7 @@ export const StageOverlay: React.FC = () => {
   const keycapColor = useKeyboardStore((s) => s.keycapColor);
   const keycapModifierColor = useKeyboardStore((s) => s.keycapModifierColor);
   const keycapAccentColor = useKeyboardStore((s) => s.keycapAccentColor);
+  const buildId = useKeyboardStore((s) => s.buildId ?? null);
   const autoRotate = useStageStore((s) => s.autoRotate);
   const toggleAutoRotate = useStageStore((s) => s.toggleAutoRotate);
   const activeTab = useStageStore((s) => s.activeTab);
@@ -74,6 +88,7 @@ export const StageOverlay: React.FC = () => {
     plateMaterial,
     switchType,
     keycapSetName: findKeycapSet({ keycapColor, keycapModifierColor, keycapAccentColor })?.name,
+    realBuild: findBuild(buildId),
   });
 
   return (

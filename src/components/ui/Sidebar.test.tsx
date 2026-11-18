@@ -6,6 +6,7 @@ import { StageOverlay, buildStageTitle } from './StageOverlay';
 import { useKeyboardStore } from '@/store/useKeyboardStore';
 import { useStageStore } from '@/store/useStageStore';
 import { KEYCAP_SETS } from '@/lib/keyboard/keycapSets';
+import { KEYBOARD_BUILDS } from '@/lib/keyboard/builds';
 import { TONE_COPY } from './SoundPanel';
 
 describe('Sidebar', () => {
@@ -174,5 +175,16 @@ describe('StageOverlay', () => {
         switchType: 'linear',
       }).subtitle
     ).toBe('Vỏ nhôm, keycap Rêu, plate FR4, switch Linear.');
+  });
+
+  it('buildStageTitle: build thật thì tên hãng + tên mẫu, dòng dưới là linh kiện thật', () => {
+    const zoom = KEYBOARD_BUILDS.find((b) => b.id === 'zoom75-ee')!;
+    const base = { layout: zoom.look.layout, caseMaterial: zoom.look.caseMaterial, caseColor: zoom.look.caseColor };
+    const title = buildStageTitle({ ...base, plateMaterial: zoom.look.plateMaterial, switchType: zoom.look.switchType, realBuild: zoom });
+    expect(title.brand).toBe('Meletrix');
+    expect(title.model).toBe('Zoom75');
+    expect(title.subtitle).toContain('WS Morandi');
+    // Người dùng đổi plate khác build: ghi theo lựa chọn mới
+    expect(buildStageTitle({ ...base, plateMaterial: 'fr4', switchType: zoom.look.switchType, realBuild: zoom }).subtitle).toContain('plate FR4');
   });
 });

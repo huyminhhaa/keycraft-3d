@@ -46,6 +46,14 @@ export type ShellStyle = (typeof SHELL_STYLES)[number];
 /** Profile keycap: Cherry (thấp, lòng chảo trụ, nghiêng theo hàng) hoặc MOA (cao đều, bo tròn, lòng chảo cầu) */
 export type KeycapProfile = 'cherry' | 'moa';
 
+/** Màu thật của switch (lấy theo ảnh sản phẩm): vỏ trên, vỏ dưới, stem; độ đục vỏ trên (PC trong ~0.3, POM/nylon đục ~0.95) */
+export interface SwitchColors {
+  top: string;
+  bottom: string;
+  stem: string;
+  topOpacity: number;
+}
+
 export interface KeyboardState {
   /** Mẫu bàn phím đang xem (id trong src/lib/keyboard/models.ts) */
   modelId: string;
@@ -60,6 +68,8 @@ export interface KeyboardState {
   shellStyle?: ShellStyle;
   /** Profile keycap; thiếu thì 'cherry' */
   keycapProfile?: KeycapProfile;
+  /** Màu switch thật của build; thiếu thì dùng màu mặc định (vỏ trong, đế đen, stem theo loại switch) */
+  switchColors?: SwitchColors;
 
   // Bố cục & Hình học (Layout & Geometry)
   layout: KeyboardLayout;

@@ -57,8 +57,10 @@ export const calculateLayerPositions = (offset: number): LayerPositions => ({
   foam: Number((0.34 + offset * 0.7).toFixed(3)),
   plate: Number((0.4 + offset * 1.05).toFixed(3)),
   switches: Number((0.52 + offset * 1.4).toFixed(3)),
-  keycaps: Number((0.74 + offset * 1.8).toFixed(3)),
-  topCase: Number((0.44 + offset * 2.15).toFixed(3)),
+  // Như sơ đồ tách lớp của các hãng: khung vỏ trên bay ngay trên switch, keycap lên trên cùng.
+  // (Trước đây vỏ trên bay cao hơn keycap nên cả hàng keycap bị lọt thỏm trong khung, không nhìn thấy.)
+  topCase: Number((0.44 + offset * 1.8).toFixed(3)),
+  keycaps: Number((0.74 + offset * 2.45).toFixed(3)),
 });
 
 /** Chân núm xoay trong toạ độ group vỏ trên (gốc 0.44): chạm plate (0.4), đỉnh cao 0.36 ngang mặt keycap */
@@ -107,6 +109,10 @@ export const layerDetails = (
   keycaps: build?.specs.keycap,
   topCase: build?.specs.mount,
 });
+
+/** Build lắp không foam (theo nguồn): lớp foam không được vẽ */
+export const hasNoFoam = (build: KeyboardBuild | undefined): boolean =>
+  Boolean(build?.specs.foam.toLowerCase().startsWith('không foam'));
 
 /** Độ lún của keycap khi nhấn (đơn vị thế giới ≈ 4mm hành trình switch) */
 export const KEY_TRAVEL = 0.07;
@@ -315,6 +321,7 @@ export const KeyboardModel: React.FC = () => {
   const caseShape = useKeyboardStore((s) => s.caseShape ?? DEFAULT_CASE_SHAPE);
   const shellStyle = useKeyboardStore((s) => s.shellStyle ?? 'default');
   const keycapProfile = useKeyboardStore((s) => s.keycapProfile ?? 'cherry');
+  const switchColors = useKeyboardStore((s) => s.switchColors);
   const build = findBuild(useKeyboardStore((s) => s.buildId ?? null));
 
   const layout = useMemo(() => getLayout(layoutId), [layoutId]);
@@ -564,7 +571,8 @@ export const KeyboardModel: React.FC = () => {
 
       {/* LỚP 3: FOAM */}
       <group ref={foamRef} name="Foam" position={[0, initial.foam, 0]}>
-        <FoamLayer {...layerProps} />
+        {/* Build ghi "Không foam" (Neo65, Mode Envoy trong video): không vẽ lớp foam, chỉ giữ nhãn */}
+        {!hasNoFoam(build) && <FoamLayer {...layerProps} />}
         <LayerLabel index="03" name={build ? 'Foam' : 'Foam Poron'} detail={details.foam} visible={isExploded} x={labelX} />
       </group>
 
@@ -581,6 +589,8 @@ export const KeyboardModel: React.FC = () => {
           layoutWidth={layout.width}
           layoutDepth={layout.depth}
           stemColor={SWITCH_STEM[switchType]}
+          // Màu switch thật chỉ áp dụng khi vẫn đúng loại switch của build (đổi loại thì về màu theo loại)
+          switchColors={build && build.look.switchType === switchType ? switchColors : undefined}
           plateTopY={SWITCH_PLATE_TOP_Y}
           getKeyOffset={getKeyOffset}
         />
@@ -600,7 +610,7 @@ export const KeyboardModel: React.FC = () => {
             registerRef={registerKey}
           />
         ))}
-        <LayerLabel index="06" name="Keycap" detail={details.keycaps} visible={isExploded} x={labelX} />
+        <LayerLabel index="07" name="Keycap" detail={details.keycaps} visible={isExploded} x={labelX} />
       </group>
 
       {/* LỚP 7: TOP CASE (khung) */}
@@ -626,7 +636,7 @@ export const KeyboardModel: React.FC = () => {
           topY={TOP_CASE.yBottom + TOP_CASE.height}
           plateY={KNOB_BASE_Y}
         />
-        <LayerLabel index="07" name="Vỏ trên" detail={details.topCase} visible={isExploded} x={labelX} />
+        <LayerLabel index="06" name="Vỏ trên" detail={details.topCase} visible={isExploded} x={labelX} />
       </group>
 
       {/* Ánh LED hắt xuống mặt bàn hai bên */}

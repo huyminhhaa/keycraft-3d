@@ -38,13 +38,13 @@ export const computeFitZoom = (size: StageSize, modelWidth: number): number => {
   return Number(Math.min(ZOOM_RANGE.max, Math.max(ZOOM_RANGE.min, zoom)).toFixed(3));
 };
 
-/** Hệ số thu zoom khi tách lớp: lớp trên cùng bay cao 2.15 × offset nên khung lùi tương ứng. */
+/** Hệ số thu zoom khi tách lớp: lớp trên cùng (keycap) bay cao 2.45 × offset nên khung lùi tương ứng. */
 export const explodedZoomFactor = (isExploded: boolean, offset: number): number =>
-  isExploded ? Number((1 / (1 + 0.38 * offset)).toFixed(3)) : 1;
+  isExploded ? Number((1 / (1 + 0.62 * offset)).toFixed(3)) : 1;
 
 /** Tâm nhìn khi tách lớp: dời lên khoảng nửa chiều cao khối linh kiện. */
 export const explodedTargetY = (isExploded: boolean, offset: number): number =>
-  isExploded ? Number((BASE_TARGET_Y + offset * 1.05).toFixed(3)) : BASE_TARGET_Y;
+  isExploded ? Number((BASE_TARGET_Y + offset * 1.4).toFixed(3)) : BASE_TARGET_Y;
 
 interface OrbitLike {
   target: THREE.Vector3;

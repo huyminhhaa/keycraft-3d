@@ -93,6 +93,12 @@ Xoay cả bàn phím +6.5°, rồi cắt đáy vỏ dưới theo mặt phẳng `
 
 ---
 
+## 5b. Cập nhật sau phản hồi (tách lớp "chưa thật")
+- **Thứ tự bay khi tách lớp** đổi theo sơ đồ của các hãng: vỏ dưới → PCB → foam → plate → switch → **vỏ trên → keycap trên cùng**. Trước đó vỏ trên bay cao hơn keycap nên cả hàng keycap lọt thỏm trong khung. Camera lùi xa hơn (`explodedZoomFactor` 0.62) và nâng tâm nhìn (`explodedTargetY` 1.4 × offset) để thấy trọn 7 lớp.
+- **Màu switch thật theo từng build** (`look.switchColors`), lấy từ ảnh sản phẩm (kbd.news, Kinetic Labs) và thumbnail video review switch: Kailh Cocoa (kem/stem nâu), Leobog Reaper (trắng/stem xanh chuối), Vertex V1 (đen/stem tím), Husky, Turtle, Outemu Jade, Jupiter Banana, WS Morandi, Lekker L45, HMX Sunset Gleam (đế cam/stem vàng), Akko Piano Pro (đen). Switch chưa tra được ảnh rõ giữ màu mặc định. Vỏ đục (POM/nylon) vẽ như vật đặc, vỏ PC trong mới bật trong suốt.
+- Foam Poron xám than (tách bạch với plate POM/PC trắng); build ghi "Không foam" thì không vẽ lớp foam.
+- Tiêu đề sân khấu hiện tên build thật (ví dụ "Meletrix Zoom75") và linh kiện thật.
+
 ## 6. Nguồn & giới hạn
 - Thông số 11 build mới tra từ trang hãng/shop/review (Keychron, WOBKEY/Tom's Hardware, Divinikey, NuPhy/Tom's Hardware, Meletrix/CannonKeys, Wooting/TechPowerUp, Mode/Pantheon, Qwertykeys, MonsGeek). Chỗ nguồn mâu thuẫn ghi rõ trong `specs`.
 - Video sound test chọn theo cấu hình khớp và tạp âm ≤ 0.02; Halo75 V2, Wooting 80HE, Mode Envoy đã đổi sang video sạch hơn.

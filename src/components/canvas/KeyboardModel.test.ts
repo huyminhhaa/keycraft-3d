@@ -25,8 +25,9 @@ describe('KeyboardModel Logic & Calculations', () => {
       const explodedPos = calculateLayerPositions(1.5);
       const diff = (key: keyof typeof zeroPos) => explodedPos[key] - zeroPos[key];
 
-      expect(diff('topCase')).toBeGreaterThan(diff('keycaps'));
-      expect(diff('keycaps')).toBeGreaterThan(diff('switches'));
+      // Thứ tự như sơ đồ tách lớp của hãng: switch → khung vỏ trên → keycap trên cùng
+      expect(diff('keycaps')).toBeGreaterThan(diff('topCase'));
+      expect(diff('topCase')).toBeGreaterThan(diff('switches'));
       expect(diff('switches')).toBeGreaterThan(diff('plate'));
       expect(diff('plate')).toBeGreaterThan(diff('foam'));
       expect(diff('foam')).toBeGreaterThan(diff('pcb'));
@@ -35,8 +36,16 @@ describe('KeyboardModel Logic & Calculations', () => {
 
     it('ở mức bung tối đa (offset = 3.0), không có lớp nào bị đè nhau', () => {
       const maxPos = calculateLayerPositions(3.0);
-      expect(maxPos.keycaps).toBeGreaterThan(5.0);
-      expect(maxPos.topCase).toBeGreaterThan(6.0);
+      expect(maxPos.topCase).toBeGreaterThan(5.0);
+      expect(maxPos.keycaps).toBeGreaterThan(8.0);
+    });
+
+    it('khi tách lớp, đáy keycap nằm hẳn trên mép khung vỏ trên (không lọt thỏm trong khung)', () => {
+      [1, 1.5, 3].forEach((offset) => {
+        const pos = calculateLayerPositions(offset);
+        // Đáy keycap: gốc lớp keycap − 0.17; mép trên khung vỏ trên: gốc lớp vỏ trên + 0.12
+        expect(pos.keycaps - 0.17).toBeGreaterThan(pos.topCase + 0.12);
+      });
     });
   });
 

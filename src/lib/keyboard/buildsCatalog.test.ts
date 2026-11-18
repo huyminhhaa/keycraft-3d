@@ -45,6 +45,32 @@ describe('thư viện build mở rộng', () => {
   });
 });
 
+describe('màu switch thật', () => {
+  it('Kailh Cocoa: vỏ kem, stem nâu; build chưa tra được màu thì để trống', () => {
+    expect(findBuild('wobkey-rainy75-pro')?.look.switchColors).toMatchObject({ stem: '#6b3a24' });
+    expect(findBuild('aula-f75-ice-vein')?.look.switchColors).toBeUndefined();
+    expect(KEYBOARD_BUILDS.filter((b) => b.look.switchColors).length).toBeGreaterThanOrEqual(12);
+  });
+
+  it('chọn build có màu rồi build không có màu thì xoá màu của build trước', async () => {
+    const { useKeyboardStore } = await import('@/store/useKeyboardStore');
+    useKeyboardStore.getState().applyBuild('neo65');
+    expect(useKeyboardStore.getState().switchColors?.bottom).toBe('#d9762e');
+    useKeyboardStore.getState().applyBuild('aula-f75-ice-vein');
+    expect(useKeyboardStore.getState().switchColors).toBeUndefined();
+  });
+});
+
+describe('build không foam', () => {
+  it('Neo65 và Mode Envoy (theo video) không vẽ lớp foam; build có foam thì vẽ', async () => {
+    const { hasNoFoam } = await import('@/components/canvas/KeyboardModel');
+    expect(hasNoFoam(findBuild('neo65'))).toBe(true);
+    expect(hasNoFoam(findBuild('mode-envoy-pc'))).toBe(true);
+    expect(hasNoFoam(findBuild('wobkey-rainy75-pro'))).toBe(false);
+    expect(hasNoFoam(undefined)).toBe(false);
+  });
+});
+
 describe('build có file .glb thật', () => {
   it('chỉ tạo mẫu .glb khi build có modelUrl, giữ nguyên màu của file', () => {
     const build = KEYBOARD_BUILDS[0];

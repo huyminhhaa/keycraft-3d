@@ -83,6 +83,7 @@ export const INITIAL_KEYBOARD_STATE: KeyboardState = {
   caseShape: DEFAULT_CASE_SHAPE,
   shellStyle: 'default',
   keycapProfile: 'cherry',
+  switchColors: undefined,
   layout: 'TKL',
   isExploded: false,
   explosionOffset: 1.5,
@@ -127,6 +128,8 @@ export const useKeyboardStore = create<KeyboardStore>((set) => ({
       caseShape: look.caseShape,
       shellStyle: look.shellStyle,
       keycapProfile: look.keycapProfile,
+      // Build chưa tra được màu switch: xoá màu của build trước, quay về màu mặc định
+      switchColors: look.switchColors,
       // Các build này không có dải LED hông như mẫu mặc định
       underglowEnabled: false,
       soundProfile: calculateSoundProfile(look.plateMaterial, look.switchType),

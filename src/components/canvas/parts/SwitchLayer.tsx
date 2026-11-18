@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 import type { PlacedKey } from '@/lib/keyboard/layouts';
+import type { SwitchColors } from '@/types/keyboard';
 import { keyCenter } from '../geometry/keyboardGeometry';
 import { stabilizerPositions } from '../geometry/plateGeometry';
 import { STAB_WIRE, createStabilizerGeometries, createSwitchGeometries } from '../geometry/switchGeometry';
@@ -14,6 +15,8 @@ interface SwitchLayerProps {
   layoutWidth: number;
   layoutDepth: number;
   stemColor: string;
+  /** Màu switch thật của build (nếu đã tra được) */
+  switchColors?: SwitchColors;
   /** Độ cao mặt trên plate trong toạ độ của group switch (khi đã ghép lớp) */
   plateTopY: number;
   /** Độ lún hiện tại của keycap (≤ 0) để stem lún theo */
@@ -47,15 +50,36 @@ export const stabilizerMatrices = (
   return { housings, wires };
 };
 
-export const SwitchLayer: React.FC<SwitchLayerProps> = ({ keys, layoutWidth, layoutDepth, stemColor, plateTopY, getKeyOffset }) => {
+/** Màu mặc định: vỏ trên PC trong, đế nylon đen (stem lấy theo loại switch) */
+const DEFAULT_SWITCH_COLORS: SwitchColors = { top: '#f6f5f1', bottom: '#232326', stem: '#d9342b', topOpacity: 0.32 };
+
+export const SwitchLayer: React.FC<SwitchLayerProps> = ({
+  keys,
+  layoutWidth,
+  layoutDepth,
+  stemColor,
+  switchColors,
+  plateTopY,
+  getKeyOffset,
+}) => {
   const { switch: sw, stab } = geometries();
 
   const materials = useMemo(
     () => ({
       // Vỏ trên polycarbonate trong mờ: thấy lờ mờ lò xo và stem bên trong
-      top: new THREE.MeshPhysicalMaterial({ color: '#ecebe6', roughness: 0.32, transparent: true, opacity: 0.55, clearcoat: 0.4 }),
-      lens: new THREE.MeshPhysicalMaterial({ color: '#fbf8f0', roughness: 0.15, transparent: true, opacity: 0.85 }),
-      bottom: new THREE.MeshStandardMaterial({ color: '#1b1b1e', roughness: 0.5 }),
+      // depthWrite tắt: 87 vỏ trong suốt chồng nhau không che mất stem/vỏ phía sau
+      top: new THREE.MeshPhysicalMaterial({
+        color: '#f6f5f1',
+        roughness: 0.08,
+        transparent: true,
+        opacity: 0.32,
+        clearcoat: 1,
+        clearcoatRoughness: 0.05,
+        specularIntensity: 1,
+        depthWrite: false,
+      }),
+      lens: new THREE.MeshPhysicalMaterial({ color: '#ffffff', roughness: 0.2, transparent: true, opacity: 0.7, depthWrite: false }),
+      bottom: new THREE.MeshPhysicalMaterial({ color: '#232326', roughness: 0.42, clearcoat: 0.3, clearcoatRoughness: 0.4 }),
       gold: new THREE.MeshStandardMaterial({ color: '#d6ab4b', roughness: 0.22, metalness: 1 }),
       // Màu stem đặt trong useEffect bên dưới: đổi switch không phải tạo lại cả bộ vật liệu
       stem: new THREE.MeshStandardMaterial({ roughness: 0.42 }),
@@ -65,9 +89,23 @@ export const SwitchLayer: React.FC<SwitchLayerProps> = ({ keys, layoutWidth, lay
     []
   );
   useEffect(() => () => Object.values(materials).forEach((m) => m.dispose()), [materials]);
+  // Màu thật của switch theo build (Cocoa vỏ kem stem nâu, HMX Violet tím…); không có thì vỏ trong, đế đen, stem theo loại
   useEffect(() => {
-    materials.stem.color.set(stemColor);
-  }, [materials, stemColor]);
+    const colors = switchColors ?? DEFAULT_SWITCH_COLORS;
+    materials.top.color.set(colors.top);
+    // Vỏ đục (POM/nylon) vẽ như vật đặc; vỏ PC trong mới bật trong suốt + tắt ghi độ sâu
+    const clear = colors.topOpacity < 0.9;
+    materials.top.setValues({
+      opacity: clear ? colors.topOpacity : 1,
+      transparent: clear,
+      depthWrite: !clear,
+      roughness: clear ? 0.08 : 0.38,
+    });
+    // eslint-disable-next-line react-hooks/immutability -- đổi transparent cần biên dịch lại shader của vật liệu Three.js
+    materials.top.needsUpdate = true;
+    materials.bottom.color.set(colors.bottom);
+    materials.stem.color.set(switchColors ? switchColors.stem : stemColor);
+  }, [materials, stemColor, switchColors]);
 
   const centers = useMemo(() => keys.map((key) => keyCenter(key, layoutWidth, layoutDepth)), [keys, layoutWidth, layoutDepth]);
   const matrices = useMemo(() => centers.map(([x, z]) => composeMatrix(x, plateTopY, z)), [centers, plateTopY]);

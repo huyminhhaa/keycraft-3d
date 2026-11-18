@@ -98,7 +98,8 @@ export const PcbLayer: React.FC<PcbProps> = ({
     () => ({
       socket: new THREE.MeshStandardMaterial({ color: '#141416', roughness: 0.55 }),
       metal: new THREE.MeshStandardMaterial({ color: '#c9c3b3', roughness: 0.3, metalness: 1 }),
-      led: new THREE.MeshStandardMaterial({ color: '#f4f1ea', roughness: 0.25 }),
+      // Vỏ LED SMD: nhựa trắng ngà ánh vàng (không phải khối trắng tinh)
+      led: new THREE.MeshStandardMaterial({ color: '#d8d2bd', roughness: 0.35 }),
       usbBoard: new THREE.MeshStandardMaterial({ color: '#0f2f20', roughness: 0.5 }),
     }),
     []
@@ -158,11 +159,12 @@ export const FoamLayer: React.FC<LayerProps> = ({ keys, layoutWidth, layoutDepth
 
   const material = useMemo(() => {
     const pores = getSurfaceTexture('poron');
+    // Poron plate foam xám than: tách bạch với plate POM/PC trắng khi tách lớp, lỗ khí li ti hút sáng
     return new THREE.MeshStandardMaterial({
-      color: '#d9d2c4',
+      color: '#3d4045',
       roughness: 1,
       bumpMap: pores,
-      bumpScale: 0.8,
+      bumpScale: 1.2,
       roughnessMap: pores,
     });
   }, []);
