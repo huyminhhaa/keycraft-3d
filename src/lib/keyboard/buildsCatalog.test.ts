@@ -68,6 +68,24 @@ describe('màu switch thật', () => {
   });
 });
 
+describe('màu PCB và foam thật', () => {
+  it('AULA F75 mạch trắng foam trắng, Hi75 mạch đen Poron đen, Bridge75 foam be, Envoy mạch trắng', () => {
+    expect(findBuild('aula-f75-reaper')?.look).toMatchObject({ pcbColor: '#ecebe6', foamColor: '#e9e8e2' });
+    expect(findBuild('leobog-hi75-vertex')?.look).toMatchObject({ pcbColor: '#1b1c1f', foamColor: '#222326' });
+    expect(findBuild('bridge75-plus')?.look.foamColor).toBe('#cdb48c');
+    expect(findBuild('mode-envoy-pc')?.look.pcbColor).toBe('#ecebe6');
+  });
+
+  it('build chưa soi được video tháo máy thì để trống (dùng màu mặc định)', () => {
+    expect(findBuild('attack-shark-x85')?.look.pcbColor).toBeUndefined();
+    expect(findBuild('nuphy-halo75-v2')?.look.foamColor).toBeUndefined();
+  });
+
+  it('Hi75 dùng plate PP như trong video tháo máy', () => {
+    expect(findBuild('leobog-hi75-vertex')?.specs.plate).toBe('PP');
+  });
+});
+
 describe('build không foam', () => {
   it('Neo65 và Mode Envoy (theo video) không vẽ lớp foam; build có foam thì vẽ', async () => {
     const { hasNoFoam } = await import('@/components/canvas/KeyboardModel');

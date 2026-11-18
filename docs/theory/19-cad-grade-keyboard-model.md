@@ -99,6 +99,14 @@ Xoay cả bàn phím +6.5°, rồi cắt đáy vỏ dưới theo mặt phẳng `
 - Foam Poron xám than (tách bạch với plate POM/PC trắng); build ghi "Không foam" thì không vẽ lớp foam.
 - Tiêu đề sân khấu hiện tên build thật (ví dụ "Meletrix Zoom75") và linh kiện thật.
 
+### 5c. Màu PCB và foam thật theo từng mẫu
+- **Nguồn:** storyboard YouTube (lưới ảnh nhỏ YouTube tự tạo cho thanh tua) của video tháo máy/sound test, tải bằng `yt-dlp -j` rồi lấy các mảnh `sb0` ở 20–80% thời lượng, đoạn giữa video thường đang mở máy. Nhìn được bo mạch và foam mà không phải tải cả video.
+- **Kết quả soi:** AULA F75 mạch trắng + foam trắng; Leobog Hi75 mạch đen + Poron đen, plate PP (đã sửa `specs.plate`); Lucky65 (3 bản), Rainy75, Crush80, Q1 Max, Wooting 80HE mạch đen; Bridge75 mạch đen + foam be; Zoom75 mạch đen + foam nâu vàng; MonsGeek M1W mạch đen + Poron đen; Mode Envoy mạch trắng.
+- **Chưa thấy ruột trong video nên giữ màu mặc định:** Attack Shark X85, NuPhy Halo75 V2, AULA F99 Pro, Keychron K2 HE, Leobog Hi75C Pro (video tháo là Hi75, không phải Hi75C), Neo65 (video quay dưới đèn hồng, không chắc màu).
+- **Code:** `look.pcbColor` / `look.foamColor` (hex, tuỳ chọn) trong `builds.ts` → `KeyboardModel.tsx` truyền `build?.look.pcbColor` xuống `PcbLayer`, `foamColor` xuống `FoamLayer`. Không đi qua store vì màu này gắn chặt với build (đổi plate/switch không làm đổi mạch).
+- **`pcbPalette(mask)`** trong `proceduralTextures.ts` suy ra cả bảng màu từ một màu mask, tính HSL trong không gian **sRGB** (Three.js mặc định tính trong linear, làm đường đồng trên mạch đen sáng chói): mask tối → đường đồng sáng hơn 10%, chữ in lụa trắng; mask trắng → đường đồng tối hơn 7%, chữ in lụa đen (giống PCB trắng AULA thật). Màu mask nằm trong khoá cache texture nên hai build khác màu mạch không dùng chung texture.
+- **Thử tay:** đổi `PCB.white` trong `src/lib/keyboard/builds.ts` thành `'#1d3f8a'` (mạch xanh dương), chọn AULA F75, bấm "Tách 7 lớp": đường đồng tự sáng hơn, chữ in lụa vẫn trắng.
+
 ## 6. Nguồn & giới hạn
 - Thông số 11 build mới tra từ trang hãng/shop/review (Keychron, WOBKEY/Tom's Hardware, Divinikey, NuPhy/Tom's Hardware, Meletrix/CannonKeys, Wooting/TechPowerUp, Mode/Pantheon, Qwertykeys, MonsGeek). Chỗ nguồn mâu thuẫn ghi rõ trong `specs`.
 - Video sound test chọn theo cấu hình khớp và tạp âm ≤ 0.02; Halo75 V2, Wooting 80HE, Mode Envoy đã đổi sang video sạch hơn.

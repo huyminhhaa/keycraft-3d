@@ -565,14 +565,20 @@ export const KeyboardModel: React.FC = () => {
 
       {/* LỚP 2: PCB */}
       <group ref={pcbRef} name="PCB" position={[0, initial.pcb, 0]}>
-        <PcbLayer {...layerProps} ledEnabled={ledEnabled} ledColor={ledColor} ledBrightness={ledBrightness} />
+        <PcbLayer
+          {...layerProps}
+          ledEnabled={ledEnabled}
+          ledColor={ledColor}
+          ledBrightness={ledBrightness}
+          pcbColor={build?.look.pcbColor}
+        />
         <LayerLabel index="02" name="PCB" detail={details.pcb} visible={isExploded} x={labelX} />
       </group>
 
       {/* LỚP 3: FOAM */}
       <group ref={foamRef} name="Foam" position={[0, initial.foam, 0]}>
         {/* Build ghi "Không foam" (Neo65, Mode Envoy trong video): không vẽ lớp foam, chỉ giữ nhãn */}
-        {!hasNoFoam(build) && <FoamLayer {...layerProps} />}
+        {!hasNoFoam(build) && <FoamLayer {...layerProps} foamColor={build?.look.foamColor} />}
         <LayerLabel index="03" name={build ? 'Foam' : 'Foam Poron'} detail={details.foam} visible={isExploded} x={labelX} />
       </group>
 

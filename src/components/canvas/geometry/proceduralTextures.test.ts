@@ -1,5 +1,8 @@
 import { describe, it, expect, afterEach } from 'vitest';
+import * as THREE from 'three';
 import {
+  DEFAULT_PCB_MASK,
+  pcbPalette,
   MX_FOOTPRINT,
   SURFACE_SPECS,
   disposeProceduralTextures,
@@ -55,6 +58,28 @@ describe('không có canvas (jsdom) thì trả về null, không ném lỗi', ()
   it('bề mặt và PCB', () => {
     expect(getSurfaceTexture('pbt')).toBeNull();
     expect(getPcbTextures('t', 2, 1, [{ x: 0, z: 0 }])).toBeNull();
+  });
+});
+
+describe('pcbPalette', () => {
+  const lightness = (hex: string) => new THREE.Color(hex).getHSL({ h: 0, s: 0, l: 0 }, THREE.SRGBColorSpace).l;
+
+  it('mask tối (đen, xanh lá): đường đồng sáng hơn mask, chữ in lụa trắng', () => {
+    [DEFAULT_PCB_MASK, '#1b1c1f'].forEach((mask) => {
+      const p = pcbPalette(mask);
+      expect(lightness(p.trace)).toBeGreaterThan(lightness(p.mask));
+      expect(lightness(p.silk)).toBeGreaterThan(0.8);
+    });
+  });
+
+  it('mask trắng: đường đồng tối hơn mask, chữ in lụa đen để còn đọc được', () => {
+    const p = pcbPalette('#ecebe6');
+    expect(lightness(p.trace)).toBeLessThan(lightness(p.mask));
+    expect(lightness(p.silk)).toBeLessThan(0.2);
+  });
+
+  it('giữ nguyên màu mask (sRGB) sau khi đi qua THREE.Color', () => {
+    expect(pcbPalette('#ecebe6').mask).toBe('#ecebe6');
   });
 });
 

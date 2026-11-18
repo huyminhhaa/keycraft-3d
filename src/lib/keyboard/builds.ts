@@ -55,8 +55,21 @@ export const buildSchema = z.object({
     switchColors: z
       .object({ top: hex, bottom: hex, stem: hex, topOpacity: z.number().min(0.1).max(1) })
       .optional(),
+    /** Màu solder mask PCB thật (theo video tháo máy); bỏ trống = xanh lá mặc định */
+    pcbColor: hex.optional(),
+    /** Màu foam plate thật (theo video tháo máy); bỏ trống = Poron xám than mặc định */
+    foamColor: hex.optional(),
   }),
 });
+
+/* Màu PCB và foam soi từ storyboard video tháo máy trên YouTube */
+const PCB = { black: '#1b1c1f', white: '#ecebe6' } as const;
+const FOAM = {
+  white: '#e9e8e2',
+  black: '#222326',
+  beige: '#cdb48c',
+  tan: '#b88d62',
+} as const;
 
 /* Màu switch theo ảnh thật (kbd.news, Kinetic Labs, thumbnail video review switch) */
 const SWITCH_COLORS = {
@@ -123,6 +136,8 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       plateMaterial: 'polycarbonate',
       switchType: 'linear',
       switchColors: SWITCH_COLORS.reaper,
+      pcbColor: PCB.white,
+      foamColor: FOAM.white,
       caseShape: F75_SHAPE,
       shellStyle: 'aula',
     },
@@ -144,6 +159,8 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       plateMaterial: 'polycarbonate',
       switchType: 'linear',
       switchColors: SWITCH_COLORS.iceVein,
+      pcbColor: PCB.white,
+      foamColor: FOAM.white,
       caseShape: F75_SHAPE,
       shellStyle: 'aula',
     },
@@ -185,7 +202,7 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
     specs: {
       case: 'Nhôm sơn tĩnh điện',
       mount: 'Gasket mount (đệm Poron)',
-      plate: 'PC flex-cut',
+      plate: 'PP',
       foam: 'PO foam, IXPE, PO đáy, PET',
       switch: 'Vertex V1',
       keycap: 'MOA',
@@ -200,6 +217,8 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       plateMaterial: 'polycarbonate',
       switchType: 'linear',
       switchColors: SWITCH_COLORS.vertexV1,
+      pcbColor: PCB.black,
+      foamColor: FOAM.black,
       caseShape: { bezel: 0.3, cornerRadius: 0.06, knob: false },
       shellStyle: 'hi75',
       keycapProfile: 'moa',
@@ -250,6 +269,7 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       plateMaterial: 'fr4',
       switchType: 'linear',
       switchColors: SWITCH_COLORS.creamyYellowU1,
+      pcbColor: PCB.black,
       caseShape: LUCKY65_SHAPE,
       shellStyle: 'lucky65',
     },
@@ -271,6 +291,7 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       plateMaterial: 'fr4',
       switchType: 'linear',
       switchColors: SWITCH_COLORS.husky,
+      pcbColor: PCB.black,
       caseShape: LUCKY65_SHAPE,
       shellStyle: 'lucky65',
     },
@@ -292,6 +313,7 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       plateMaterial: 'fr4',
       switchType: 'tactile',
       switchColors: SWITCH_COLORS.turtle,
+      pcbColor: PCB.black,
       caseShape: LUCKY65_SHAPE,
       shellStyle: 'lucky65',
     },
@@ -351,6 +373,7 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       plateMaterial: 'fr4',
       switchType: 'linear',
       switchColors: SWITCH_COLORS.cocoa,
+      pcbColor: PCB.black,
       caseShape: { bezel: 0.24, cornerRadius: 0.12, knob: false },
     },
   },
@@ -378,6 +401,7 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       plateMaterial: 'fr4',
       switchType: 'linear',
       switchColors: SWITCH_COLORS.cocoa,
+      pcbColor: PCB.black,
       caseShape: { bezel: 0.24, cornerRadius: 0.1, knob: false },
       shellStyle: 'lucky65',
     },
@@ -406,6 +430,8 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       plateMaterial: 'fr4',
       switchType: 'linear',
       switchColors: SWITCH_COLORS.princess,
+      pcbColor: PCB.black,
+      foamColor: FOAM.beige,
       caseShape: { bezel: 0.24, cornerRadius: 0.1, knob: false },
       shellStyle: 'lucky65',
     },
@@ -434,6 +460,7 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       plateMaterial: 'polycarbonate',
       switchType: 'tactile',
       switchColors: SWITCH_COLORS.jupiterBanana,
+      pcbColor: PCB.black,
       caseShape: { bezel: 0.26, cornerRadius: 0.1, knob: true },
       keycapProfile: 'moa',
     },
@@ -518,6 +545,8 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       plateMaterial: 'polycarbonate',
       switchType: 'linear',
       switchColors: SWITCH_COLORS.morandi,
+      pcbColor: PCB.black,
+      foamColor: FOAM.tan,
       caseShape: { bezel: 0.24, cornerRadius: 0.1, knob: false },
       // Module góc phải 2U: bản gốc là màn hình LCD; bản EE trong video dùng núm
       shellStyle: 'lcd-75',
@@ -547,6 +576,7 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       plateMaterial: 'polycarbonate',
       switchType: 'linear',
       switchColors: SWITCH_COLORS.lekkerL45,
+      pcbColor: PCB.black,
       caseShape: { bezel: 0.2, cornerRadius: 0.14, knob: false },
     },
   },
@@ -574,6 +604,7 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       plateMaterial: 'aluminum',
       switchType: 'linear',
       switchColors: SWITCH_COLORS.xinhai,
+      pcbColor: PCB.white,
       caseShape: { bezel: 0.24, cornerRadius: 0.14, knob: false },
       shellStyle: 'frosted-pc',
     },
@@ -629,6 +660,8 @@ const BUILD_LIST: z.input<typeof buildSchema>[] = [
       plateMaterial: 'polycarbonate',
       switchType: 'linear',
       switchColors: SWITCH_COLORS.pianoPro,
+      pcbColor: PCB.black,
+      foamColor: FOAM.black,
       caseShape: { bezel: 0.24, cornerRadius: 0.12, knob: false },
     },
   },

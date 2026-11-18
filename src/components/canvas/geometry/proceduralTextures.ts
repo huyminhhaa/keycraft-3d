@@ -243,13 +243,42 @@ export const MX_FOOTPRINT: {
   diode: [5.6, 4.2],
 };
 
+/** Solder mask xanh lá kinh điển, dùng khi build chưa có màu PCB thật */
+export const DEFAULT_PCB_MASK = '#0e3b28';
+
+/**
+ * Bảng màu bo mạch suy ra từ màu solder mask:
+ * - đường đồng dưới lớp phủ: sáng hơn mask một chút (mask tối) hoặc tối hơn (mask sáng)
+ * - chữ in lụa: trắng trên mask tối, đen trên mask trắng (như PCB trắng AULA thật)
+ */
+export const pcbPalette = (mask: string): { mask: string; trace: string; silk: string } => {
+  const base = new THREE.Color(mask);
+  const hsl = { h: 0, s: 0, l: 0 };
+  // Tính trong không gian sRGB (cảm nhận mắt người), không phải linear
+  base.getHSL(hsl, THREE.SRGBColorSpace);
+  const isLight = hsl.l > 0.5;
+  const trace = new THREE.Color().setHSL(
+    hsl.h,
+    hsl.s,
+    isLight ? hsl.l - 0.07 : Math.min(1, hsl.l + 0.1),
+    THREE.SRGBColorSpace
+  );
+  return {
+    mask: `#${base.getHexString()}`,
+    trace: `#${trace.getHexString()}`,
+    silk: isLight ? '#2a2a2c' : '#e8ece9',
+  };
+};
+
 export const getPcbTextures = (
   key: string,
   width: number,
   depth: number,
-  switches: PcbSwitch[]
+  switches: PcbSwitch[],
+  maskColor: string = DEFAULT_PCB_MASK
 ): PcbTextures | null => {
-  const cacheKey = `pcb:${key}:${width.toFixed(3)}x${depth.toFixed(3)}`;
+  const palette = pcbPalette(maskColor);
+  const cacheKey = `pcb:${key}:${palette.mask}:${width.toFixed(3)}x${depth.toFixed(3)}`;
   const mapKey = `${cacheKey}:map`;
   const dataKey = `${cacheKey}:data`;
   if (cache.has(mapKey)) {
@@ -281,7 +310,7 @@ export const getPcbTextures = (
   };
 
   both((ctx, isData) => {
-    ctx.fillStyle = isData ? 'rgb(70, 120, 0)' : '#0e3b28';
+    ctx.fillStyle = isData ? 'rgb(70, 120, 0)' : palette.mask;
     ctx.fillRect(0, 0, w, h);
   });
 
@@ -289,7 +318,7 @@ export const getPcbTextures = (
   const rows = [...new Set(switches.map((s) => s.z.toFixed(3)))].map(Number);
   const cols = [...new Set(switches.map((s) => s.x.toFixed(2)))].map(Number);
   both((ctx, isData) => {
-    ctx.strokeStyle = isData ? 'rgb(150, 105, 40)' : '#1e6e47';
+    ctx.strokeStyle = isData ? 'rgb(150, 105, 40)' : palette.trace;
     ctx.lineWidth = Math.max(1, 0.45 * mm);
     rows.forEach((z) => {
       ctx.beginPath();
@@ -340,7 +369,7 @@ export const getPcbTextures = (
       for (let v = 0; v < 2; v++) circle(ctx, at(-7 + random() * 14, 7 + random() * 1.5), 0.45 * mm);
 
       // Chữ in lụa: SWn / Dn
-      ctx.fillStyle = isData ? 'rgb(110, 200, 0)' : '#e8ece9';
+      ctx.fillStyle = isData ? 'rgb(110, 200, 0)' : palette.silk;
       ctx.font = `600 ${Math.max(6, Math.round(1.7 * mm))}px Arial, sans-serif`;
       ctx.textBaseline = 'middle';
       const [sx, sy] = at(-6.8, 6.6);
@@ -352,7 +381,7 @@ export const getPcbTextures = (
 
   // Tên bo mạch ở mép sau
   both((ctx, isData) => {
-    ctx.fillStyle = isData ? 'rgb(110, 200, 0)' : '#e8ece9';
+    ctx.fillStyle = isData ? 'rgb(110, 200, 0)' : palette.silk;
     ctx.font = `700 ${Math.max(10, Math.round(3.2 * mm))}px Arial, sans-serif`;
     ctx.textBaseline = 'top';
     ctx.fillText('KEYCRAFT-PCB REV 2.0', px(-width / 2 + 0.06), pz(-depth / 2) + 0.6 * mm);

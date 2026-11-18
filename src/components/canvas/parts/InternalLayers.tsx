@@ -13,7 +13,13 @@ import {
   stabilizerCutouts,
   switchCutouts,
 } from '../geometry/plateGeometry';
-import { MX_FOOTPRINT, getPcbTextures, getSurfaceTexture, type SurfaceKind } from '../geometry/proceduralTextures';
+import {
+  DEFAULT_PCB_MASK,
+  MX_FOOTPRINT,
+  getPcbTextures,
+  getSurfaceTexture,
+  type SurfaceKind,
+} from '../geometry/proceduralTextures';
 import { StaticInstances, composeMatrix } from './StaticInstances';
 
 /** Độ dày các lớp (đơn vị thế giới) */
@@ -45,6 +51,8 @@ interface PcbProps extends LayerProps {
   ledEnabled: boolean;
   ledColor: string;
   ledBrightness: number;
+  /** Màu solder mask thật của build (đen, trắng…); bỏ trống = xanh lá mặc định */
+  pcbColor?: string;
 }
 
 const box = (x: number, y: number, z: number) => new THREE.BoxGeometry(x, y, z);
@@ -59,14 +67,15 @@ export const PcbLayer: React.FC<PcbProps> = ({
   ledEnabled,
   ledColor,
   ledBrightness,
+  pcbColor = DEFAULT_PCB_MASK,
 }) => {
   const width = keysWidth - 0.02;
   const depth = keysDepth - 0.02;
   const centers = useMemo(() => centersOf(keys, layoutWidth, layoutDepth), [keys, layoutWidth, layoutDepth]);
 
   const boardMaterial = useMemo(() => {
-    const textures = getPcbTextures(cacheKey, width, depth, centers.map(([x, z]) => ({ x, z })));
-    if (!textures) return new THREE.MeshPhysicalMaterial({ color: '#14211a', roughness: 0.55, metalness: 0.2 });
+    const textures = getPcbTextures(cacheKey, width, depth, centers.map(([x, z]) => ({ x, z })), pcbColor);
+    if (!textures) return new THREE.MeshPhysicalMaterial({ color: pcbColor, roughness: 0.55, metalness: 0.2 });
     return new THREE.MeshPhysicalMaterial({
       map: textures.map,
       bumpMap: textures.data,
@@ -79,7 +88,7 @@ export const PcbLayer: React.FC<PcbProps> = ({
       clearcoat: 0.25,
       clearcoatRoughness: 0.4,
     });
-  }, [cacheKey, width, depth, centers]);
+  }, [cacheKey, width, depth, centers, pcbColor]);
   useEffect(() => () => boardMaterial.dispose(), [boardMaterial]);
 
   const parts = useMemo(
@@ -100,11 +109,16 @@ export const PcbLayer: React.FC<PcbProps> = ({
       metal: new THREE.MeshStandardMaterial({ color: '#c9c3b3', roughness: 0.3, metalness: 1 }),
       // Vỏ LED SMD: nhựa trắng ngà ánh vàng (không phải khối trắng tinh)
       led: new THREE.MeshStandardMaterial({ color: '#d8d2bd', roughness: 0.35 }),
-      usbBoard: new THREE.MeshStandardMaterial({ color: '#0f2f20', roughness: 0.5 }),
+      usbBoard: new THREE.MeshStandardMaterial({ color: DEFAULT_PCB_MASK, roughness: 0.5 }),
     }),
     []
   );
   useEffect(() => () => Object.values(materials).forEach((m) => m.dispose()), [materials]);
+
+  // Bo mạch phụ USB cùng màu bo chính
+  useEffect(() => {
+    materials.usbBoard.color.set(pcbColor);
+  }, [materials, pcbColor]);
 
   // LED SMD sáng nhẹ theo màu đèn khi bật
   useEffect(() => {
@@ -146,7 +160,23 @@ export const PcbLayer: React.FC<PcbProps> = ({
 /* -------------------------------------------------------------------------- */
 /* Foam Poron có lỗ khoét                                                      */
 /* -------------------------------------------------------------------------- */
-export const FoamLayer: React.FC<LayerProps> = ({ keys, layoutWidth, layoutDepth, keysWidth, keysDepth, cacheKey }) => {
+/** Poron xám than mặc định khi build chưa có màu foam thật */
+export const DEFAULT_FOAM_COLOR = '#3d4045';
+
+interface FoamProps extends LayerProps {
+  /** Màu foam thật của build (Poron đen, foam trắng AULA, foam be Bridge75…) */
+  foamColor?: string;
+}
+
+export const FoamLayer: React.FC<FoamProps> = ({
+  keys,
+  layoutWidth,
+  layoutDepth,
+  keysWidth,
+  keysDepth,
+  cacheKey,
+  foamColor = DEFAULT_FOAM_COLOR,
+}) => {
   const geometry = useMemo(
     () =>
       createCutoutSlab(`foam:${cacheKey}`, keysWidth - 0.04, keysDepth - 0.04, FOAM_THICKNESS, [
@@ -161,7 +191,7 @@ export const FoamLayer: React.FC<LayerProps> = ({ keys, layoutWidth, layoutDepth
     const pores = getSurfaceTexture('poron');
     // Poron plate foam xám than: tách bạch với plate POM/PC trắng khi tách lớp, lỗ khí li ti hút sáng
     return new THREE.MeshStandardMaterial({
-      color: '#3d4045',
+      color: DEFAULT_FOAM_COLOR,
       roughness: 1,
       bumpMap: pores,
       bumpScale: 1.2,
@@ -169,6 +199,10 @@ export const FoamLayer: React.FC<LayerProps> = ({ keys, layoutWidth, layoutDepth
     });
   }, []);
   useEffect(() => () => material.dispose(), [material]);
+
+  useEffect(() => {
+    material.color.set(foamColor);
+  }, [material, foamColor]);
 
   return <mesh geometry={geometry} material={material} receiveShadow castShadow />;
 };
