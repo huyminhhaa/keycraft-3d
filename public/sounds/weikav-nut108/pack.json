@@ -2,7 +2,7 @@
   "id": "weikav-nut108",
   "name": "Weikav Nut108",
   "switch": "Linear tự lắp",
-  "noise": 0.0048,
+  "noise": 0.0112,
   "sourceUrl": "https://www.youtube.com/watch?v=pxaxT1yGAg0",
   "clips": {
     "alpha": [
@@ -25,9 +25,7 @@
     ],
     "space": [
       "space-01.wav",
-      "space-02.wav",
-      "space-03.wav",
-      "space-04.wav"
+      "space-02.wav"
     ],
     "up": [
       "up-01.wav",

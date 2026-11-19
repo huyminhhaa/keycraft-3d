@@ -4,6 +4,7 @@ import { POST as loginHandler } from './login/route';
 import { POST as logoutHandler } from './logout/route';
 import { GET as meHandler } from './me/route';
 import { POST as redeemCaptcha } from './captcha/route';
+import { solvePow } from '@/lib/auth/powCaptcha';
 import {
   signAccessToken,
   signRefreshToken,
@@ -155,6 +156,14 @@ describe('Auth API Routes', () => {
       expect(setCookie).toContain('Max-Age=0');
     });
 
+    it('chỉ nhận token qua cookie httpOnly: header Authorization: Bearer bị bỏ qua (401)', async () => {
+      const token = await signAccessToken({ userId: 'usr_bearer', email: 'b@keycraft.io', name: 'B', role: 'user' });
+      const res = await meHandler(
+        new Request('http://localhost:3000/api/auth/me', { headers: { authorization: `Bearer ${token}` } })
+      );
+      expect(res.status).toBe(401);
+    });
+
     it('đăng xuất thu hồi token phía server: dùng lại cookie cũ -> 401 (Token Blacklist)', async () => {
       const payload = {
         userId: 'usr_logout',
@@ -210,7 +219,7 @@ describe('Auth API Routes', () => {
           })
         );
 
-      let lastData: { captcha?: { challengeId: string; question: string; signature: string } } = {};
+      let lastData: { captcha?: { challengeId: string; difficulty: number; signature: string } } = {};
       for (let i = 0; i < 3; i++) {
         lastData = await (await login()).json();
       }
@@ -223,8 +232,8 @@ describe('Auth API Routes', () => {
       expect(noToken.status).toBe(400);
       expect((await noToken.json()).requireCaptcha).toBe(true);
 
-      // Giải đề -> nhận vé
-      const [, a, b] = challenge.question.match(/(\d+)\s*\+\s*(\d+)/) ?? [];
+      // Giải đề Proof-of-Work như trình duyệt -> nhận vé
+      const answer = await solvePow(challenge.challengeId, { difficulty: challenge.difficulty });
       const redeemRes = await redeemCaptcha(
         new Request('http://localhost:3000/api/auth/captcha', {
           method: 'POST',
@@ -232,7 +241,7 @@ describe('Auth API Routes', () => {
           body: JSON.stringify({
             challengeId: challenge.challengeId,
             signature: challenge.signature,
-            answer: String(Number(a) + Number(b)),
+            answer,
             email,
           }),
         })

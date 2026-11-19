@@ -17,12 +17,12 @@ import {
   MAX_FAILED_BEFORE_LOCKOUT,
   type CaptchaChallenge,
 } from './bruteForce';
+import { POW_DIFFICULTY, solvePow } from './powCaptcha';
+import { captchaDifficulty } from './bruteForce';
 
-const solve = (challenge: CaptchaChallenge): string => {
-  const match = challenge.question.match(/(\d+)\s*\+\s*(\d+)/);
-  if (!match) throw new Error('Không đọc được câu hỏi');
-  return (parseInt(match[1], 10) + parseInt(match[2], 10)).toString();
-};
+/** Giải đề Proof-of-Work như trình duyệt làm */
+const solve = (challenge: CaptchaChallenge): Promise<string> =>
+  solvePow(challenge.challengeId, { difficulty: challenge.difficulty });
 
 const randomIp = () => `10.${crypto.randomInt(0, 256)}.${crypto.randomInt(0, 256)}.${crypto.randomInt(1, 255)}`;
 
@@ -76,26 +76,37 @@ describe('Brute-force Shield & CAPTCHA System', () => {
   });
 
   describe('Signed Cryptographic CAPTCHA Challenge', () => {
-    it('sinh thử thách và xác thực đáp án chính xác', () => {
+    it('sinh đề Proof-of-Work và xác thực lời giải đúng', async () => {
       const challenge = generateCaptchaChallenge();
       expect(challenge.challengeId).toBeDefined();
-      expect(challenge.question).toContain('Vui lòng tính:');
+      expect(challenge.difficulty).toBe(captchaDifficulty());
       expect(challenge.signature).toHaveLength(64); // SHA-256 Hex
 
-      const isValid = verifyCaptchaChallenge(challenge.challengeId, solve(challenge), challenge.signature);
+      const isValid = verifyCaptchaChallenge(challenge.challengeId, (await solve(challenge)), challenge.signature);
       expect(isValid).toBe(true);
 
-      const isInvalid = verifyCaptchaChallenge(challenge.challengeId, '99999', challenge.signature);
-      expect(isInvalid).toBe(false);
+      // Nộp số bất kỳ (không đủ bit 0) hoặc chuỗi không phải số -> sai
+      const wrong = String(Number(await solve(challenge)) + 1);
+      expect(verifyCaptchaChallenge(challenge.challengeId, wrong, challenge.signature)).toBe(false);
+      expect(verifyCaptchaChallenge(challenge.challengeId, '12a', challenge.signature)).toBe(false);
     });
 
-    it('chữ ký sai độ dài / không phải hex KHÔNG làm sập (trước đây ném RangeError)', () => {
+    it('chữ ký sai độ dài / không phải hex KHÔNG làm sập (trước đây ném RangeError)', async () => {
       const challenge = generateCaptchaChallenge();
-      const answer = solve(challenge);
+      const answer = (await solve(challenge));
       expect(() => verifyCaptchaChallenge(challenge.challengeId, answer, 'abc')).not.toThrow();
       expect(verifyCaptchaChallenge(challenge.challengeId, answer, 'abc')).toBe(false);
       expect(verifyCaptchaChallenge(challenge.challengeId, answer, 'zz'.repeat(64))).toBe(false);
       expect(verifyCaptchaChallenge(123, answer, challenge.signature)).toBe(false);
+    });
+
+    it('độ khó mặc định 17 bit; env chỉ nhận 8–24 (không hạ về 0 được)', () => {
+      const saved = process.env.CAPTCHA_POW_DIFFICULTY;
+      process.env.CAPTCHA_POW_DIFFICULTY = '0';
+      expect(captchaDifficulty()).toBe(POW_DIFFICULTY);
+      delete process.env.CAPTCHA_POW_DIFFICULTY;
+      expect(captchaDifficulty()).toBe(17);
+      process.env.CAPTCHA_POW_DIFFICULTY = saved;
     });
 
     it('safeEqual so sánh hằng thời gian được mọi độ dài', () => {
@@ -104,10 +115,10 @@ describe('Brute-force Shield & CAPTCHA System', () => {
       expect(safeEqual('', 'x'.repeat(1000))).toBe(false);
     });
 
-    it('đề quá hạn 5 phút bị từ chối; sửa hạn trong challengeId làm hỏng chữ ký', () => {
+    it('đề quá hạn 5 phút bị từ chối; sửa hạn trong challengeId làm hỏng chữ ký', async () => {
       const issuedAt = Date.now();
       const challenge = generateCaptchaChallenge(issuedAt);
-      const answer = solve(challenge);
+      const answer = (await solve(challenge));
       const afterExpiry = issuedAt + CAPTCHA_CHALLENGE_TTL_SECONDS * 1000 + 1;
       expect(verifyCaptchaChallenge(challenge.challengeId, answer, challenge.signature, afterExpiry)).toBe(false);
 
@@ -121,7 +132,7 @@ describe('Brute-force Shield & CAPTCHA System', () => {
     it('giải đúng -> nhận vé; vé dùng được đúng 1 lần', async () => {
       const email = `nonce-${crypto.randomUUID()}@keycraft.io`;
       const challenge = generateCaptchaChallenge();
-      const token = await redeemCaptchaChallenge(challenge.challengeId, solve(challenge), challenge.signature, email);
+      const token = await redeemCaptchaChallenge(challenge.challengeId, (await solve(challenge)), challenge.signature, email);
 
       expect(token).toMatch(/^[A-Za-z0-9_-]{43}$/);
       expect(await consumeCaptchaToken(token, email)).toBe(true);
@@ -132,7 +143,7 @@ describe('Brute-force Shield & CAPTCHA System', () => {
     it('một đề chỉ đổi được 1 vé (chép lại request giải đề không có tác dụng)', async () => {
       const email = `once-${crypto.randomUUID()}@keycraft.io`;
       const challenge = generateCaptchaChallenge();
-      const answer = solve(challenge);
+      const answer = (await solve(challenge));
       const first = await redeemCaptchaChallenge(challenge.challengeId, answer, challenge.signature, email);
       const second = await redeemCaptchaChallenge(challenge.challengeId, answer, challenge.signature, email);
       expect(first).not.toBeNull();
@@ -143,7 +154,7 @@ describe('Brute-force Shield & CAPTCHA System', () => {
       const challenge = generateCaptchaChallenge();
       const token = await redeemCaptchaChallenge(
         challenge.challengeId,
-        solve(challenge),
+        (await solve(challenge)),
         challenge.signature,
         `a-${crypto.randomUUID()}@keycraft.io`
       );

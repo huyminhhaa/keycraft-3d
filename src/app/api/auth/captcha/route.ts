@@ -8,7 +8,7 @@ import {
 import { RATE_LIMITS, rateLimitHeaders, slidingWindowRateLimit } from '@/lib/security/rateLimit';
 import { getClientIp, KB, readJsonBody } from '@/lib/security/requestGuard';
 
-/** GET /api/auth/captcha: phát một đề toán mới (có chữ ký HMAC + hạn 5 phút) */
+/** GET /api/auth/captcha: phát một đề Proof-of-Work mới (có chữ ký HMAC + hạn 5 phút) */
 export async function GET() {
   // Cache Components có thể prerender GET handler lúc build -> mọi người nhận CÙNG một đề.
   // connection() buộc chạy theo từng request.
@@ -21,7 +21,8 @@ export async function GET() {
 
 const redeemSchema = z.object({
   challengeId: z.string().min(1).max(100),
-  answer: z.string().min(1).max(10),
+  // Lời giải Proof-of-Work: số nguyên không âm
+  answer: z.string().regex(/^\d{1,12}$/),
   signature: z.string().min(1).max(128),
   email: z.string().trim().min(3).max(254),
 });

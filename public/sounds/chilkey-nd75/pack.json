@@ -2,7 +2,7 @@
   "id": "chilkey-nd75",
   "name": "Chilkey ND75",
   "switch": "Chilkey Aster",
-  "noise": 0.0095,
+  "noise": 0.0085,
   "sourceUrl": "https://www.youtube.com/watch?v=7yf6nnEE2nM",
   "clips": {
     "alpha": [

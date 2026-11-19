@@ -1,5 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { detectOnsets, encodeWav, extractClips, packGain, renderClip, selectClips, type Clip } from './slicer';
+import {
+  detectOnsets,
+  encodeWav,
+  extractClips,
+  harmonicity,
+  MAX_HARMONICITY,
+  packGain,
+  renderClip,
+  selectClips,
+  type Clip,
+} from './slicer';
 
 const SR = 48000;
 
@@ -74,10 +84,89 @@ const clip = (over: Partial<Clip>): Clip => ({
   preNoise: 0.01,
   secondHit: 0.1,
   attackMs: 3,
+  harmonicity: 0,
+  contextHarmonicity: 0,
   ...over,
 });
 
+describe('harmonicity (phát hiện giọng nói / tiếng bíp lọt vào tiếng gõ)', () => {
+  const ms = (value: number) => Math.round((SR * value) / 1000);
+
+  /** Giọng giả: F0 dao động quanh 200Hz + 8 họa âm, biên độ giữ nguyên (như nguyên âm "a") */
+  const voice = (lengthMs: number, f0 = 200): Float32Array => {
+    const out = new Float32Array(ms(lengthMs));
+    for (let i = 0; i < out.length; i++) {
+      let s = 0;
+      for (let h = 1; h <= 8; h++) s += Math.sin((2 * Math.PI * f0 * h * i) / SR) / h;
+      out[i] = 0.3 * s;
+    }
+    return out;
+  };
+
+  /** Tiếng bíp sóng vuông 600Hz (như tiếng báo của phần mềm bàn phím) */
+  const beep = (lengthMs: number): Float32Array =>
+    Float32Array.from({ length: ms(lengthMs) }, (_, i) => (Math.sin((2 * Math.PI * 600 * i) / SR) >= 0 ? 0.2 : -0.2));
+
+  it('tiếng gõ thật (nhiễu tắt dần) có độ tuần hoàn thấp', () => {
+    const random = rng(7);
+    const strike = Float32Array.from({ length: ms(60) }, (_, i) => (random() * 2 - 1) * Math.exp(-i / ms(15)));
+    expect(harmonicity(strike, SR)).toBeLessThan(MAX_HARMONICITY);
+  });
+
+  it('tiếng "thock" cộng hưởng trầm 90Hz không bị nhầm là giọng nói (đã bỏ dải < 300Hz)', () => {
+    const random = rng(9);
+    const thock = Float32Array.from(
+      { length: ms(70) },
+      (_, i) => Math.exp(-i / ms(20)) * (0.5 * Math.sin((2 * Math.PI * 90 * i) / SR) + 0.2 * (random() * 2 - 1))
+    );
+    expect(harmonicity(thock, SR)).toBeLessThan(MAX_HARMONICITY);
+  });
+
+  it('giọng nói và tiếng bíp có độ tuần hoàn vượt ngưỡng', () => {
+    expect(harmonicity(voice(80), SR)).toBeGreaterThan(MAX_HARMONICITY);
+    expect(harmonicity(voice(80, 130), SR)).toBeGreaterThan(MAX_HARMONICITY);
+    expect(harmonicity(beep(60), SR)).toBeGreaterThan(MAX_HARMONICITY);
+  });
+
+  it('đoạn quá ngắn (< 30ms) trả về 0 vì chưa đủ 2 chu kỳ để kết luận', () => {
+    expect(harmonicity(voice(20), SR)).toBe(0);
+  });
+
+  it('extractClips đo được giọng nói chen vào sau tiếng gõ', () => {
+    const samples = recording(1, [{ at: 0.2, amp: 0.6, decayMs: 6 }]);
+    const talk = voice(150);
+    const at = Math.round(0.2 * SR) + ms(5);
+    talk.forEach((v, i) => (samples[at + i] += v * 0.5));
+    const [withVoice] = extractClips(samples, detectOnsets(samples, { sampleRate: SR }), { sampleRate: SR });
+    expect(withVoice.harmonicity).toBeGreaterThan(MAX_HARMONICITY);
+  });
+});
+
 describe('selectClips', () => {
+  it('loại đoạn có giọng nói / tiếng bíp dù to và sạch', () => {
+    const downs = Array.from({ length: 20 }, (_, i) => clip({ start: i * 10000 }));
+    const talking = clip({ start: 400000, harmonicity: 0.95 });
+    // Đoạn cắt tự nó sạch nhưng người review đang nói ngay trước đó (giọng bị tiếng gõ che)
+    const duringSpeech = clip({ start: 410000, contextHarmonicity: 0.9 });
+    const result = selectClips([...downs, talking, duringSpeech], { sampleRate: SR, alpha: 16, space: 2 });
+    const picked = [...result.alpha, ...result.space, ...result.up];
+    expect(picked).not.toContain(talking);
+    expect(picked).not.toContain(duringSpeech);
+  });
+
+  it('extractClips đo được giọng nói đang diễn ra NGAY TRƯỚC tiếng gõ', () => {
+    const samples = recording(1, [{ at: 0.5, amp: 0.6, decayMs: 6 }]);
+    const from = Math.round(0.3 * SR);
+    for (let i = 0; i < Math.round(0.19 * SR); i++) {
+      let s = 0;
+      for (let h = 1; h <= 8; h++) s += Math.sin((2 * Math.PI * 180 * h * i) / SR) / h;
+      samples[from + i] += 0.05 * s; // giọng nhỏ hơn tiếng gõ nhiều lần
+    }
+    const clips = extractClips(samples, detectOnsets(samples, { sampleRate: SR }), { sampleRate: SR });
+    const strike = clips.find((c) => Math.abs(c.start / SR - 0.5) < 0.01);
+    expect(strike?.contextHarmonicity).toBeGreaterThan(MAX_HARMONICITY);
+  });
+
   it('tiếng to là tiếng nhấn, tiếng nhỏ là tiếng nhả; loại tiếng ù lên đỉnh chậm', () => {
     const downs = Array.from({ length: 20 }, (_, i) => clip({ start: i * 10000, peak: 0.5 + (i % 3) * 0.02 }));
     const ups = Array.from({ length: 5 }, (_, i) => clip({ start: 300000 + i * 10000, peak: 0.12 }));

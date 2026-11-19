@@ -41,8 +41,12 @@ export function parseCookieHeader(cookieHeader: string): Record<string, string> 
 }
 
 /**
- * Xác thực request bằng Access Token (httpOnly cookie hoặc Bearer header)
- * và tự động silent-refresh nếu Access Token hết hạn nhưng Refresh Token còn hạn.
+ * Xác thực request bằng Access Token trong httpOnly cookie (DUY NHẤT một kênh) và tự động
+ * silent-refresh nếu Access Token hết hạn nhưng Refresh Token còn hạn.
+ *
+ * Không nhận header `Authorization: Bearer`: client của KeyCraft không dùng nó, mà mỗi kênh xác
+ * thực thêm vào là thêm một đường cho token bị lộ (log proxy, localStorage, extension) được dùng lại.
+ * Cookie httpOnly + SameSite=Lax + kiểm tra Origin ở `src/proxy.ts` là đủ chống CSRF.
  */
 export async function getSessionFromRequest(req: Request): Promise<SessionResult> {
   return getSessionFromHeaders(req.headers);
@@ -50,16 +54,9 @@ export async function getSessionFromRequest(req: Request): Promise<SessionResult
 
 /** Như `getSessionFromRequest` nhưng nhận thẳng Headers (dùng trong Server Component qua `headers()`) */
 export async function getSessionFromHeaders(headers: Headers): Promise<SessionResult> {
-  const cookieHeader = headers.get('cookie') || '';
-  const authHeader = headers.get('authorization') || '';
-
-  const cookies = parseCookieHeader(cookieHeader);
-  let accessToken = cookies[COOKIE_ACCESS_TOKEN];
+  const cookies = parseCookieHeader(headers.get('cookie') || '');
+  const accessToken = cookies[COOKIE_ACCESS_TOKEN];
   const refreshToken = cookies[COOKIE_REFRESH_TOKEN];
-
-  if (!accessToken && authHeader.startsWith('Bearer ')) {
-    accessToken = authHeader.substring(7).trim();
-  }
 
   // 1. Kiểm tra Access Token (chữ ký + hạn + chưa bị thu hồi khi đăng xuất)
   if (accessToken) {
@@ -124,10 +121,7 @@ export async function getSessionFromHeaders(headers: Headers): Promise<SessionRe
  */
 export async function revokeSessionTokens(req: Request): Promise<number> {
   const cookies = parseCookieHeader(req.headers.get('cookie') || '');
-  const authHeader = req.headers.get('authorization') || '';
-  const accessToken =
-    cookies[COOKIE_ACCESS_TOKEN] ||
-    (authHeader.startsWith('Bearer ') ? authHeader.substring(7).trim() : '');
+  const accessToken = cookies[COOKIE_ACCESS_TOKEN];
   const refreshToken = cookies[COOKIE_REFRESH_TOKEN];
 
   let revoked = 0;

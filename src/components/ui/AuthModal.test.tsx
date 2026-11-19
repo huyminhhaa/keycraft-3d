@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { AuthModal } from './AuthModal';
 import { useAuthStore } from '@/store/useAuthStore';
 
@@ -58,23 +58,24 @@ describe('AuthModal Component', () => {
     expect(screen.getByRole('button', { name: 'Tạo tài khoản' })).toBeDefined();
   });
 
-  it('hiển thị ô thử thách CAPTCHA khi requireCaptcha = true', () => {
+  it('khi requireCaptcha: tự giải đề Proof-of-Work, không bắt người dùng nhập gì', async () => {
     useAuthStore.setState({
       isAuthModalOpen: true,
       authModalMode: 'login',
       requireCaptcha: true,
       captchaChallenge: {
         challengeId: 'test-challenge-123',
-        question: '7 + 8 = ?',
+        difficulty: 4,
         signature: 'valid-sig',
       },
     });
 
     render(<AuthModal />);
 
-    expect(screen.getByText('Thử thách chống Brute-force:')).toBeDefined();
-    expect(screen.getByText('7 + 8 = ?')).toBeDefined();
-    expect(screen.getByPlaceholderText('Nhập kết quả số vào đây...')).toBeDefined();
+    expect(screen.getByText('Xác minh chống dò mật khẩu')).toBeDefined();
+    // Đề dễ (4 bit) giải xong gần như tức thì -> nút Đăng nhập mở lại
+    await waitFor(() => expect(screen.getByText('Đã xác minh. Bạn có thể đăng nhập.')).toBeDefined());
+    expect((screen.getByRole('button', { name: 'Đăng nhập' }) as HTMLButtonElement).disabled).toBe(false);
   });
 
   it('gọi closeModal khi bấm nút Đóng (X)', () => {

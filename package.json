@@ -9,10 +9,12 @@
     "lint": "eslint",
     "test": "vitest",
     "sounds": "tsx scripts/sounds/make-pack.ts",
+    "sounds:audit": "tsx scripts/sounds/audit-sources.ts",
     "photos": "tsx scripts/builds/sync-photos.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.121",
+    "@noble/hashes": "^2.4.0",
     "@react-three/drei": "^10.7.9",
     "@react-three/fiber": "^9.8.2",
     "@react-three/postprocessing": "^3.2.2",

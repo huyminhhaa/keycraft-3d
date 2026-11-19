@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { RotateCcw, User, LogOut, Share2 } from 'lucide-react';
+import { RotateCcw, User, LogOut, Share2, LayoutGrid } from 'lucide-react';
 import { useKeyboardStore } from '@/store/useKeyboardStore';
 import { useStageStore, SidebarTab } from '@/store/useStageStore';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -69,6 +69,14 @@ export const Sidebar: React.FC = () => {
                 </span>
                 <span className="max-w-[100px] truncate text-[11px] font-medium">{user.name}</span>
               </div>
+              <Link
+                href="/my-builds"
+                title="Bản build của tôi"
+                aria-label="Bản build của tôi"
+                className="rounded-full border border-white/5 p-1.5 text-muted transition-colors hover:border-white/10 hover:bg-white/5 hover:text-ink"
+              >
+                <LayoutGrid className="h-3.5 w-3.5" />
+              </Link>
               <button
                 type="button"
                 onClick={() => logout()}

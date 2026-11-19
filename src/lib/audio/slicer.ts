@@ -89,7 +89,82 @@ export interface Clip {
   secondHit: number;
   /** Thời gian từ đầu đoạn tới đỉnh (ms): tiếng chạm đáy lên đỉnh trong vài ms; tiếng ù, nhạc nền phồng lên chậm */
   attackMs: number;
+  /**
+   * Độ tuần hoàn phần đuôi trên dải > 300Hz (0..1). Tiếng gõ thật tắt nhanh như tiếng ồn (≈ 0–0.6);
+   * giọng người nói chen vào hoặc tiếng bíp giữ nguyên một chu kỳ có họa âm (≈ 0.7–1).
+   */
+  harmonicity: number;
+  /**
+   * Độ tuần hoàn của 150ms NGAY TRƯỚC tiếng gõ. Giọng nói kéo dài hàng trăm ms: người review đang nói
+   * thì khoảng lặng giữa hai tiếng gõ cũng có giọng, kể cả khi đoạn cắt quá ngắn để tự đo được.
+   */
+  contextHarmonicity: number;
 }
+
+/** Khoảng phía trước tiếng gõ dùng để dò giọng nói đang nói dở */
+export const CONTEXT_MS = 150;
+
+/** Ngưỡng loại đoạn có giọng nói / tiếng bíp (hiệu chỉnh trên 1.287 đoạn của 41 gói) */
+export const MAX_HARMONICITY = 0.65;
+
+/** Lọc thông cao bậc 1 (gọi 2 lần ≈ bậc 2) */
+const highpass = (x: Float32Array, hz: number, sampleRate: number): Float32Array => {
+  const a = Math.exp((-2 * Math.PI * hz) / sampleRate);
+  const y = new Float32Array(x.length);
+  let prevX = 0;
+  let prevY = 0;
+  for (let i = 0; i < x.length; i++) {
+    prevY = a * (prevY + x[i] - prevX);
+    prevX = x[i];
+    y[i] = prevY;
+  }
+  return y;
+};
+
+/**
+ * Độ tuần hoàn của đoạn tín hiệu: đỉnh tự tương quan chuẩn hoá cao nhất ứng với chu kỳ 70–1000Hz,
+ * chỉ tính đỉnh cục bộ có "chỗ lõm" phía trước sâu ≥ 0.3 (tiếng ồn/tiếng trầm mượt có tự tương quan
+ * giảm đều, không có đỉnh như vậy). Bỏ dải < 300Hz để tiếng "thock" cộng hưởng thân phím không bị tính.
+ * Đoạn ngắn hơn ~30ms trả về 0 (không đủ 2 chu kỳ để kết luận).
+ */
+export const harmonicity = (segment: Float32Array, sampleRate: number): number => {
+  const factor = Math.max(1, Math.round(sampleRate / 12000));
+  const filtered = highpass(highpass(segment, 300, sampleRate), 300, sampleRate);
+  // Hạ mẫu kèm lấy trung bình (lọc chống chồng phổ thô) cho nhanh
+  const x = new Float32Array(Math.floor(filtered.length / factor));
+  for (let i = 0; i < x.length; i++) {
+    let sum = 0;
+    for (let k = 0; k < factor; k++) sum += filtered[i * factor + k];
+    x[i] = sum / factor;
+  }
+  const rate = sampleRate / factor;
+  const minLag = Math.round(rate / 1000);
+  const maxLag = Math.round(rate / 70);
+  if (x.length < maxLag * 2) return 0;
+
+  const r = new Float32Array(maxLag + 2);
+  for (let lag = 1; lag <= maxLag + 1; lag++) {
+    let xy = 0;
+    let xx = 0;
+    let yy = 0;
+    for (let i = 0; i + lag < x.length; i++) {
+      xy += x[i] * x[i + lag];
+      xx += x[i] * x[i];
+      yy += x[i + lag] * x[i + lag];
+    }
+    r[lag] = xx > 0 && yy > 0 ? xy / Math.sqrt(xx * yy) : 0;
+  }
+
+  let best = 0;
+  let dip = 1;
+  for (let lag = 1; lag <= maxLag; lag++) {
+    dip = Math.min(dip, r[lag]);
+    if (lag < minLag) continue;
+    const isPeak = r[lag] > r[lag - 1] && r[lag] >= r[lag + 1];
+    if (isPeak && r[lag] - dip >= 0.3 && r[lag] > best) best = r[lag];
+  }
+  return best;
+};
 
 const rms = (samples: Float32Array, from: number, to: number): number => {
   const a = Math.max(0, from);
@@ -163,6 +238,8 @@ export const extractClips = (samples: Float32Array, onsets: number[], options: E
       preNoise: rms(samples, start - ms(20), start) / peak,
       secondHit: later / peak,
       attackMs: ((peakAt - start) * 1000) / sr,
+      harmonicity: harmonicity(samples.subarray(Math.min(end, start + ms(20)), end), sr),
+      contextHarmonicity: harmonicity(samples.subarray(Math.max(0, start - ms(CONTEXT_MS)), start), sr),
     });
   });
   return clips;
@@ -181,6 +258,8 @@ export interface SelectOptions {
   up?: number;
   /** Khoảng thời gian (giây) trong bản thu chỉ gõ phím cách. Không có thì đoán theo tiếng trầm + ngân. */
   spaceRanges?: [number, number][];
+  /** Ngưỡng độ tuần hoàn riêng (mặc định MAX_HARMONICITY); hạ xuống cho video người review nói nhiều */
+  maxHarmonicity?: number;
 }
 
 /** Tiếng gõ thật đạt đỉnh trong khoảng này kể từ đầu đoạn (gồm 2ms lấy dư phía trước) */
@@ -198,8 +277,14 @@ export const selectClips = (clips: Clip[], options: SelectOptions): Selection =>
   const want = { alpha: options.alpha ?? 16, space: options.space ?? 6, up: options.up ?? 10 };
   if (clips.length === 0) return { alpha: [], space: [], up: [] };
 
-  // Chỉ giữ tiếng lên đỉnh nhanh: loại tiếng ù/nhạc nền lọt qua bước tìm onset
-  const strikes = clips.filter((c) => c.attackMs <= MAX_ATTACK_MS);
+  // Chỉ giữ tiếng lên đỉnh nhanh (loại tiếng ù/nhạc nền) và không có giọng nói / tiếng bíp ở đuôi
+  const maxHarmonicity = options.maxHarmonicity ?? MAX_HARMONICITY;
+  const strikes = clips.filter(
+    (c) =>
+      c.attackMs <= MAX_ATTACK_MS &&
+      c.harmonicity < maxHarmonicity &&
+      c.contextHarmonicity < maxHarmonicity
+  );
   const loud = percentile(strikes.map((c) => c.peak), 0.9);
   const clean = strikes.filter((c) => c.preNoise < 0.1 && c.secondHit < 0.55);
   const pool = clean.length >= want.alpha ? clean : strikes;

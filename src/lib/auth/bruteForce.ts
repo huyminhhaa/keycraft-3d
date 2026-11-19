@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { redis, REDIS_KEYS } from '@/lib/redis';
 import { getSigningSecret } from '@/lib/auth/jwt';
+import { POW_DIFFICULTY, verifyPow } from '@/lib/auth/powCaptcha';
 
 export const MAX_FAILED_BEFORE_CAPTCHA = 3;
 export const MAX_FAILED_BEFORE_LOCKOUT = 5;
@@ -278,12 +279,15 @@ export async function recordFailedLoginForIp(
 }
 
 // ==============================================================================
-// Cơ chế Sinh & Kiểm tra Thử thách CAPTCHA (Cryptographic Signed Challenge)
+// CAPTCHA Proof-of-Work có chữ ký (xem src/lib/auth/powCaptcha.ts)
+// Trước đây là phép cộng 2 số: script giải tức thì, không tốn gì. Giờ mỗi đề buộc trình duyệt
+// (hoặc bot) băm SHA-256 trung bình 2^17 lần -> người dùng không phải gõ, bot phải trả CPU mỗi lượt.
 // ==============================================================================
 export interface CaptchaChallenge {
-  /** `<uuid>.<expiresAtMs>` — hạn dùng nằm trong phần được ký nên không sửa được */
+  /** `<uuid>.<expiresAtMs>` — vừa là "muối" của bài băm, vừa chứa hạn dùng (được ký nên không sửa được) */
   challengeId: string;
-  question: string;
+  /** Số bit 0 đầu tiên mà SHA-256("<challengeId>:<n>") phải đạt */
+  difficulty: number;
   signature: string;
 }
 
@@ -291,29 +295,27 @@ export interface CaptchaChallenge {
 function captchaKey(): Buffer {
   return crypto
     .createHmac('sha256', getSigningSecret('JWT_SECRET'))
-    .update('keycraft-captcha-v2')
+    .update('keycraft-captcha-pow-v3')
     .digest();
 }
 
-function signChallenge(challengeId: string, answer: string): string {
-  return crypto.createHmac('sha256', captchaKey()).update(`${challengeId}:${answer}`).digest('hex');
+/** Độ khó PoW: env CAPTCHA_POW_DIFFICULTY (8..24) hoặc mặc định 17 bit */
+export function captchaDifficulty(): number {
+  const value = Number(process.env.CAPTCHA_POW_DIFFICULTY);
+  return Number.isInteger(value) && value >= 8 && value <= 24 ? value : POW_DIFFICULTY;
 }
 
-/**
- * Sinh thử thách CAPTCHA dạng toán học kèm chữ ký HMAC chống làm giả
- */
+/** Chữ ký phủ cả độ khó: không hạ độ khó xuống 0 rồi nộp lời giải rẻ được */
+function signChallenge(challengeId: string, difficulty: number): string {
+  return crypto.createHmac('sha256', captchaKey()).update(`${challengeId}:${difficulty}`).digest('hex');
+}
+
+/** Sinh đề Proof-of-Work kèm chữ ký HMAC chống làm giả */
 export function generateCaptchaChallenge(nowMs = Date.now()): CaptchaChallenge {
-  const num1 = crypto.randomInt(1, 21);
-  const num2 = crypto.randomInt(1, 21);
-  const answer = (num1 + num2).toString();
   const expiresAt = nowMs + CAPTCHA_CHALLENGE_TTL_SECONDS * 1000;
   const challengeId = `${crypto.randomUUID()}.${expiresAt}`;
-
-  return {
-    challengeId,
-    question: `Vui lòng tính: ${num1} + ${num2} = ?`,
-    signature: signChallenge(challengeId, answer),
-  };
+  const difficulty = captchaDifficulty();
+  return { challengeId, difficulty, signature: signChallenge(challengeId, difficulty) };
 }
 
 function challengeExpiry(challengeId: string): number | null {
@@ -324,7 +326,7 @@ function challengeExpiry(challengeId: string): number | null {
 }
 
 /**
- * Xác thực câu trả lời CAPTCHA (chữ ký + hạn dùng). Không ném lỗi với input lạ.
+ * Xác thực lời giải CAPTCHA: chữ ký đề + hạn dùng + lời giải Proof-of-Work. Không ném lỗi với input lạ.
  * Lưu ý: hàm này KHÔNG đánh dấu đề đã dùng — luồng đăng nhập phải đi qua
  * `redeemCaptchaChallenge` để nhận vé dùng 1 lần.
  */
@@ -337,16 +339,17 @@ export function verifyCaptchaChallenge(
   if (typeof challengeId !== 'string' || typeof answer !== 'string' || typeof signature !== 'string') {
     return false;
   }
-  if (!challengeId || !answer.trim() || !signature || challengeId.length > 100 || answer.length > 10) {
+  if (!challengeId || !signature || challengeId.length > 100 || !/^\d{1,12}$/.test(answer)) {
     return false;
   }
 
   const expiresAt = challengeExpiry(challengeId);
   if (expiresAt === null || expiresAt < nowMs) return false;
 
-  const expectedSignature = signChallenge(challengeId, answer.trim());
   // So khớp an toàn chống timing attack, không sập khi độ dài khác nhau
-  return safeEqual(signature, expectedSignature);
+  const difficulty = captchaDifficulty();
+  if (!safeEqual(signature, signChallenge(challengeId, difficulty))) return false;
+  return verifyPow(challengeId, answer, difficulty);
 }
 
 /**

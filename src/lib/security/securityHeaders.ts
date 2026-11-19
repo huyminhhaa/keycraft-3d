@@ -1,16 +1,15 @@
 /**
- * HTTP Security Headers chuẩn OWASP, dùng trong `next.config.ts` -> `headers()`.
- * File này được next.config.ts import trực tiếp nên KHÔNG dùng alias `@/`.
+ * HTTP Security Headers chuẩn OWASP.
  *
- * Vì sao CSP còn `'unsafe-inline'` cho script?
- * App bật `cacheComponents` (Partial Prerendering): vỏ HTML tĩnh được build sẵn, Next chèn
- * script inline (`self.__next_f.push(...)`) để nạp dữ liệu RSC. CSP dạng nonce bắt buộc render
- * động mọi trang và Next ghi rõ là KHÔNG tương thích PPR. Ta bù bằng các chỉ thị chặn đường
- * khai thác XSS phổ biến nhất mà không làm vỡ Next:
- *   - `script-src-attr 'none'`: cấm handler inline kiểu `<img onerror=...>`
- *   - `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`, `frame-ancestors 'none'`
- *   - `connect-src` chỉ cho phép chính origin (trình duyệt không bao giờ gọi thẳng
- *     Neon / Upstash / Gemini — các dịch vụ đó chỉ được gọi từ server)
+ * - Header tĩnh (X-Frame-Options, HSTS...): `next.config.ts` -> `headers()`, áp cho mọi route.
+ * - CSP cho trang HTML: `src/proxy.ts` sinh NONCE mới cho từng request:
+ *     script-src 'self' 'nonce-<ngẫu nhiên>' 'strict-dynamic'
+ *   Script inline chỉ chạy nếu mang đúng nonce của request đó -> script XSS chèn vào trang không
+ *   có nonce nên bị trình duyệt chặn. KHÔNG còn 'unsafe-inline' cho script.
+ *   'strict-dynamic': script đã được tin (có nonce) được phép nạp tiếp các chunk JS của Next.
+ * - CSP cho API (JSON): `default-src 'none'` — phản hồi API không bao giờ cần chạy gì.
+ *
+ * File này được next.config.ts và proxy.ts import nên KHÔNG dùng alias `@/`.
  */
 
 export interface HeaderEntry {
@@ -20,6 +19,8 @@ export interface HeaderEntry {
 
 export interface CspOptions {
   isDev: boolean;
+  /** Nonce base64 của request hiện tại */
+  nonce: string;
 }
 
 /** Nguồn ảnh ngoài: avatar Google (OAuth) + kho ảnh CDN phổ biến cho ảnh build */
@@ -29,16 +30,26 @@ const IMAGE_HOSTS = [
   'https://res.cloudinary.com',
 ];
 
-export function buildContentSecurityPolicy({ isDev }: CspOptions): string {
+/** Nonce 128-bit ngẫu nhiên (Web Crypto, chạy được trong proxy) */
+export function generateNonce(): string {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  let binary = '';
+  bytes.forEach((b) => (binary += String.fromCharCode(b)));
+  return btoa(binary);
+}
+
+export function buildContentSecurityPolicy({ isDev, nonce }: CspOptions): string {
   const directives: Record<string, string[]> = {
     'default-src': ["'self'"],
+    // 'self' chỉ là dự phòng cho trình duyệt cũ không hiểu 'strict-dynamic'.
     // 'unsafe-eval' chỉ ở dev (React dựng lại stack lỗi bằng eval). Production không có.
-    'script-src': ["'self'", "'unsafe-inline'", ...(isDev ? ["'unsafe-eval'"] : [])],
+    'script-src': ["'self'", `'nonce-${nonce}'`, "'strict-dynamic'", ...(isDev ? ["'unsafe-eval'"] : [])],
     'script-src-attr': ["'none'"],
-    // framer-motion / React gắn style inline trên phần tử -> cần 'unsafe-inline' cho style
+    // Thuộc tính style="" (framer-motion, màu bàn phím) không gắn nonce được -> vẫn cần 'unsafe-inline'
+    // cho STYLE. CSS không chạy được mã nên rủi ro thấp hơn hẳn script.
     'style-src': ["'self'", "'unsafe-inline'"],
     'img-src': ["'self'", 'data:', 'blob:', ...IMAGE_HOSTS],
-    // next/font tự host font Geist -> chỉ cần 'self'
     'font-src': ["'self'", 'data:'],
     // three.js loader đọc data:/blob: URI; dev cần websocket cho HMR
     'connect-src': ["'self'", 'data:', 'blob:', ...(isDev ? ['ws:', 'wss:'] : [])],
@@ -57,9 +68,12 @@ export function buildContentSecurityPolicy({ isDev }: CspOptions): string {
     .join('; ');
 }
 
-export function buildSecurityHeaders({ isDev }: CspOptions): HeaderEntry[] {
+/** CSP cho phản hồi API (JSON / stream): không cho tải hay chạy bất cứ thứ gì */
+export const API_CONTENT_SECURITY_POLICY = "default-src 'none'; frame-ancestors 'none'; base-uri 'none'";
+
+/** Header tĩnh áp cho mọi route (CSP của trang do proxy đặt riêng theo nonce) */
+export function buildSecurityHeaders(): HeaderEntry[] {
   return [
-    { key: 'Content-Security-Policy', value: buildContentSecurityPolicy({ isDev }) },
     // Chống Clickjacking (trình duyệt cũ không hiểu frame-ancestors)
     { key: 'X-Frame-Options', value: 'DENY' },
     // Chống MIME sniffing (ví dụ file .txt bị đoán thành script)
@@ -71,4 +85,31 @@ export function buildSecurityHeaders({ isDev }: CspOptions): HeaderEntry[] {
     // Cô lập cửa sổ khỏi trang khác mở nó (chống tabnabbing / XS-Leaks)
     { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
   ];
+}
+
+// ------------------------------------------------------------------------------
+// Chống CSRF lớp 2 cho API (lớp 1 là cookie SameSite=Lax)
+// ------------------------------------------------------------------------------
+
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
+/**
+ * Request ghi dữ liệu đến từ một trang web KHÁC (CSRF)?
+ * - `Sec-Fetch-Site: cross-site` (trình duyệt tự gắn, JS không sửa được) -> chặn
+ * - `Origin` khác host của app -> chặn
+ * - Không có cả hai header (curl, server-to-server): không phải CSRF qua trình duyệt -> cho qua
+ */
+export function isCrossSiteMutation(method: string, headers: Headers, appHost: string): boolean {
+  if (SAFE_METHODS.has(method.toUpperCase())) return false;
+
+  const fetchSite = headers.get('sec-fetch-site');
+  if (fetchSite === 'cross-site') return true;
+
+  const origin = headers.get('origin');
+  if (!origin) return false;
+  try {
+    return new URL(origin).host !== appHost;
+  } catch {
+    return true; // Origin rác ("null" từ iframe sandbox, data: URL...) -> chặn
+  }
 }

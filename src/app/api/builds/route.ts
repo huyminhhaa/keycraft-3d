@@ -38,7 +38,7 @@ export async function GET(req: Request) {
  */
 export async function POST(req: Request) {
   try {
-    // 1. Xác thực tuỳ chọn (cookie / Bearer, đã kiểm tra danh sách đen token)
+    // 1. Xác thực tuỳ chọn (cookie httpOnly, đã kiểm tra danh sách đen token)
     const session = await getSessionFromRequest(req);
     const userId = session.authenticated && session.user ? session.user.id : null;
 

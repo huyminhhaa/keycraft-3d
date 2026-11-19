@@ -17,8 +17,11 @@ export interface CreateBuildInput {
   isPublic?: boolean;
 }
 
-// In-memory fallback repository khi PostgreSQL offline hoặc trong môi trường test
-const memoryBuilds = new Map<string, Build>();
+// In-memory fallback repository khi PostgreSQL offline hoặc trong môi trường test.
+// Gắn vào globalThis: ở `next dev`, route API và trang được đóng gói thành các module riêng,
+// mỗi bên một Map thì build vừa lưu qua API sẽ không hiện trên trang.
+const globalForBuilds = globalThis as unknown as { keycraftMemoryBuilds?: Map<string, Build> };
+const memoryBuilds = (globalForBuilds.keycraftMemoryBuilds ??= new Map<string, Build>());
 
 /**
  * Reset memory store (dùng trong test)
@@ -210,6 +213,31 @@ export async function getBuildBySlug(
   }
 
   return { ...record };
+}
+
+/**
+ * Mọi bản build của một người dùng (cả công khai lẫn riêng tư), mới nhất trước.
+ * Chỉ gọi với userId lấy từ phiên đăng nhập phía server — không bao giờ từ input của client.
+ */
+export async function listUserBuilds(userId: string, limit = 200): Promise<Build[]> {
+  if (process.env.NODE_ENV !== 'test') {
+    try {
+      return await db
+        .select()
+        .from(builds)
+        .where(eq(builds.userId, userId))
+        .orderBy(desc(builds.createdAt))
+        .limit(limit);
+    } catch {
+      // Database offline -> Fallback in-memory
+    }
+  }
+
+  return Array.from(memoryBuilds.values())
+    .filter((b) => b.userId === userId)
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    .slice(0, limit)
+    .map((b) => ({ ...b }));
 }
 
 // ==============================================================================

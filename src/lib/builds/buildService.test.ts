@@ -10,6 +10,7 @@ import {
   isBuildOwner,
   updateBuild,
   deleteBuild,
+  listUserBuilds,
 } from './buildService';
 import type { KeyboardState } from '@/types/keyboard';
 
@@ -170,5 +171,23 @@ describe('Phân quyền bản build (chống IDOR)', () => {
     expect((await deleteBuild(build.slug, 'user-a')).status).toBe('ok');
     expect(await getBuildBySlug(build.slug, false)).toBeNull();
     expect((await deleteBuild(build.slug, 'user-a')).status).toBe('not_found');
+  });
+});
+
+describe('listUserBuilds', () => {
+  beforeEach(() => {
+    resetMemoryBuilds();
+  });
+
+  it('chỉ trả build của đúng người dùng, gồm cả riêng tư, mới nhất trước', async () => {
+    const first = await createBuild({ title: 'Cũ', config: mockKeyboardConfig, userId: 'me', isPublic: true });
+    await new Promise((r) => setTimeout(r, 5));
+    const second = await createBuild({ title: 'Mới riêng tư', config: mockKeyboardConfig, userId: 'me', isPublic: false });
+    await createBuild({ title: 'Của người khác', config: mockKeyboardConfig, userId: 'other' });
+    await createBuild({ title: 'Ẩn danh', config: mockKeyboardConfig, userId: null });
+
+    const mine = await listUserBuilds('me');
+    expect(mine.map((b) => b.slug)).toEqual([second.slug, first.slug]);
+    expect(mine.some((b) => !b.isPublic)).toBe(true);
   });
 });

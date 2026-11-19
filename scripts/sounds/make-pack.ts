@@ -36,6 +36,8 @@ interface Source {
   end?: number;
   /** Khoảng thời gian (giây, tính từ `start`) chỉ gõ phím cách */
   space?: [number, number][];
+  /** Ngưỡng lọc giọng nói / tiếng bíp riêng cho video này (mặc định MAX_HARMONICITY = 0.65) */
+  maxHarmonicity?: number;
 }
 
 const run = (command: string, args: string[]): void => {
@@ -67,7 +69,11 @@ const makePack = (source: Source): PackManifest => {
   const samples = decode(download(source.url), source.start, source.end);
   const onsets = detectOnsets(samples, { sampleRate: SAMPLE_RATE });
   const clips = extractClips(samples, onsets, { sampleRate: SAMPLE_RATE });
-  const selection = selectClips(clips, { sampleRate: SAMPLE_RATE, spaceRanges: source.space });
+  const selection = selectClips(clips, {
+    sampleRate: SAMPLE_RATE,
+    spaceRanges: source.space,
+    maxHarmonicity: source.maxHarmonicity,
+  });
   if (selection.alpha.length < 4) throw new Error(`chỉ tìm được ${selection.alpha.length} tiếng gõ sạch (cần ≥ 4)`);
 
   const dir = join(OUT_ROOT, source.id);

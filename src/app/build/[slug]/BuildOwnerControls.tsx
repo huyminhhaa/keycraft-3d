@@ -83,7 +83,7 @@ export function BuildOwnerControls({ slug, title, description, isPublic }: Build
         setError(await readError(res, 'Không xoá được bản build.'));
         return;
       }
-      router.push('/studio');
+      router.push('/my-builds');
     } catch {
       setError('Lỗi kết nối. Vui lòng thử lại.');
     } finally {

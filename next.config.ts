@@ -1,11 +1,11 @@
 import type { NextConfig } from "next";
-import { buildSecurityHeaders } from "./src/lib/security/securityHeaders";
+import { API_CONTENT_SECURITY_POLICY, buildSecurityHeaders } from "./src/lib/security/securityHeaders";
 
 const nextConfig: NextConfig = {
   /* config options here */
   output: "standalone",
-  cacheComponents: true,
-  partialPrefetching: true,
+  // Không bật cacheComponents (Partial Prerendering): CSP dùng nonce theo từng request
+  // (src/proxy.ts) không tương thích với vỏ HTML build sẵn của PPR.
   // Không lộ "X-Powered-By: Next.js" (giảm thông tin cho kẻ dò quét phiên bản)
   poweredByHeader: false,
   images: {
@@ -15,9 +15,13 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        // Áp dụng cho mọi route: trang, API, file tĩnh
+        // Header tĩnh cho mọi route; CSP của trang HTML do src/proxy.ts gắn kèm nonce
         source: "/:path*",
-        headers: buildSecurityHeaders({ isDev: process.env.NODE_ENV === "development" }),
+        headers: buildSecurityHeaders(),
+      },
+      {
+        source: "/api/:path*",
+        headers: [{ key: "Content-Security-Policy", value: API_CONTENT_SECURITY_POLICY }],
       },
     ];
   },

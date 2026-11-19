@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { connection } from 'next/server';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { AuthHydrator } from '@/components/ui/AuthHydrator';
 import './globals.css';
@@ -23,11 +24,15 @@ export const viewport: Viewport = {
   themeColor: '#141416',
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // CSP nonce (src/proxy.ts) đổi theo từng request: trang phải render theo request để Next gắn đúng
+  // nonce vào script. Trang build sẵn lúc build sẽ mang script không có nonce và bị CSP chặn.
+  await connection();
+
   return (
     <html lang="vi" className={`${geistSans.variable} ${geistMono.variable} h-full`}>
       <body className="min-h-full">

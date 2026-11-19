@@ -37,7 +37,7 @@ describe('BuildOwnerControls', () => {
     expect(JSON.parse(String(init?.body))).toEqual({ title: 'Tên mới', description: 'POM plate', isPublic: false });
   });
 
-  it('xoá cần bấm xác nhận lần 2, xong thì về Studio', async () => {
+  it('xoá cần bấm xác nhận lần 2, xong thì về trang Bản build của tôi', async () => {
     const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce(okResponse);
     render(<BuildOwnerControls {...props} />);
 
@@ -46,7 +46,7 @@ describe('BuildOwnerControls', () => {
     expect(screen.getByRole('alertdialog', { name: 'Xác nhận xoá bản build' })).toBeDefined();
 
     fireEvent.click(screen.getByRole('button', { name: 'Xoá vĩnh viễn' }));
-    await waitFor(() => expect(router.push).toHaveBeenCalledWith('/studio'));
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith('/my-builds'));
     expect(fetchSpy.mock.calls[0][1]?.method).toBe('DELETE');
   });
 

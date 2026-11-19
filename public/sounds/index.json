@@ -21,7 +21,7 @@
     "id": "aula-f87-pro",
     "name": "AULA F87 Pro",
     "switch": "Leobog Graywood V4",
-    "noise": 0.0072
+    "noise": 0.0076
   },
   {
     "id": "aula-f99-asura",
@@ -39,7 +39,7 @@
     "id": "aula-nova75-pro",
     "name": "AULA Nova75 Pro",
     "switch": "AULA",
-    "noise": 0.0129
+    "noise": 0.0133
   },
   {
     "id": "aula-s75-pro",
@@ -57,7 +57,7 @@
     "id": "chilkey-nd75",
     "name": "Chilkey ND75",
     "switch": "Chilkey Aster",
-    "noise": 0.0095
+    "noise": 0.0085
   },
   {
     "id": "cidoo-qk61-v2",
@@ -141,7 +141,7 @@
     "id": "mchose-g75-v2",
     "name": "MCHOSE G75 V2",
     "switch": "MCHOSE Quick Gold V3",
-    "noise": 0.0171
+    "noise": 0.0167
   },
   {
     "id": "mchose-g87-v2",
@@ -189,13 +189,13 @@
     "id": "riccks-rs8",
     "name": "Riccks RS8",
     "switch": "Bsun TaiChi",
-    "noise": 0.0065
+    "noise": 0.0071
   },
   {
     "id": "weikav-nut108",
     "name": "Weikav Nut108",
     "switch": "Linear tự lắp",
-    "noise": 0.0048
+    "noise": 0.0112
   },
   {
     "id": "weikav-nut65",
@@ -213,7 +213,7 @@
     "id": "weikav-nut87",
     "name": "Weikav Nut87",
     "switch": "HMX",
-    "noise": 0.0044
+    "noise": 0.0043
   },
   {
     "id": "weikav-stars75s",
@@ -237,7 +237,7 @@
     "id": "wobkey-zen65",
     "name": "Wobkey Zen65",
     "switch": "HMX Violet",
-    "noise": 0.0022
+    "noise": 0.0024
   },
   {
     "id": "wooting-80he",

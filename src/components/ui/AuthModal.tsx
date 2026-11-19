@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ShieldAlert, RefreshCw, Lock, Mail, User as UserIcon } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
+import { usePowSolver } from '@/lib/auth/usePowSolver';
 
 interface AuthFormProps {
   mode: 'login' | 'register';
@@ -22,21 +23,24 @@ const AuthForm: React.FC<AuthFormProps> = ({ mode }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [captchaAnswer, setCaptchaAnswer] = useState('');
+
+  // Đề Proof-of-Work được trình duyệt tự giải ở nền; người dùng không phải nhập gì
+  const needsCaptcha = requireCaptcha && mode === 'login';
+  const pow = usePowSolver(needsCaptcha ? captchaChallenge : null);
+  const captchaPending = needsCaptcha && !pow.answer;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (mode === 'login') {
+      if (captchaPending) return;
       await login({
         email,
         password,
-        captchaAnswer: requireCaptcha ? captchaAnswer : undefined,
+        captchaAnswer: needsCaptcha ? (pow.answer ?? undefined) : undefined,
         captchaChallengeId: captchaChallenge?.challengeId,
         captchaSignature: captchaChallenge?.signature,
       });
-      // Mỗi đề chỉ dùng được 1 lần: lần gửi sau luôn là đề mới nên xoá đáp án cũ
-      setCaptchaAnswer('');
     } else {
       await register({
         name,
@@ -95,37 +99,39 @@ const AuthForm: React.FC<AuthFormProps> = ({ mode }) => {
         </div>
       </div>
 
-      {/* Thử thách Brute-force Shield CAPTCHA khi nhập sai >= 3 lần */}
-      {requireCaptcha && mode === 'login' && (
-        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3.5">
+      {/* Xác minh chống bot (Proof-of-Work) khi đã nhập sai >= 3 lần */}
+      {needsCaptcha && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3.5" role="status" aria-live="polite">
           <div className="flex items-center justify-between text-[12px]">
-            <span className="font-medium text-amber-400">Thử thách chống Brute-force:</span>
-            <button
-              type="button"
-              onClick={fetchCaptcha}
-              className="flex items-center gap-1 text-[11px] text-muted hover:text-ink"
-            >
-              <RefreshCw className="h-3 w-3" />
-              <span>Đổi câu đố</span>
-            </button>
+            <span className="font-medium text-amber-400">Xác minh chống dò mật khẩu</span>
+            {!captchaChallenge && (
+              <button
+                type="button"
+                onClick={fetchCaptcha}
+                className="flex items-center gap-1 text-[11px] text-muted hover:text-ink"
+              >
+                <RefreshCw className="h-3 w-3" />
+                <span>Tải lại</span>
+              </button>
+            )}
           </div>
-          <p className="mt-1 text-[13px] font-semibold tabular-nums text-ink">
-            {captchaChallenge?.question || 'Đang tải câu đố...'}
+          <p className="mt-1 text-[12px] leading-relaxed text-muted">
+            {pow.answer
+              ? 'Đã xác minh. Bạn có thể đăng nhập.'
+              : 'Trình duyệt đang tự giải một phép tính nhỏ để chứng minh bạn không phải bot, chỉ mất khoảng 1 giây.'}
           </p>
-          <input
-            type="text"
-            required
-            value={captchaAnswer}
-            onChange={(e) => setCaptchaAnswer(e.target.value)}
-            placeholder="Nhập kết quả số vào đây..."
-            className="mt-2 w-full rounded border border-line bg-canvas px-3 py-1.5 text-[13px] text-ink focus:border-ink focus:outline-none"
-          />
+          <div className="mt-2 h-1 overflow-hidden rounded-full bg-canvas" aria-hidden>
+            <div
+              className="h-full rounded-full bg-amber-400 transition-[width] duration-200"
+              style={{ width: `${Math.round((pow.answer ? 1 : pow.progress) * 100)}%` }}
+            />
+          </div>
         </div>
       )}
 
       <button
         type="submit"
-        disabled={isLoading}
+        disabled={isLoading || captchaPending}
         className="btn-press flex w-full items-center justify-center rounded-md bg-ink py-2.5 text-[13px] font-medium text-canvas transition-opacity hover:opacity-95 disabled:opacity-50"
       >
         {isLoading ? (

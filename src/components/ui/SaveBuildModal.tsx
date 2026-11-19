@@ -3,7 +3,9 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Share2, Copy, Check, ExternalLink, Sparkles } from 'lucide-react';
+import Link from 'next/link';
 import { useKeyboardStore } from '@/store/useKeyboardStore';
+import { useAuthStore } from '@/store/useAuthStore';
 
 interface SaveBuildModalProps {
   isOpen: boolean;
@@ -12,6 +14,7 @@ interface SaveBuildModalProps {
 
 export function SaveBuildModal({ isOpen, onClose }: SaveBuildModalProps) {
   const keyboardState = useKeyboardStore();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [isPublic, setIsPublic] = useState(true);
@@ -240,6 +243,20 @@ export function SaveBuildModal({ isOpen, onClose }: SaveBuildModalProps) {
                     )}
                   </button>
                 </div>
+
+                {isAuthenticated ? (
+                  <p className="text-xs text-zinc-400">
+                    Đã lưu vào{' '}
+                    <Link href="/my-builds" className="font-medium text-zinc-100 underline underline-offset-4 hover:text-white">
+                      Bản build của tôi
+                    </Link>
+                    . Bạn có thể sửa, đổi riêng tư hoặc xoá ở đó.
+                  </p>
+                ) : (
+                  <p className="text-xs text-amber-300/90">
+                    Bạn chưa đăng nhập nên bản build này không gắn với tài khoản và không sửa/xoá được về sau.
+                  </p>
+                )}
 
                 <div className="flex justify-center gap-3 pt-2">
                   <a

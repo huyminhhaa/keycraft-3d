@@ -185,7 +185,8 @@
         "id": "weikav-nut108",
         "name": "Weikav Nut108",
         "switch": "Linear tự lắp",
-        "url": "https://www.youtube.com/watch?v=pxaxT1yGAg0"
+        "url": "https://www.youtube.com/watch?v=pxaxT1yGAg0",
+        "maxHarmonicity": 0.45
     },
     {
         "id": "wobkey-zen65",
