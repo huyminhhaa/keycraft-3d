@@ -22,8 +22,27 @@ const KeyboardScene = dynamic(() => import('@/components/canvas/KeyboardScene'),
   loading: () => <SceneFallback />,
 });
 
+// Bề rộng cột trái: 360px cho các tab cấu hình; tab Trợ lý AI rộng hơn để đọc thoải mái,
+// chế độ Focus 640px (không quá 55vw để sân khấu 3D vẫn còn chỗ trên màn 1024px)
+const SIDEBAR_COLUMNS = {
+  default: 'lg:grid-cols-[360px_minmax(0,1fr)]',
+  chat: 'lg:grid-cols-[440px_minmax(0,1fr)]',
+  chatWide: 'lg:grid-cols-[min(640px,55vw)_minmax(0,1fr)]',
+  closed: 'lg:grid-cols-[minmax(0,1fr)]',
+} as const;
+
 export default function StudioPage() {
   const sidebarOpen = useStageStore((s) => s.sidebarOpen);
+  const activeTab = useStageStore((s) => s.activeTab);
+  const chatWide = useStageStore((s) => s.chatWide);
+
+  const columns = !sidebarOpen
+    ? SIDEBAR_COLUMNS.closed
+    : activeTab !== 'ai'
+      ? SIDEBAR_COLUMNS.default
+      : chatWide
+        ? SIDEBAR_COLUMNS.chatWide
+        : SIDEBAR_COLUMNS.chat;
 
   // Tải sẵn gói tiếng gõ thật để lần gõ đầu tiên đã có tiếng
   useEffect(() => {
@@ -32,9 +51,7 @@ export default function StudioPage() {
 
   return (
     <main
-      className={`flex h-dvh flex-col bg-canvas lg:grid ${
-        sidebarOpen ? 'lg:grid-cols-[360px_minmax(0,1fr)]' : 'lg:grid-cols-[minmax(0,1fr)]'
-      }`}
+      className={`flex h-dvh flex-col bg-canvas lg:grid lg:transition-[grid-template-columns] lg:duration-300 lg:ease-[cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:transition-none ${columns}`}
     >
       {/* Sân khấu: trên cùng ở mobile, bên phải ở desktop */}
       <section aria-label="Mô hình bàn phím 3D" className="stage relative h-[46svh] shrink-0 lg:order-2 lg:h-dvh">

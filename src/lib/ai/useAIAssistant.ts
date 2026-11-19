@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { parseSSELines, applyToolToStore, SSEChunkEvent } from './chatStream';
 import { useAuthStore } from '@/store/useAuthStore';
+import { MAX_CHAT_TEXT_BYTES, sanitizeChatHistory } from './chatPayload';
 import {
   prepareClientAttachment,
   type PreparedAttachment,
@@ -277,10 +278,20 @@ export function useAIAssistant(options: UseAIAssistantOptions = {}) {
       abortControllerRef.current = controller;
 
       try {
-        const payloadMessages = [...messages, userMessage].map((m) => ({
-          role: m.role,
-          content: m.content,
-        }));
+        // Gửi đúng phần server dùng: 20 tin gần nhất, mỗi tin <= 2.000 ký tự, bỏ tin báo lỗi,
+        // và bớt tin cũ nếu vẫn vượt ngân sách 100KB văn bản của /api/chat
+        const payloadMessages = sanitizeChatHistory(
+          [...messages, userMessage]
+            .filter((m) => m.status !== 'error')
+            .map((m) => ({ role: m.role, content: m.content }))
+        );
+        const encoder = new TextEncoder();
+        while (
+          payloadMessages.length > 1 &&
+          encoder.encode(JSON.stringify(payloadMessages)).byteLength > MAX_CHAT_TEXT_BYTES - 4096
+        ) {
+          payloadMessages.shift();
+        }
 
         const payloadBody: Record<string, unknown> = {
           messages: payloadMessages,

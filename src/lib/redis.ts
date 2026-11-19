@@ -8,11 +8,26 @@ export const REDIS_KEYS = {
   AUTH_FAIL: (identifier: string) => `keycraft:auth:fails:${identifier}`,
   AUTH_LOCKOUT: (identifier: string) => `keycraft:auth:lockout:${identifier}`,
 
-  // 2. Rate Limiting cho AI Chatbot và API
+  // Chống Password Spraying: theo dõi theo IP (số lần sai + tập email đã thử)
+  AUTH_IP_FAIL: (ip: string) => `keycraft:auth:ipfails:${ip}`,
+  AUTH_IP_ACCOUNTS: (ip: string) => `keycraft:auth:ipaccounts:${ip}`,
+  AUTH_IP_LOCKOUT: (ip: string) => `keycraft:auth:iplockout:${ip}`,
+
+  // CAPTCHA dùng 1 lần: đề đã giải (chống đổi 1 đề lấy nhiều vé) + vé nonce sau khi giải
+  CAPTCHA_USED: (challengeId: string) => `keycraft:captcha:used:${challengeId}`,
+  CAPTCHA_TOKEN: (nonce: string) => `keycraft:captcha:token:${nonce}`,
+
+  // Danh sách đen JWT đã đăng xuất (theo jti)
+  TOKEN_BLACKLIST: (jti: string) => `keycraft:auth:revoked:${jti}`,
+
+  // 2. Rate Limiting cho AI Chatbot và API (Sliding Window, sorted set)
   AI_RATE_LIMIT: (ip: string) => `keycraft:ratelimit:ai:${ip}`,
+  RATE_LIMIT: (scope: string, id: string) => `keycraft:ratelimit:${scope}:${id}`,
 
   // 3. Cache danh sách Bản build thịnh hành (Trending Builds)
   TRENDING_BUILDS: 'keycraft:cache:trending_builds',
+  // Số phiên bản cache trending: tăng lên là mọi trang trending đã cache hết hiệu lực
+  TRENDING_VERSION: 'keycraft:cache:trending_builds:version',
   BUILD_DETAIL: (slug: string) => `keycraft:cache:build:${slug}`,
 } as const;
 

@@ -15,6 +15,9 @@ interface StageState {
   activeTab: SidebarTab;
   /** Thanh cấu hình bên trái (desktop) đang mở hay thu gọn để sân khấu chiếm trọn màn hình */
   sidebarOpen: boolean;
+  /** Khung chat AI ở chế độ rộng (Focus) 640px thay vì 440px — chỉ có tác dụng ở tab Trợ lý AI trên desktop */
+  chatWide: boolean;
+  toggleChatWide: () => void;
   /** Lỗi khi nạp file .glb của mẫu đang chọn (null = không lỗi); web tạm hiện mẫu dựng bằng code */
   modelError: string | null;
   setModelError: (message: string | null) => void;
@@ -33,6 +36,8 @@ export const useStageStore = create<StageState>((set) => ({
   // Mở studio là thấy ngay thư viện build phím thật
   activeTab: 'builds',
   sidebarOpen: true,
+  chatWide: false,
+  toggleChatWide: () => set((state) => ({ chatWide: !state.chatWide })),
   modelError: null,
   setModelError: (modelError) => set({ modelError }),
   toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),

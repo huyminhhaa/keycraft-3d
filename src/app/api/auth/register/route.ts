@@ -4,11 +4,35 @@ import { db } from '@/db';
 import { users } from '@/db/schema';
 import { hashPassword, validatePasswordStrength } from '@/lib/auth/password';
 import { signAccessToken, signRefreshToken, buildAuthCookieHeaders } from '@/lib/auth/jwt';
+import { RATE_LIMITS, rateLimitHeaders, slidingWindowRateLimit } from '@/lib/security/rateLimit';
+import { getClientIp, KB, readJsonBody } from '@/lib/security/requestGuard';
+
+const isProduction = () => process.env.NODE_ENV === 'production';
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const { name, email, password } = body;
+    // 0. Chống spam tạo tài khoản: tối đa 5 lượt / 10 phút / IP (đếm cả lượt không hợp lệ)
+    const limit = await slidingWindowRateLimit('register', getClientIp(req), RATE_LIMITS.register);
+    if (!limit.success) {
+      return NextResponse.json(
+        {
+          error: `Bạn đã đăng ký quá nhiều lần. Vui lòng thử lại sau ${Math.ceil(
+            limit.retryAfterSeconds / 60
+          )} phút.`,
+        },
+        { status: 429, headers: rateLimitHeaders(limit) }
+      );
+    }
+
+    const body = await readJsonBody(req, 4 * KB);
+    if (!body.ok) {
+      return NextResponse.json({ error: body.error }, { status: body.status });
+    }
+    const raw = (typeof body.data === 'object' && body.data !== null ? body.data : {}) as Record<
+      string,
+      unknown
+    >;
+    const { name, email, password } = raw;
 
     // 1. Thẩm định dữ liệu đầu vào
     if (!name || typeof name !== 'string' || name.trim().length < 2) {
@@ -17,11 +41,24 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
+    if (name.trim().length > 100) {
+      return NextResponse.json(
+        { error: 'Họ và tên không được vượt quá 100 ký tự.' },
+        { status: 400 }
+      );
+    }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!email || typeof email !== 'string' || !emailRegex.test(email.trim())) {
+    if (!email || typeof email !== 'string' || email.length > 254 || !emailRegex.test(email.trim())) {
       return NextResponse.json(
         { error: 'Địa chỉ email không đúng định dạng.' },
+        { status: 400 }
+      );
+    }
+
+    if (typeof password !== 'string' || password.length > 200) {
+      return NextResponse.json(
+        { error: 'Mật khẩu phải chứa từ 8 đến 200 ký tự.' },
         { status: 400 }
       );
     }
@@ -51,7 +88,8 @@ export async function POST(req: Request) {
         );
       }
     } catch (dbErr) {
-      // Trong trường hợp Postgres chưa bật hoặc offline trong môi trường test
+      // Production: không có DB thì không được cấp token cho tài khoản "ảo"
+      if (isProduction()) throw dbErr;
       console.warn('[AUTH_REGISTER_DB_NOTICE]:', dbErr instanceof Error ? dbErr.message : dbErr);
     }
 
@@ -87,7 +125,8 @@ export async function POST(req: Request) {
           avatarUrl: inserted[0].avatarUrl,
         };
       }
-    } catch {
+    } catch (insertErr) {
+      if (isProduction()) throw insertErr;
       // Fallback cho môi trường test/dev offline
     }
 

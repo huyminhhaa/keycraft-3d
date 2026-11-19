@@ -544,6 +544,35 @@ body {
   scrollbar-color: var(--surface-2) transparent;
 }
 
+/* Khung chat AI: thanh cuộn kính mảnh, chỉ sáng lên khi rê chuột vào khung,
+   mép trên/dưới mờ dần để tin nhắn trôi vào/ra mềm mại */
+.chat-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+  mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
+  transition: scrollbar-color 200ms var(--ease);
+}
+
+.chat-scroll:hover,
+.chat-scroll:focus-within {
+  scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+}
+
+.chat-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: transparent;
+}
+
+.chat-scroll:hover::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

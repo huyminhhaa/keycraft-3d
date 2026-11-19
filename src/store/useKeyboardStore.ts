@@ -211,8 +211,14 @@ export const useKeyboardStore = create<KeyboardStore>((set) => ({
       const needsSoundUpdate =
         partial.plateMaterial !== undefined || partial.switchType !== undefined;
 
+      // Bỏ các khoá mang giá trị undefined: AI chỉ gửi vài trường, `...partial` thô sẽ ghi đè
+      // keycapColor... thành undefined và làm sập StageOverlay (toLowerCase của undefined)
+      const definedPartial = Object.fromEntries(
+        Object.entries(partial).filter(([, value]) => value !== undefined)
+      ) as typeof partial;
+
       return {
-        ...partial,
+        ...definedPartial,
         cameraPreset: nextCamera,
         // Mẫu .glb giữ layout của file dù AI đề xuất layout khác
         layout: getModelEntry(partial.modelId ?? state.modelId).source === 'glb' ? state.layout : (partial.layout ?? state.layout),

@@ -35,6 +35,8 @@ const AuthForm: React.FC<AuthFormProps> = ({ mode }) => {
         captchaChallengeId: captchaChallenge?.challengeId,
         captchaSignature: captchaChallenge?.signature,
       });
+      // Mỗi đề chỉ dùng được 1 lần: lần gửi sau luôn là đề mới nên xoá đáp án cũ
+      setCaptchaAnswer('');
     } else {
       await register({
         name,

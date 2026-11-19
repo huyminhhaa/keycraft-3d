@@ -114,10 +114,38 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   login: async (credentials) => {
     set({ isLoading: true, errorMessage: null });
     try {
+      const { captchaAnswer, captchaChallengeId, captchaSignature, ...loginBody } = credentials;
+      let captchaToken: string | undefined;
+
+      // Bước 1 (khi bị yêu cầu CAPTCHA): đổi đáp án lấy vé dùng 1 lần, TTL 3 phút
+      if (get().requireCaptcha && captchaAnswer && captchaChallengeId && captchaSignature) {
+        const captchaRes = await fetch('/api/auth/captcha', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            challengeId: captchaChallengeId,
+            answer: captchaAnswer,
+            signature: captchaSignature,
+            email: credentials.email,
+          }),
+        });
+        const captchaData = await captchaRes.json();
+        if (!captchaRes.ok || typeof captchaData.captchaToken !== 'string') {
+          set({
+            errorMessage: captchaData.error || 'Câu trả lời CAPTCHA không chính xác.',
+            requireCaptcha: true,
+            captchaChallenge: captchaData.captcha || null,
+          });
+          return { success: false, error: captchaData.error };
+        }
+        captchaToken = captchaData.captchaToken;
+      }
+
+      // Bước 2: đăng nhập kèm vé (server xoá vé ngay khi kiểm tra -> không replay được)
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(credentials),
+        body: JSON.stringify({ ...loginBody, ...(captchaToken ? { captchaToken } : {}) }),
       });
 
       const data = await res.json();

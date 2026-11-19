@@ -1,7 +1,9 @@
 import React, { Suspense } from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getBuildBySlug } from '@/lib/builds/buildService';
+import { headers } from 'next/headers';
+import { canViewBuild, getBuildBySlug, isBuildOwner } from '@/lib/builds/buildService';
+import { getSessionFromHeaders } from '@/lib/auth/session';
 import { BuildDetailClient } from './BuildDetailClient';
 
 interface BuildPageProps {
@@ -12,11 +14,13 @@ async function BuildContent({ params }: BuildPageProps) {
   const { slug } = await params;
   const build = await getBuildBySlug(slug, true);
 
-  if (!build) {
+  // Build riêng tư: chỉ chủ sở hữu xem được, người khác thấy 404 như build không tồn tại
+  const session = await getSessionFromHeaders(await headers());
+  if (!build || !canViewBuild(build, session.user?.id ?? null)) {
     notFound();
   }
 
-  return <BuildDetailClient build={build} />;
+  return <BuildDetailClient build={build} isOwner={isBuildOwner(build, session.user?.id ?? null)} />;
 }
 
 export default function BuildPage({ params }: BuildPageProps) {

@@ -1,8 +1,13 @@
-import { eq, desc, sql } from 'drizzle-orm';
+import { and, eq, desc, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { builds, type Build, type NewBuild } from '@/db/schema';
 import { redis, REDIS_KEYS } from '@/lib/redis';
 import type { KeyboardState } from '@/types/keyboard';
+import {
+  currentTrendingCacheKey,
+  invalidateTrendingCache,
+  TRENDING_CACHE_TTL_SECONDS,
+} from './trendingCache';
 
 export interface CreateBuildInput {
   title: string;
@@ -64,12 +69,8 @@ export async function createBuild(input: CreateBuildInput): Promise<Build> {
       const [inserted] = await db.insert(builds).values(newBuildData).returning();
       savedBuild = inserted;
 
-      // Xóa cache danh sách trending để làm mới dữ liệu
-      try {
-        await redis.del(REDIS_KEYS.TRENDING_BUILDS);
-      } catch {
-        // Silent cache error
-      }
+      // Làm mới danh sách trending (tăng số phiên bản cache)
+      await invalidateTrendingCache();
 
       return savedBuild;
     } catch {
@@ -102,11 +103,13 @@ export async function createBuild(input: CreateBuildInput): Promise<Build> {
  * Áp dụng Redis Cache-Aside Pattern (TTL 60 giây)
  */
 export async function getTrendingBuilds(limit = 12, offset = 0): Promise<Build[]> {
-  const cacheKey = `${REDIS_KEYS.TRENDING_BUILDS}:${limit}:${offset}`;
+  // Khoá cache gắn số phiên bản hiện tại; null = Redis offline -> bỏ qua cache
+  let cacheKey: string | null = null;
 
   // 1. Thử lấy từ Redis Cache (Cache Hit)
   if (process.env.NODE_ENV !== 'test') {
     try {
+      cacheKey = await currentTrendingCacheKey(limit, offset);
       const cached = await redis.get(cacheKey);
       if (cached) {
         return JSON.parse(cached) as Build[];
@@ -130,10 +133,12 @@ export async function getTrendingBuilds(limit = 12, offset = 0): Promise<Build[]
         .offset(offset);
 
       // Ghi kết quả vào Redis Cache với TTL 60s
-      try {
-        await redis.setex(cacheKey, 60, JSON.stringify(result));
-      } catch {
-        // Silent cache error
+      if (cacheKey) {
+        try {
+          await redis.setex(cacheKey, TRENDING_CACHE_TTL_SECONDS, JSON.stringify(result));
+        } catch {
+          // Silent cache error
+        }
       }
 
       return result;
@@ -205,6 +210,109 @@ export async function getBuildBySlug(
   }
 
   return { ...record };
+}
+
+// ==============================================================================
+// Phân quyền theo đối tượng (chống IDOR / Broken Object-Level Authorization)
+// ==============================================================================
+
+/** Ai được xem bản build: công khai -> mọi người; riêng tư -> chỉ chủ sở hữu */
+export function canViewBuild(build: Pick<Build, 'isPublic' | 'userId'>, viewerId: string | null): boolean {
+  return build.isPublic || (build.userId !== null && build.userId === viewerId);
+}
+
+/** Chỉ chủ sở hữu mới được sửa/xoá. Build ẩn danh (userId null) thì không ai sửa được */
+export function isBuildOwner(build: Pick<Build, 'userId'>, userId: string | null): boolean {
+  return Boolean(userId) && build.userId !== null && build.userId === userId;
+}
+
+export interface UpdateBuildInput {
+  title?: string;
+  description?: string | null;
+  config?: KeyboardState;
+  isPublic?: boolean;
+}
+
+export type BuildMutationResult =
+  | { status: 'ok'; build: Build }
+  | { status: 'not_found' }
+  | { status: 'forbidden' };
+
+async function invalidateBuildCache(slug: string): Promise<void> {
+  try {
+    await redis.del(REDIS_KEYS.BUILD_DETAIL(slug));
+  } catch {
+    // Silent cache error
+  }
+  // Build vừa bị xoá / chuyển riêng tư biến mất khỏi trending ngay, không đợi TTL 60 giây
+  await invalidateTrendingCache();
+}
+
+/**
+ * Cập nhật bản build — chỉ chủ sở hữu. Câu UPDATE kèm điều kiện `user_id = $userId`
+ * nên dù có race condition cũng không ghi đè được build của người khác.
+ */
+export async function updateBuild(
+  slug: string,
+  userId: string,
+  patch: UpdateBuildInput
+): Promise<BuildMutationResult> {
+  const existing = await getBuildBySlug(slug, false);
+  if (!existing) return { status: 'not_found' };
+  if (!isBuildOwner(existing, userId)) return { status: 'forbidden' };
+
+  const changes = {
+    ...(patch.title !== undefined ? { title: patch.title.trim() } : {}),
+    ...(patch.description !== undefined ? { description: patch.description?.trim() || null } : {}),
+    ...(patch.config !== undefined ? { config: patch.config } : {}),
+    ...(patch.isPublic !== undefined ? { isPublic: patch.isPublic } : {}),
+    updatedAt: new Date(),
+  };
+
+  if (process.env.NODE_ENV !== 'test') {
+    try {
+      const [row] = await db
+        .update(builds)
+        .set(changes)
+        .where(and(eq(builds.slug, slug), eq(builds.userId, userId)))
+        .returning();
+      await invalidateBuildCache(slug);
+      return row ? { status: 'ok', build: row } : { status: 'forbidden' };
+    } catch {
+      // Database offline -> Fallback in-memory
+    }
+  }
+
+  const record = memoryBuilds.get(slug);
+  if (!record || !isBuildOwner(record, userId)) return { status: 'forbidden' };
+  const updated: Build = { ...record, ...changes };
+  memoryBuilds.set(slug, updated);
+  return { status: 'ok', build: { ...updated } };
+}
+
+/** Xoá bản build — chỉ chủ sở hữu */
+export async function deleteBuild(slug: string, userId: string): Promise<BuildMutationResult> {
+  const existing = await getBuildBySlug(slug, false);
+  if (!existing) return { status: 'not_found' };
+  if (!isBuildOwner(existing, userId)) return { status: 'forbidden' };
+
+  if (process.env.NODE_ENV !== 'test') {
+    try {
+      const [row] = await db
+        .delete(builds)
+        .where(and(eq(builds.slug, slug), eq(builds.userId, userId)))
+        .returning();
+      await invalidateBuildCache(slug);
+      return row ? { status: 'ok', build: row } : { status: 'forbidden' };
+    } catch {
+      // Database offline -> Fallback in-memory
+    }
+  }
+
+  const record = memoryBuilds.get(slug);
+  if (!record || !isBuildOwner(record, userId)) return { status: 'forbidden' };
+  memoryBuilds.delete(slug);
+  return { status: 'ok', build: record };
 }
 
 /**

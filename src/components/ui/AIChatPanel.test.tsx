@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
 import { AIChatPanel } from './AIChatPanel';
 import { useKeyboardStore } from '@/store/useKeyboardStore';
+import { useStageStore } from '@/store/useStageStore';
 
 describe('AIChatPanel Component', () => {
   beforeEach(() => {
@@ -14,7 +15,9 @@ describe('AIChatPanel Component', () => {
   it('hiển thị tiêu đề và danh sách 4 gợi ý câu hỏi nhanh', () => {
     render(<AIChatPanel />);
 
-    expect(screen.getByText('Kiến trúc sư âm học AI')).toBeDefined();
+    expect(screen.getByText('Kiến trúc sư âm học')).toBeDefined();
+    // Không hiển thị tên nhà cung cấp mô hình trên giao diện
+    expect(screen.queryByText(/Gemini/)).toBeNull();
     expect(screen.getByText('Âm Thock sâu ấm')).toBeDefined();
     expect(screen.getByText('Âm Clack đanh giòn')).toBeDefined();
     expect(screen.getByText('Tách lớp linh kiện 3D')).toBeDefined();
@@ -69,6 +72,47 @@ describe('AIChatPanel Component', () => {
     await waitFor(() => {
       expect(fetchSpy).toHaveBeenCalled();
     });
+  });
+
+  it('câu trả lời AI được render Markdown: không còn ** thô, có thẻ giá tiền', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: new Headers(),
+      body: new ReadableStream({
+        start(controller) {
+          const enc = new TextEncoder();
+          const delta = JSON.stringify({
+            type: 'text-delta',
+            delta: '### Bridge75\n- **Vỏ nhôm** gasket\n- Giá: **850.000 VNĐ**',
+          });
+          controller.enqueue(enc.encode(`data: ${delta}\n\n`));
+          controller.close();
+        },
+      }),
+    } as Response);
+
+    render(<AIChatPanel />);
+    fireEvent.change(screen.getByPlaceholderText(/Hỏi về âm học hoặc yêu cầu/), {
+      target: { value: 'Gợi ý phím' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi yêu cầu' }));
+
+    const log = screen.getByRole('log');
+    await waitFor(() => expect(log.querySelector('[data-price-tag]')?.textContent).toBe('850.000 VNĐ'));
+    expect(log.textContent).not.toContain('**');
+    expect(log.querySelector('strong')?.textContent).toBe('Vỏ nhôm');
+  });
+
+  it('nút Mở rộng chuyển khung chat sang chế độ Focus và ngược lại', () => {
+    useStageStore.setState({ chatWide: false });
+    render(<AIChatPanel />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mở rộng khung chat' }));
+    expect(useStageStore.getState().chatWide).toBe(true);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thu gọn khung chat' }));
+    expect(useStageStore.getState().chatWide).toBe(false);
   });
 
   it('chạy demo biến đổi 3D khi bấm nút Demo Mode khi thiếu API Key', async () => {

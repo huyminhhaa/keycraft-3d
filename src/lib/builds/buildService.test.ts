@@ -6,6 +6,10 @@ import {
   getBuildBySlug,
   forkBuild,
   resetMemoryBuilds,
+  canViewBuild,
+  isBuildOwner,
+  updateBuild,
+  deleteBuild,
 } from './buildService';
 import type { KeyboardState } from '@/types/keyboard';
 
@@ -127,5 +131,44 @@ describe('Build Service (src/lib/builds/buildService.ts)', () => {
     // Kiểm tra build gốc đã được tăng forkCount lên 1
     const updatedOriginal = await getBuildBySlug(original.slug, false);
     expect(updatedOriginal?.forkCount).toBe(1);
+  });
+});
+
+describe('Phân quyền bản build (chống IDOR)', () => {
+  beforeEach(() => {
+    resetMemoryBuilds();
+  });
+
+  it('canViewBuild: công khai ai cũng xem; riêng tư chỉ chủ sở hữu', () => {
+    expect(canViewBuild({ isPublic: true, userId: 'a' }, null)).toBe(true);
+    expect(canViewBuild({ isPublic: false, userId: 'a' }, 'a')).toBe(true);
+    expect(canViewBuild({ isPublic: false, userId: 'a' }, 'b')).toBe(false);
+    expect(canViewBuild({ isPublic: false, userId: null }, null)).toBe(false);
+  });
+
+  it('isBuildOwner: build ẩn danh không có chủ, null không khớp null', () => {
+    expect(isBuildOwner({ userId: 'a' }, 'a')).toBe(true);
+    expect(isBuildOwner({ userId: 'a' }, 'b')).toBe(false);
+    expect(isBuildOwner({ userId: null }, null)).toBe(false);
+  });
+
+  it('updateBuild / deleteBuild: người khác bị forbidden, chủ sở hữu thành công', async () => {
+    const build = await createBuild({ title: 'Của A', config: mockKeyboardConfig, userId: 'user-a' });
+
+    expect((await updateBuild(build.slug, 'user-b', { title: 'Của B' })).status).toBe('forbidden');
+    expect((await deleteBuild(build.slug, 'user-b')).status).toBe('forbidden');
+    expect((await getBuildBySlug(build.slug, false))?.title).toBe('Của A');
+
+    const updated = await updateBuild(build.slug, 'user-a', { title: 'Đổi tên', isPublic: false });
+    expect(updated.status).toBe('ok');
+    if (updated.status === 'ok') {
+      expect(updated.build.title).toBe('Đổi tên');
+      expect(updated.build.isPublic).toBe(false);
+      expect(updated.build.userId).toBe('user-a');
+    }
+
+    expect((await deleteBuild(build.slug, 'user-a')).status).toBe('ok');
+    expect(await getBuildBySlug(build.slug, false)).toBeNull();
+    expect((await deleteBuild(build.slug, 'user-a')).status).toBe('not_found');
   });
 });

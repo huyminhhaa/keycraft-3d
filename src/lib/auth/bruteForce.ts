@@ -1,14 +1,49 @@
 import crypto from 'crypto';
 import { redis, REDIS_KEYS } from '@/lib/redis';
+import { getSigningSecret } from '@/lib/auth/jwt';
 
 export const MAX_FAILED_BEFORE_CAPTCHA = 3;
 export const MAX_FAILED_BEFORE_LOCKOUT = 5;
 export const LOCKOUT_SECONDS = 900; // Khóa 15 phút
 export const ATTEMPTS_WINDOW_SECONDS = 3600; // Lưu vết trong 1 giờ
 
+// Chống Password Spraying: một IP thử sai nhiều tài khoản khác nhau
+export const IP_MAX_DISTINCT_ACCOUNTS = 5; // sai trên >= 5 email khác nhau
+export const IP_MAX_FAILED_ATTEMPTS = 20; // hoặc tổng >= 20 lần sai
+export const IP_LOCKOUT_SECONDS = 1800; // Khóa IP 30 phút
+
+// CAPTCHA
+export const CAPTCHA_CHALLENGE_TTL_SECONDS = 300; // Đề toán sống 5 phút
+export const CAPTCHA_TOKEN_TTL_SECONDS = 180; // Vé nonce sống 3 phút, dùng đúng 1 lần
+
 // Bộ nhớ đệm dự phòng (In-memory Fallback) khi Redis chưa được khởi chạy
 const memoryFailedStore = new Map<string, { count: number; expireAt: number }>();
 const memoryLockoutStore = new Map<string, number>();
+const memoryIpStore = new Map<string, { count: number; accounts: Set<string>; expireAt: number }>();
+const memoryIpLockout = new Map<string, number>();
+const memoryCaptchaUsed = new Map<string, number>();
+const memoryCaptchaTokens = new Map<string, { boundTo: string; expireAt: number }>();
+
+/** Reset toàn bộ bộ nhớ RAM dự phòng (dùng trong unit test) */
+export function resetBruteForceMemory(): void {
+  memoryFailedStore.clear();
+  memoryLockoutStore.clear();
+  memoryIpStore.clear();
+  memoryIpLockout.clear();
+  memoryCaptchaUsed.clear();
+  memoryCaptchaTokens.clear();
+}
+
+/**
+ * So sánh hằng thời gian cho chuỗi bất kỳ độ dài.
+ * `crypto.timingSafeEqual` ném RangeError khi 2 Buffer khác độ dài (kẻ tấn công gửi chữ ký
+ * sai độ dài là làm route sập 500). Băm SHA-256 cả hai trước -> luôn 32 byte.
+ */
+export function safeEqual(a: string, b: string): boolean {
+  const hashA = crypto.createHash('sha256').update(a, 'utf8').digest();
+  const hashB = crypto.createHash('sha256').update(b, 'utf8').digest();
+  return crypto.timingSafeEqual(hashA, hashB);
+}
 
 /**
  * Kiểm tra trạng thái bảo mật của tài khoản / IP trước khi đăng nhập:
@@ -164,56 +199,213 @@ export async function recordSuccessfulLogin(identifier: string): Promise<void> {
 }
 
 // ==============================================================================
+// Khoá theo IP (chống Password Spraying)
+// Kẻ tấn công thử 1 mật khẩu phổ biến trên RẤT NHIỀU email: mỗi email chỉ sai 1-2 lần nên
+// không chạm ngưỡng khoá theo email. Ta đếm theo IP: số lần sai và số email khác nhau.
+// ==============================================================================
+
+/** IP không xác định (thiếu header proxy) thì không khoá, tránh khoá nhầm cả nhóm người dùng */
+const isTrackableIp = (ip: string): boolean => Boolean(ip) && ip !== 'unknown';
+
+export async function checkIpSecurity(
+  ip: string
+): Promise<{ isLocked: boolean; remainingLockoutSeconds: number }> {
+  if (!isTrackableIp(ip)) return { isLocked: false, remainingLockoutSeconds: 0 };
+  try {
+    const ttl = await redis.ttl(REDIS_KEYS.AUTH_IP_LOCKOUT(ip));
+    return { isLocked: ttl > 0, remainingLockoutSeconds: Math.max(0, ttl) };
+  } catch {
+    const lockedUntil = memoryIpLockout.get(ip);
+    const now = Date.now();
+    if (lockedUntil && lockedUntil > now) {
+      return { isLocked: true, remainingLockoutSeconds: Math.ceil((lockedUntil - now) / 1000) };
+    }
+    return { isLocked: false, remainingLockoutSeconds: 0 };
+  }
+}
+
+export async function recordFailedLoginForIp(
+  ip: string,
+  identifier: string
+): Promise<{ isLocked: boolean; failedAttempts: number; distinctAccounts: number }> {
+  if (!isTrackableIp(ip)) return { isLocked: false, failedAttempts: 0, distinctAccounts: 0 };
+  const normId = identifier.toLowerCase().trim();
+
+  let failedAttempts: number;
+  let distinctAccounts: number;
+
+  try {
+    const failKey = REDIS_KEYS.AUTH_IP_FAIL(ip);
+    const accountsKey = REDIS_KEYS.AUTH_IP_ACCOUNTS(ip);
+    const reply = await redis
+      .multi()
+      .incr(failKey)
+      .expire(failKey, ATTEMPTS_WINDOW_SECONDS) // gia hạn mỗi lần sai: còn tấn công thì còn nhớ
+      .sadd(accountsKey, normId)
+      .expire(accountsKey, ATTEMPTS_WINDOW_SECONDS)
+      .scard(accountsKey)
+      .exec();
+    if (!reply) throw new Error('Redis multi bị huỷ');
+    failedAttempts = Number(reply[0]?.[1] ?? 0);
+    distinctAccounts = Number(reply[4]?.[1] ?? 0);
+
+    const shouldLock =
+      distinctAccounts >= IP_MAX_DISTINCT_ACCOUNTS || failedAttempts >= IP_MAX_FAILED_ATTEMPTS;
+    if (shouldLock) {
+      await redis.set(REDIS_KEYS.AUTH_IP_LOCKOUT(ip), 'locked', 'EX', IP_LOCKOUT_SECONDS);
+    }
+    return { isLocked: shouldLock, failedAttempts, distinctAccounts };
+  } catch {
+    const now = Date.now();
+    const current = memoryIpStore.get(ip);
+    const entry =
+      current && current.expireAt > now
+        ? current
+        : { count: 0, accounts: new Set<string>(), expireAt: now + ATTEMPTS_WINDOW_SECONDS * 1000 };
+    entry.count += 1;
+    entry.accounts.add(normId);
+    memoryIpStore.set(ip, entry);
+
+    failedAttempts = entry.count;
+    distinctAccounts = entry.accounts.size;
+    const shouldLock =
+      distinctAccounts >= IP_MAX_DISTINCT_ACCOUNTS || failedAttempts >= IP_MAX_FAILED_ATTEMPTS;
+    if (shouldLock) {
+      memoryIpLockout.set(ip, now + IP_LOCKOUT_SECONDS * 1000);
+    }
+    return { isLocked: shouldLock, failedAttempts, distinctAccounts };
+  }
+}
+
+// ==============================================================================
 // Cơ chế Sinh & Kiểm tra Thử thách CAPTCHA (Cryptographic Signed Challenge)
 // ==============================================================================
 export interface CaptchaChallenge {
+  /** `<uuid>.<expiresAtMs>` — hạn dùng nằm trong phần được ký nên không sửa được */
   challengeId: string;
   question: string;
   signature: string;
 }
 
-const CAPTCHA_SECRET = process.env.JWT_SECRET || 'keycraft_captcha_salt_fallback_key_2026';
+/** Khoá HMAC riêng cho CAPTCHA, dẫn xuất từ JWT_SECRET (production bắt buộc có khoá thật) */
+function captchaKey(): Buffer {
+  return crypto
+    .createHmac('sha256', getSigningSecret('JWT_SECRET'))
+    .update('keycraft-captcha-v2')
+    .digest();
+}
+
+function signChallenge(challengeId: string, answer: string): string {
+  return crypto.createHmac('sha256', captchaKey()).update(`${challengeId}:${answer}`).digest('hex');
+}
 
 /**
  * Sinh thử thách CAPTCHA dạng toán học kèm chữ ký HMAC chống làm giả
  */
-export function generateCaptchaChallenge(): CaptchaChallenge {
-  const num1 = Math.floor(Math.random() * 20) + 1;
-  const num2 = Math.floor(Math.random() * 20) + 1;
+export function generateCaptchaChallenge(nowMs = Date.now()): CaptchaChallenge {
+  const num1 = crypto.randomInt(1, 21);
+  const num2 = crypto.randomInt(1, 21);
   const answer = (num1 + num2).toString();
-  const challengeId = crypto.randomUUID();
-
-  // Tạo chữ ký HMAC dựa trên challengeId + đáp án bí mật
-  const signature = crypto
-    .createHmac('sha256', CAPTCHA_SECRET)
-    .update(`${challengeId}:${answer}`)
-    .digest('hex');
+  const expiresAt = nowMs + CAPTCHA_CHALLENGE_TTL_SECONDS * 1000;
+  const challengeId = `${crypto.randomUUID()}.${expiresAt}`;
 
   return {
     challengeId,
     question: `Vui lòng tính: ${num1} + ${num2} = ?`,
-    signature,
+    signature: signChallenge(challengeId, answer),
   };
 }
 
+function challengeExpiry(challengeId: string): number | null {
+  const parts = challengeId.split('.');
+  if (parts.length !== 2) return null;
+  const expiresAt = Number(parts[1]);
+  return Number.isSafeInteger(expiresAt) ? expiresAt : null;
+}
+
 /**
- * Xác thực câu trả lời CAPTCHA của người dùng
+ * Xác thực câu trả lời CAPTCHA (chữ ký + hạn dùng). Không ném lỗi với input lạ.
+ * Lưu ý: hàm này KHÔNG đánh dấu đề đã dùng — luồng đăng nhập phải đi qua
+ * `redeemCaptchaChallenge` để nhận vé dùng 1 lần.
  */
 export function verifyCaptchaChallenge(
-  challengeId: string,
-  answer: string,
-  signature: string
+  challengeId: unknown,
+  answer: unknown,
+  signature: unknown,
+  nowMs = Date.now()
 ): boolean {
-  if (!challengeId || !answer || !signature) return false;
+  if (typeof challengeId !== 'string' || typeof answer !== 'string' || typeof signature !== 'string') {
+    return false;
+  }
+  if (!challengeId || !answer.trim() || !signature || challengeId.length > 100 || answer.length > 10) {
+    return false;
+  }
 
-  const expectedSignature = crypto
-    .createHmac('sha256', CAPTCHA_SECRET)
-    .update(`${challengeId}:${answer.trim()}`)
-    .digest('hex');
+  const expiresAt = challengeExpiry(challengeId);
+  if (expiresAt === null || expiresAt < nowMs) return false;
 
-  // So khớp an toàn chống tấn công timing attack
-  return crypto.timingSafeEqual(
-    Buffer.from(signature, 'hex'),
-    Buffer.from(expectedSignature, 'hex')
-  );
+  const expectedSignature = signChallenge(challengeId, answer.trim());
+  // So khớp an toàn chống timing attack, không sập khi độ dài khác nhau
+  return safeEqual(signature, expectedSignature);
+}
+
+/**
+ * Giải đúng CAPTCHA -> đổi lấy một vé nonce ngẫu nhiên (TTL 3 phút) lưu trên Redis.
+ * Mỗi đề chỉ đổi được đúng 1 vé (SET NX), nên chép lại request giải đề cũ là vô ích.
+ * @param boundTo email mà vé được phép dùng (vé không chuyển sang tài khoản khác được)
+ * @returns vé nonce, hoặc null nếu sai / hết hạn / đề đã dùng
+ */
+export async function redeemCaptchaChallenge(
+  challengeId: unknown,
+  answer: unknown,
+  signature: unknown,
+  boundTo: string
+): Promise<string | null> {
+  if (!verifyCaptchaChallenge(challengeId, answer, signature)) return null;
+  const id = challengeId as string;
+  const normBound = boundTo.toLowerCase().trim();
+  const nonce = crypto.randomBytes(32).toString('base64url');
+
+  try {
+    const firstUse = await redis.set(
+      REDIS_KEYS.CAPTCHA_USED(id),
+      '1',
+      'EX',
+      CAPTCHA_CHALLENGE_TTL_SECONDS,
+      'NX'
+    );
+    if (firstUse !== 'OK') return null;
+    await redis.set(REDIS_KEYS.CAPTCHA_TOKEN(nonce), normBound, 'EX', CAPTCHA_TOKEN_TTL_SECONDS);
+    return nonce;
+  } catch {
+    const now = Date.now();
+    const usedUntil = memoryCaptchaUsed.get(id);
+    if (usedUntil && usedUntil > now) return null;
+    memoryCaptchaUsed.set(id, now + CAPTCHA_CHALLENGE_TTL_SECONDS * 1000);
+    memoryCaptchaTokens.set(nonce, {
+      boundTo: normBound,
+      expireAt: now + CAPTCHA_TOKEN_TTL_SECONDS * 1000,
+    });
+    return nonce;
+  }
+}
+
+const NONCE_PATTERN = /^[A-Za-z0-9_-]{43}$/;
+
+/**
+ * Kiểm tra và TIÊU HUỶ vé CAPTCHA ngay lập tức (GETDEL nguyên tử).
+ * Gửi lại cùng vé lần 2 (Replay Attack) -> vé không còn -> false.
+ */
+export async function consumeCaptchaToken(token: unknown, identifier: string): Promise<boolean> {
+  if (typeof token !== 'string' || !NONCE_PATTERN.test(token)) return false;
+  const normId = identifier.toLowerCase().trim();
+
+  try {
+    const boundTo = await redis.getdel(REDIS_KEYS.CAPTCHA_TOKEN(token));
+    return boundTo !== null && safeEqual(boundTo, normId);
+  } catch {
+    const entry = memoryCaptchaTokens.get(token);
+    memoryCaptchaTokens.delete(token);
+    return Boolean(entry && entry.expireAt > Date.now() && safeEqual(entry.boundTo, normId));
+  }
 }

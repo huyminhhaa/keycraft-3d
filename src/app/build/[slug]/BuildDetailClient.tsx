@@ -7,6 +7,7 @@ import { Eye, GitFork, Volume2, Copy, Check, Wrench, Calendar, Sparkles } from '
 import type { Build } from '@/db/schema';
 import { useKeyboardStore } from '@/store/useKeyboardStore';
 import { soundEngine } from '@/lib/audio/soundEngine';
+import { BuildOwnerControls } from './BuildOwnerControls';
 
 // Dynamic import Canvas 3D (tắt SSR)
 const KeyboardScene = dynamic(
@@ -16,9 +17,11 @@ const KeyboardScene = dynamic(
 
 interface BuildDetailClientProps {
   build: Build;
+  /** Người đang xem là chủ sở hữu (server tính từ JWT) -> hiện nút Sửa / Xoá */
+  isOwner?: boolean;
 }
 
-export function BuildDetailClient({ build }: BuildDetailClientProps) {
+export function BuildDetailClient({ build, isOwner = false }: BuildDetailClientProps) {
   const router = useRouter();
   const applyAIConfig = useKeyboardStore((s) => s.applyAIConfig);
   const [isCopied, setIsCopied] = useState(false);
@@ -132,6 +135,15 @@ export function BuildDetailClient({ build }: BuildDetailClientProps) {
           </button>
         </div>
       </div>
+
+      {isOwner && (
+        <BuildOwnerControls
+          slug={build.slug}
+          title={build.title}
+          description={build.description}
+          isPublic={build.isPublic}
+        />
+      )}
 
       {/* Grid: 3D Stage + Thông số âm học */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">

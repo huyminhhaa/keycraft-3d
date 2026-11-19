@@ -7,6 +7,8 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
+    // Giả lập app đứng sau 1 proxy đáng tin (như Vercel) để test rate limit theo IP
+    env: { TRUSTED_PROXY_HOPS: '1' },
   },
   resolve: {
     alias: {

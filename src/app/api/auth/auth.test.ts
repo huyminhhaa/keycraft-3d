@@ -3,7 +3,13 @@ import { POST as registerHandler } from './register/route';
 import { POST as loginHandler } from './login/route';
 import { POST as logoutHandler } from './logout/route';
 import { GET as meHandler } from './me/route';
-import { signAccessToken, COOKIE_ACCESS_TOKEN } from '@/lib/auth/jwt';
+import { POST as redeemCaptcha } from './captcha/route';
+import {
+  signAccessToken,
+  signRefreshToken,
+  COOKIE_ACCESS_TOKEN,
+  COOKIE_REFRESH_TOKEN,
+} from '@/lib/auth/jwt';
 import { recordSuccessfulLogin } from '@/lib/auth/bruteForce';
 
 describe('Auth API Routes', () => {
@@ -141,10 +147,119 @@ describe('Auth API Routes', () => {
     });
 
     it('POST /api/auth/logout xóa sạch cookie', async () => {
-      const res = await logoutHandler();
+      const res = await logoutHandler(
+        new Request('http://localhost:3000/api/auth/logout', { method: 'POST' })
+      );
       expect(res.status).toBe(200);
       const setCookie = res.headers.get('set-cookie');
       expect(setCookie).toContain('Max-Age=0');
+    });
+
+    it('đăng xuất thu hồi token phía server: dùng lại cookie cũ -> 401 (Token Blacklist)', async () => {
+      const payload = {
+        userId: 'usr_logout',
+        email: 'logout@keycraft.io',
+        name: 'Logout Tester',
+        role: 'user',
+      };
+      const access = await signAccessToken(payload);
+      const refresh = await signRefreshToken(payload);
+      const cookie = `${COOKIE_ACCESS_TOKEN}=${access}; ${COOKIE_REFRESH_TOKEN}=${refresh}`;
+
+      const before = await meHandler(new Request('http://localhost:3000/api/auth/me', { headers: { cookie } }));
+      expect(before.status).toBe(200);
+
+      const logoutRes = await logoutHandler(
+        new Request('http://localhost:3000/api/auth/logout', { method: 'POST', headers: { cookie } })
+      );
+      expect((await logoutRes.json()).revokedTokens).toBe(2);
+
+      // Kẻ gian đã chép được cả access + refresh token: vẫn bị từ chối, kể cả silent-refresh
+      const after = await meHandler(new Request('http://localhost:3000/api/auth/me', { headers: { cookie } }));
+      expect(after.status).toBe(401);
+    });
+  });
+
+  describe('Rate limit đăng ký & CAPTCHA dùng 1 lần qua API', () => {
+    it('POST /api/auth/register: tối đa 5 lượt / 10 phút / IP, lượt thứ 6 -> 429', async () => {
+      const headers = { 'Content-Type': 'application/json', 'x-forwarded-for': '203.0.113.50' };
+      const statuses: number[] = [];
+      for (let i = 0; i < 6; i++) {
+        const res = await registerHandler(
+          new Request('http://localhost:3000/api/auth/register', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ name: 'A', email: 'spam@keycraft.io', password: 'x' }),
+          })
+        );
+        statuses.push(res.status);
+      }
+      expect(statuses.slice(0, 5).every((s) => s === 400)).toBe(true);
+      expect(statuses[5]).toBe(429);
+    });
+
+    it('sai 3 lần -> phải có vé CAPTCHA; vé dùng 1 lần, gửi lại vé cũ bị chặn', async () => {
+      const email = `captcha_${Date.now()}@keycraft.io`;
+      const headers = { 'Content-Type': 'application/json', 'x-forwarded-for': '203.0.113.77' };
+      const login = (extra: Record<string, string> = {}) =>
+        loginHandler(
+          new Request('http://localhost:3000/api/auth/login', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ email, password: 'WrongPassword1!', ...extra }),
+          })
+        );
+
+      let lastData: { captcha?: { challengeId: string; question: string; signature: string } } = {};
+      for (let i = 0; i < 3; i++) {
+        lastData = await (await login()).json();
+      }
+      const challenge = lastData.captcha;
+      expect(challenge).toBeDefined();
+      if (!challenge) return;
+
+      // Không có vé -> 400 requireCaptcha
+      const noToken = await login();
+      expect(noToken.status).toBe(400);
+      expect((await noToken.json()).requireCaptcha).toBe(true);
+
+      // Giải đề -> nhận vé
+      const [, a, b] = challenge.question.match(/(\d+)\s*\+\s*(\d+)/) ?? [];
+      const redeemRes = await redeemCaptcha(
+        new Request('http://localhost:3000/api/auth/captcha', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            challengeId: challenge.challengeId,
+            signature: challenge.signature,
+            answer: String(Number(a) + Number(b)),
+            email,
+          }),
+        })
+      );
+      expect(redeemRes.status).toBe(200);
+      const { captchaToken } = await redeemRes.json();
+      expect(typeof captchaToken).toBe('string');
+
+      // Lần 1 dùng vé: qua cổng CAPTCHA (mật khẩu vẫn sai nên 401, không phải 400)
+      const withToken = await login({ captchaToken });
+      expect(withToken.status).toBe(401);
+
+      // Replay: gửi lại đúng vé đó -> đã bị xoá khỏi Redis -> chặn ở cổng CAPTCHA
+      const replay = await login({ captchaToken });
+      expect(replay.status).toBe(400);
+      expect((await replay.json()).requireCaptcha).toBe(true);
+    }, 30_000); // mỗi lần sai mật khẩu chạy bcrypt cost 12 thật
+
+    it('login từ chối body sai kiểu (email là object) bằng 400 thay vì sập 500', async () => {
+      const res = await loginHandler(
+        new Request('http://localhost:3000/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: { $ne: null }, password: 'x' }),
+        })
+      );
+      expect(res.status).toBe(400);
     });
   });
 });

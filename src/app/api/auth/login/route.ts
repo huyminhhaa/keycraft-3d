@@ -1,32 +1,71 @@
+import { randomBytes } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { eq } from 'drizzle-orm';
+import { z } from 'zod';
 import { db } from '@/db';
 import { users } from '@/db/schema';
-import { verifyPassword } from '@/lib/auth/password';
+import { hashPassword, verifyPassword } from '@/lib/auth/password';
 import { signAccessToken, signRefreshToken, buildAuthCookieHeaders } from '@/lib/auth/jwt';
 import {
+  checkIpSecurity,
   checkLoginSecurity,
-  recordFailedLogin,
-  recordSuccessfulLogin,
-  verifyCaptchaChallenge,
+  consumeCaptchaToken,
   generateCaptchaChallenge,
+  recordFailedLogin,
+  recordFailedLoginForIp,
+  recordSuccessfulLogin,
 } from '@/lib/auth/bruteForce';
+import { getClientIp, KB, readJsonBody } from '@/lib/security/requestGuard';
+
+// Hash bcrypt (cùng cost) của một chuỗi ngẫu nhiên: dùng khi email không tồn tại để thời gian
+// phản hồi giống hệt email có thật -> không dò được email nào đã đăng ký (user enumeration).
+let dummyHashPromise: Promise<string> | null = null;
+const getDummyHash = (): Promise<string> =>
+  (dummyHashPromise ??= hashPassword(randomBytes(16).toString('hex')));
+
+const loginSchema = z.object({
+  email: z.string().trim().min(3).max(254),
+  // bcrypt chỉ dùng 72 byte đầu; chặn mật khẩu khổng lồ làm tốn CPU
+  password: z.string().min(1).max(200),
+  captchaToken: z.string().max(100).optional(),
+});
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const { email, password, captchaAnswer, captchaChallengeId, captchaSignature } = body;
+    const clientIp = getClientIp(req);
 
-    if (!email || !password) {
+    const body = await readJsonBody(req, 4 * KB);
+    if (!body.ok) {
+      return NextResponse.json({ error: body.error }, { status: body.status });
+    }
+
+    const parsed = loginSchema.safeParse(body.data);
+    if (!parsed.success) {
       return NextResponse.json(
         { error: 'Vui lòng nhập đầy đủ Email và Mật khẩu.' },
         { status: 400 }
       );
     }
 
-    const normEmail = email.trim().toLowerCase();
+    const { password, captchaToken } = parsed.data;
+    const normEmail = parsed.data.email.toLowerCase();
 
-    // 1. Kiểm tra lá chắn bảo mật Brute-force Shield
+    // 0. Khoá theo IP (Password Spraying: một IP thử sai trên nhiều tài khoản)
+    const ipStatus = await checkIpSecurity(clientIp);
+    if (ipStatus.isLocked) {
+      return NextResponse.json(
+        {
+          error: `Phát hiện quá nhiều lần đăng nhập sai từ mạng của bạn. Vui lòng thử lại sau ${Math.ceil(
+            ipStatus.remainingLockoutSeconds / 60
+          )} phút.`,
+          isLocked: true,
+          remainingLockoutSeconds: ipStatus.remainingLockoutSeconds,
+        },
+        { status: 429, headers: { 'Retry-After': String(ipStatus.remainingLockoutSeconds) } }
+      );
+    }
+
+    // 1. Kiểm tra lá chắn bảo mật Brute-force Shield theo email
     const securityStatus = await checkLoginSecurity(normEmail);
 
     if (securityStatus.isLocked) {
@@ -42,18 +81,14 @@ export async function POST(req: Request) {
       );
     }
 
-    // 2. Bắt buộc giải thử thách CAPTCHA nếu đã từng nhập sai >= 3 lần
+    // 2. Đã sai >= 3 lần: bắt buộc có vé CAPTCHA dùng 1 lần (vé bị xoá ngay khi kiểm tra)
     if (securityStatus.requireCaptcha) {
-      const isCaptchaValid = verifyCaptchaChallenge(
-        captchaChallengeId,
-        captchaAnswer,
-        captchaSignature
-      );
+      const isCaptchaValid = await consumeCaptchaToken(captchaToken, normEmail);
 
       if (!isCaptchaValid) {
         return NextResponse.json(
           {
-            error: 'Câu trả lời CAPTCHA không chính xác hoặc đã hết hạn.',
+            error: 'Vui lòng giải câu đố bảo mật (CAPTCHA) để tiếp tục.',
             requireCaptcha: true,
             captcha: generateCaptchaChallenge(),
           },
@@ -75,15 +110,16 @@ export async function POST(req: Request) {
       console.warn('[AUTH_LOGIN_DB_NOTICE]:', err instanceof Error ? err.message : err);
     }
 
-    // 4. Kiểm tra mật khẩu
-    let isPasswordCorrect = false;
-    if (userRecord && userRecord.passwordHash) {
-      isPasswordCorrect = await verifyPassword(password, userRecord.passwordHash);
-    }
+    // 4. Kiểm tra mật khẩu (luôn chạy bcrypt, kể cả khi không có tài khoản)
+    const isPasswordCorrect = await verifyPassword(
+      password,
+      userRecord?.passwordHash || (await getDummyHash())
+    );
 
     // 5. Xử lý khi đăng nhập THẤT BẠI
-    if (!userRecord || !isPasswordCorrect) {
+    if (!userRecord || !userRecord.passwordHash || !isPasswordCorrect) {
       const failResult = await recordFailedLogin(normEmail);
+      await recordFailedLoginForIp(clientIp, normEmail);
 
       const errorMessage = failResult.isLocked
         ? 'Bạn đã nhập sai quá 5 lần. Tài khoản bị tạm khóa 15 phút.'

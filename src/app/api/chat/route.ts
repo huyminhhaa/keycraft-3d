@@ -2,12 +2,21 @@ import { streamText, stepCountIs, type ModelMessage } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { keyboardTools } from '@/lib/ai/keyboardTools';
 import { KEYBOARD_ARCHITECT_SYSTEM_PROMPT } from '@/lib/ai/prompts';
-import { checkAIRateLimit } from '@/lib/ai/rateLimiter';
+import {
+  chatRequestSchema,
+  MAX_CHAT_TEXT_BYTES,
+  maxChatBodyBytes,
+  sanitizeChatHistory,
+  textPartBytes,
+} from '@/lib/ai/chatPayload';
 import { getSessionFromRequest } from '@/lib/auth/session';
 import {
+  MAX_TOTAL_PAYLOAD_BYTES,
   validateIncomingAttachments,
   type ValidatedAttachment,
 } from '@/lib/security/fileGuard';
+import { RATE_LIMITS, rateLimitHeaders, slidingWindowRateLimit } from '@/lib/security/rateLimit';
+import { getClientIp, readJsonBody } from '@/lib/security/requestGuard';
 import {
   appendChatMessage,
   createChatSession,
@@ -22,10 +31,16 @@ interface ClientChatMessage {
   content: string;
 }
 
-interface ChatRequestBody {
-  messages?: ClientChatMessage[];
-  sessionId?: string | null;
-  attachments?: unknown;
+function jsonError(
+  status: number,
+  error: string,
+  code?: string,
+  extraHeaders: Record<string, string> = {}
+): Response {
+  return new Response(JSON.stringify(code ? { error, code } : { error }), {
+    status,
+    headers: { 'Content-Type': 'application/json', ...extraHeaders },
+  });
 }
 
 function buildMultimodalMessages(
@@ -105,37 +120,42 @@ export async function POST(req: Request) {
     const session = await getSessionFromRequest(req);
     const authUser = session.authenticated ? session.user : null;
 
-    // 2. Áp dụng Rate Limiting chống spam qua Redis (theo userId hoặc IP)
-    const clientIp =
-      req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-      req.headers.get('x-real-ip') ||
-      '127.0.0.1';
-
-    const rateLimitKey = authUser ? `user:${authUser.id}` : clientIp;
-    const rateLimit = await checkAIRateLimit(rateLimitKey);
+    // 2. Rate Limiting (Sliding Window qua Redis): thành viên 15 tin/phút, khách 5 tin/phút
+    const rateLimit = await slidingWindowRateLimit(
+      'chat',
+      authUser ? `user:${authUser.id}` : getClientIp(req),
+      authUser ? RATE_LIMITS.chatMember : RATE_LIMITS.chatGuest
+    );
     if (!rateLimit.success) {
-      return new Response(
-        JSON.stringify({
-          error: `Bạn đã gửi quá nhiều yêu cầu đến AI Acoustic Architect trong thời gian ngắn. Vui lòng thử lại sau ${rateLimit.resetInSeconds} giây.`,
-        }),
-        {
-          status: 429,
-          headers: {
-            'Content-Type': 'application/json',
-            'Retry-After': String(rateLimit.resetInSeconds),
-            'X-RateLimit-Limit': String(rateLimit.limit),
-            'X-RateLimit-Remaining': String(rateLimit.remaining),
-            'X-RateLimit-Reset': String(rateLimit.resetInSeconds),
-          },
-        }
+      return jsonError(
+        429,
+        `Bạn đã gửi quá nhiều yêu cầu đến AI Acoustic Architect trong thời gian ngắn. Vui lòng thử lại sau ${rateLimit.retryAfterSeconds} giây.`,
+        undefined,
+        rateLimitHeaders(rateLimit)
       );
     }
 
-    const body = (await req.json()) as ChatRequestBody;
-    const rawMessages = Array.isArray(body.messages) ? body.messages : [];
+    // 3. Giới hạn kích thước body: văn bản tối đa 100KB (+ phần tệp cho thành viên)
+    const bodyResult = await readJsonBody(req, maxChatBodyBytes(Boolean(authUser), MAX_TOTAL_PAYLOAD_BYTES));
+    if (!bodyResult.ok) {
+      return jsonError(bodyResult.status, bodyResult.error);
+    }
+
+    const parsedBody = chatRequestSchema.safeParse(bodyResult.data);
+    if (!parsedBody.success) {
+      return jsonError(400, 'Định dạng tin nhắn gửi lên không hợp lệ.', 'INVALID_CHAT_PAYLOAD');
+    }
+    const body = parsedBody.data;
     const incomingAttachments = body.attachments;
 
-    // 3. Cổng bảo vệ tệp đính kèm: Khách chưa đăng nhập không được upload file/ảnh
+    if (textPartBytes(bodyResult.bytes, incomingAttachments) > MAX_CHAT_TEXT_BYTES) {
+      return jsonError(413, 'Nội dung tin nhắn vượt quá giới hạn 100KB.', 'PAYLOAD_TOO_LARGE');
+    }
+
+    // 4. Chỉ 20 tin gần nhất, mỗi tin tối đa 2.000 ký tự được gửi lên Gemini
+    const rawMessages = sanitizeChatHistory(body.messages);
+
+    // 5. Cổng bảo vệ tệp đính kèm: Khách chưa đăng nhập không được upload file/ảnh
     const hasAttachments = Array.isArray(incomingAttachments) && incomingAttachments.length > 0;
     if (hasAttachments && !authUser) {
       return new Response(
@@ -151,7 +171,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // 4. Quét 7 lớp bảo mật tệp đính kèm (Magic Bytes, Anti-XSS SVG, Pixel Bomb, PDF JS, Prompt Injection)
+    // 6. Quét 7 lớp bảo mật tệp đính kèm (Magic Bytes, Anti-XSS SVG, Pixel Bomb, PDF JS, Prompt Injection)
     const attachmentValidation = validateIncomingAttachments(incomingAttachments);
     if (!attachmentValidation.ok) {
       return new Response(
@@ -280,18 +300,8 @@ export async function POST(req: Request) {
     }
     return response;
   } catch (error) {
+    // Không trả error.message ra ngoài (có thể lộ chi tiết DB / SDK / đường dẫn nội bộ)
     console.error('[AI_CHAT_ERROR]:', error);
-    return new Response(
-      JSON.stringify({
-        error:
-          error instanceof Error
-            ? error.message
-            : 'Đã xảy ra sự cố khi kết nối với AI Acoustic Architect.',
-      }),
-      {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      }
-    );
+    return jsonError(500, 'Đã xảy ra sự cố khi kết nối với AI Acoustic Architect.');
   }
 }

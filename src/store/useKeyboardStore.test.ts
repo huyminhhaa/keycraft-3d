@@ -175,6 +175,24 @@ describe('useKeyboardStore', () => {
     expect(useKeyboardStore.getState()).toMatchObject(INITIAL_KEYBOARD_STATE);
   });
 
+  it('applyAIConfig bỏ qua trường undefined: AI không gửi màu keycap thì giữ nguyên màu cũ', () => {
+    const before = useKeyboardStore.getState();
+    before.applyAIConfig({
+      layout: '75%',
+      plateMaterial: 'pom',
+      keycapColor: undefined,
+      keycapModifierColor: undefined,
+      keycapAccentColor: undefined,
+      caseColor: undefined,
+    });
+    const after = useKeyboardStore.getState();
+    expect(after.plateMaterial).toBe('pom');
+    expect(after.keycapColor).toBe(before.keycapColor);
+    expect(after.keycapModifierColor).toBe(before.keycapModifierColor);
+    expect(after.keycapAccentColor).toBe(before.keycapAccentColor);
+    expect(after.caseColor).toBe(before.caseColor);
+  });
+
   it('applyAIConfig cho phép cập nhật đồng thời nhiều thuộc tính từ AI Tool Call', () => {
     const store = useKeyboardStore.getState();
 

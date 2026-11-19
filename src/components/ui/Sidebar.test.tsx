@@ -152,7 +152,7 @@ describe('StageOverlay', () => {
     const aiTab = screen.getByRole('tab', { name: 'Trợ lý AI' });
     fireEvent.click(aiTab);
     expect(useStageStore.getState().activeTab).toBe('ai');
-    expect(screen.getByText('Kiến trúc sư âm học AI')).toBeDefined();
+    expect(screen.getByText('Kiến trúc sư âm học')).toBeDefined();
   });
 
   it('buildStageTitle: vỏ gỗ không kèm màu, màu lạ và keycap tự phối vẫn mô tả được', () => {

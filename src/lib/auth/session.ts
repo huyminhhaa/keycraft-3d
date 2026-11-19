@@ -5,6 +5,7 @@ import {
   verifyToken,
   type AuthProvider,
 } from './jwt';
+import { isTokenRevoked, revokeToken } from './tokenBlacklist';
 
 export interface AuthenticatedSessionUser {
   id: string;
@@ -44,8 +45,13 @@ export function parseCookieHeader(cookieHeader: string): Record<string, string> 
  * và tự động silent-refresh nếu Access Token hết hạn nhưng Refresh Token còn hạn.
  */
 export async function getSessionFromRequest(req: Request): Promise<SessionResult> {
-  const cookieHeader = req.headers.get('cookie') || '';
-  const authHeader = req.headers.get('authorization') || '';
+  return getSessionFromHeaders(req.headers);
+}
+
+/** Như `getSessionFromRequest` nhưng nhận thẳng Headers (dùng trong Server Component qua `headers()`) */
+export async function getSessionFromHeaders(headers: Headers): Promise<SessionResult> {
+  const cookieHeader = headers.get('cookie') || '';
+  const authHeader = headers.get('authorization') || '';
 
   const cookies = parseCookieHeader(cookieHeader);
   let accessToken = cookies[COOKIE_ACCESS_TOKEN];
@@ -55,10 +61,10 @@ export async function getSessionFromRequest(req: Request): Promise<SessionResult
     accessToken = authHeader.substring(7).trim();
   }
 
-  // 1. Kiểm tra Access Token
+  // 1. Kiểm tra Access Token (chữ ký + hạn + chưa bị thu hồi khi đăng xuất)
   if (accessToken) {
     const payload = await verifyToken(accessToken, 'access');
-    if (payload) {
+    if (payload && !(await isTokenRevoked(payload.jti))) {
       return {
         authenticated: true,
         user: {
@@ -76,7 +82,7 @@ export async function getSessionFromRequest(req: Request): Promise<SessionResult
   // 2. Tự động Silent-Refresh nếu Access Token hết hạn nhưng Refresh Token còn hạn
   if (refreshToken) {
     const refreshPayload = await verifyToken(refreshToken, 'refresh');
-    if (refreshPayload) {
+    if (refreshPayload && !(await isTokenRevoked(refreshPayload.jti))) {
       const authProvider: AuthProvider = refreshPayload.authProvider ?? 'credentials';
       const avatarUrl = refreshPayload.avatarUrl ?? null;
 
@@ -109,4 +115,33 @@ export async function getSessionFromRequest(req: Request): Promise<SessionResult
   }
 
   return { authenticated: false, user: null };
+}
+
+/**
+ * Đăng xuất phía server: đưa jti của Access + Refresh Token hiện tại vào danh sách đen
+ * với TTL bằng thời gian sống còn lại. Token bị đánh cắp trước đó cũng mất hiệu lực ngay.
+ * @returns số token đã thu hồi
+ */
+export async function revokeSessionTokens(req: Request): Promise<number> {
+  const cookies = parseCookieHeader(req.headers.get('cookie') || '');
+  const authHeader = req.headers.get('authorization') || '';
+  const accessToken =
+    cookies[COOKIE_ACCESS_TOKEN] ||
+    (authHeader.startsWith('Bearer ') ? authHeader.substring(7).trim() : '');
+  const refreshToken = cookies[COOKIE_REFRESH_TOKEN];
+
+  let revoked = 0;
+  const candidates: Array<[string | undefined, 'access' | 'refresh']> = [
+    [accessToken, 'access'],
+    [refreshToken, 'refresh'],
+  ];
+
+  for (const [token, type] of candidates) {
+    if (!token) continue;
+    const payload = await verifyToken(token, type);
+    if (payload && (await revokeToken(payload.jti, payload.exp))) {
+      revoked += 1;
+    }
+  }
+  return revoked;
 }

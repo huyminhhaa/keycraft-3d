@@ -1,4 +1,4 @@
-import { timingSafeEqual } from 'node:crypto';
+import { safeEqual } from '@/lib/auth/bruteForce';
 import { NextResponse } from 'next/server';
 import { eq } from 'drizzle-orm';
 import { db } from '@/db';
@@ -43,13 +43,6 @@ function redirectWithError(origin: string, returnTo: string, errorCode: string):
   const res = NextResponse.redirect(url);
   clearOAuthCookies(res);
   return res;
-}
-
-function safeEqual(a: string, b: string): boolean {
-  const bufA = Buffer.from(a);
-  const bufB = Buffer.from(b);
-  if (bufA.length !== bufB.length) return false;
-  return timingSafeEqual(bufA, bufB);
 }
 
 export async function GET(req: Request) {
