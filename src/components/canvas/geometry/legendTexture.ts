@@ -46,30 +46,39 @@ export const createLegendTexture = (
     return null;
   }
 
-  const pad = Math.round(height * 0.14);
+  const pad = Math.round(height * 0.12);
   ctx.fillStyle = '#ffffff';
   ctx.textBaseline = 'top';
   const family = '"Helvetica Neue", Arial, sans-serif';
+  // Chữ in kiểu double-shot: nét đậm vừa, cỡ lớn như keycap GMK/PBT thật
+  const weight = 600;
+  /** Cỡ chữ lớn nhất vừa bề ngang phím (từ dài như "Caps Lock" tự co lại) */
+  const fitSize = (value: string, size: number): number => {
+    ctx.font = `${weight} ${size}px ${family}`;
+    const available = width - pad * 2;
+    const measured = ctx.measureText(value).width;
+    return measured > available ? Math.floor((size * available) / measured) : size;
+  };
 
   switch (getLegendLayout(legend)) {
     case 'single-large':
-      ctx.font = `500 ${Math.round(height * 0.42)}px ${family}`;
+      ctx.font = `${weight} ${Math.round(height * 0.5)}px ${family}`;
       ctx.fillText(text, pad, pad);
       break;
     case 'two-line': {
       const [top, bottom] = legend as [string, string];
-      const size = Math.round(height * 0.32);
-      ctx.font = `500 ${size}px ${family}`;
+      const size = Math.round(height * 0.36);
+      ctx.font = `${weight} ${size}px ${family}`;
       ctx.fillText(top, pad, pad);
       ctx.fillText(bottom, pad, height - pad - size);
       break;
     }
     case 'word':
-      ctx.font = `500 ${Math.round(height * 0.24)}px ${family}`;
+      ctx.font = `${weight} ${fitSize(text, Math.round(height * 0.29))}px ${family}`;
       ctx.fillText(text, pad, pad);
       break;
     case 'center':
-      ctx.font = `500 ${Math.round(height * 0.44)}px ${family}`;
+      ctx.font = `${weight} ${Math.round(height * 0.5)}px ${family}`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(text, width / 2, height / 2);

@@ -22,10 +22,11 @@ export const StudioLighting: React.FC<{ shadows?: boolean }> = ({ shadows = true
       {/* Đèn vòng nhỏ phía trên-trái: điểm bắt sáng trên chân đồng mạ vàng */}
       <Lightformer form="ring" intensity={3} position={[-3, 5, 3]} scale={1.2} />
     </Environment>
-    <ambientLight intensity={0.1} />
+    <ambientLight intensity={0.15} color="#fff6eb" />
     <directionalLight
       position={[3.5, 8, 5]}
-      intensity={1.15}
+      intensity={2.4}
+      color="#fff3e0"
       castShadow={shadows}
       shadow-mapSize={[2048, 2048]}
       // bias âm nhỏ + normalBias theo pháp tuyến: hết sọc "shadow acne" trên mặt nghiêng mà bóng không bị hở chân

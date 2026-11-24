@@ -36,7 +36,8 @@
 ---
 
 ## Chặng 5: Nâng cấp Đồ họa Siêu thực & Trang tự build /assembly (Chuẩn KeyCapy)
-- [ ] **5.1-photorealistic-pbr:** Đọc .claude/references/keycapy-assembly-spec.md. Tạo src/lib/textures.ts (procedural roughness/bump maps cho nhựa sần PBT, nhôm CNC, vải deskmat) và src/lib/keycapGeometry.ts (bộ sinh hình học 3D chuẩn 5 profile: Cherry, OEM, XDA, MOA, SA có độ lõm mặt phím). Nâng cấp ánh sáng studio ấm, AgXToneMapping, <ContactShadows> và <N8AO> để loại bỏ hoàn toàn cảm giác "nhựa" trên toàn bộ model 3D.
+- [x] **5.1-photorealistic-pbr:** Đọc .claude/references/keycapy-assembly-spec.md. Tạo src/lib/textures.ts (procedural roughness/bump maps cho nhựa sần PBT, nhôm CNC, vải deskmat) và src/lib/keycapGeometry.ts (bộ sinh hình học 3D chuẩn 5 profile: Cherry, OEM, XDA, MOA, SA có độ lõm mặt phím). Nâng cấp ánh sáng studio ấm, AgXToneMapping, <ContactShadows> và <N8AO> để loại bỏ hoàn toàn cảm giác "nhựa" trên toàn bộ model 3D.
+- [x] **5.1b-blender-keycap-models:** Keycap thật dựng bằng Blender chạy nền (script Python, không mở giao diện) -> `public/models/keycaps.glb` (20 keycap 1u mọi profile × hàng + trụ chữ thập): mép bo cung tròn, thân phồng, mặt lõm đúng công thức web, ruột rỗng; phím dài kéo giãn phần giữa. Khe hở 0.9mm, chữ in đậm to, tone mapping Neutral, vỏ nhôm bỏ clearcoat.
 - [ ] **5.2-assembly-store:** Tạo Zustand store src/store/useAssemblyStore.ts quản lý danh sách Case, Switch (phân loại Linear, Clacky, Thocky, Tactile, Silent), Keycap (màu + profile Cherry/OEM/XDA/MOA/SA), trạng thái từng ô socket (hasSwitch, switchId, hasKeycap, keycapProfile, keycapColor) và quy tắc chỉ cho lắp keycap khi ô đã có switch. Viết unit test Vitest đầy đủ.
 - [ ] **5.3-assembly-page-dragdrop:** Tạo route src/app/assembly/page.tsx (kèm nút chuyển đổi Studio / Assembly trên Header) với không gian bàn làm việc Cozy Deskmat + khay linh kiện 3D. Lập trình cơ chế **Drag & Drop** và **Paint-Drag (quét chuột)** để kéo Switch lắp vào socket và kéo Keycap lắp đè lên Switch với hiệu ứng nảy lò xo (spring damping), kèm nút Auto-fill từng bước.
 - [ ] **5.4-realistic-acoustics:** Nâng cấp src/lib/soundEngine.ts để tổng hợp âm thanh gõ phím chân thực kết hợp giữa chất liệu Case + đặc tính Switch (Clacky đanh cao, Thocky trầm ấm, Silent triệt tiêu tiếng đáy) + độ vang khoang keycap (SA/MOA trầm ấm hơn Cherry/OEM), kèm âm thanh ASMR khi cắm switch/ấn keycap và unit test kiểm chứng.
@@ -457,3 +458,33 @@
   - **Biến môi trường mới:** `CAPTCHA_POW_DIFFICULTY` (tuỳ chọn, 8–24, mặc định 17).
   - **Kết quả xác thực:** `npx tsc --noEmit` 0 lỗi, `npm run lint` 0 lỗi, `npm test -- --run` 539/539 (69 suites), `npm run build` OK (mọi trang ƒ động + Proxy).
   - **Ghi chú cho AI tiếp theo:** Tạo lại Hi98C Pro bằng `npm run sounds` sẽ ra noise 0.0201 (vượt test 0.02) — cần nới test hoặc chọn video khác. Bật lại `cacheComponents` là CSP nonce hỏng (script không có nonce bị chặn) — đừng bật. Muốn CAPTCHA nhận diện bot thật: tích hợp Cloudflare Turnstile (cần khoá, thêm `https://challenges.cloudflare.com` vào `script-src`/`frame-src`).
+- **[Task 5.1-photorealistic-pbr] Hoàn thành ngày 24/11/2026:**
+  - **Mô tả:** Nâng cấp đồ họa 3D siêu thực đạt chuẩn KeyCapy:
+    - **Procedural Micro-PBR Textures (`src/lib/textures.ts`):** Sinh `DataTexture` RGBA 256×256 thuần bằng byte RAM (chạy tức thì 0ms, tương thích 100% cả WebGL và Vitest JSDOM không phụ thuộc canvas). Cung cấp texture và bộ sinh vật liệu chuẩn PBR cho PBT keycaps (roughness 0.72, bumpScale 0.0018, sheen), nhôm CNC (metalness 0.85, roughness 0.26, clearcoat 0.35), thảm vải deskmat (vân dệt đan chéo sin/cos, roughness 0.88), vỏ switch quang học (MeshPhysicalMaterial transmission 0.7, ior 1.48, roughness 0.15 lộ stem và lò xo) và tạo ký tự legend sắc nét với `anisotropy = 8`.
+    - **Điêu khắc Vertex Mesh 5 Profile (`src/lib/keycapGeometry.ts`):** Tạo bộ sinh hình học 3D chuẩn 5 profile (Cherry, OEM, XDA, MOA, SA). Dùng `RoundedBoxGeometry` kết hợp lưới chia mịn mặt trên (12×12 quads) biến dạng đỉnh nửa trên: Taper thu nhỏ x/z về đỉnh, Concave Dish khoét lõm lòng chảo (trụ cho Cherry/OEM, cầu cho MOA/XDA/SA), Tilt theo hàng R1–R4, toạ độ UV thế giới đồng đều và đưa đáy về chuẩn xác y = 0.
+    - **Ánh sáng Studio ấm & Hậu kỳ Photorealistic:** Chuyển `toneMapping` từ ACES Filmic sang `THREE.AgXToneMapping` (exposure 1.05) loại bỏ bết cháy sáng; nâng cấp `StudioLighting` với `DirectionalLight` nắng ấm (`#fff3e0`, intensity 2.4, shadow-mapSize 2048) và Ambient ấm (`#fff6eb`); `<ContactShadows blur={2.0} opacity={0.5} />`; nâng cấp N8AO SSAO (`aoRadius={0.45}`, `intensity={2.0}`, `distanceFalloff={0.7}`) tạo bóng đổ tự nhiên ở khe giữa các nút phím.
+  - **File đã tạo:**
+    - `src/lib/textures.ts` (+ `src/lib/textures.test.ts`)
+    - `src/lib/keycapGeometry.ts` (+ `src/lib/keycapGeometry.test.ts`)
+    - `docs/theory/25-photorealistic-pbr-keycap-geometry.md`
+  - **File đã sửa:**
+    - `src/types/keyboard.ts` (bổ sung `xda`, `sa` vào `KEYCAP_PROFILES`)
+    - `src/components/canvas/geometry/keyboardGeometry.ts` (kết nối và hỗ trợ cả 5 profile)
+    - `src/components/canvas/KeyboardScene.tsx` (AgXToneMapping, N8AO, ContactShadows)
+    - `src/components/canvas/StudioLighting.tsx` (ánh sáng nắng ấm, directional light 2.4)
+    - `src/components/canvas/HeroKeyboard.tsx` (AgXToneMapping, ContactShadows)
+    - `src/components/canvas/parts/SwitchLayer.tsx` (transmission 0.7, ior 1.48 cho vỏ switch)
+    - `PROGRESS.md`
+  - **Biến môi trường mới:** Không có.
+  - **Kết quả xác thực:**
+    - `npx tsc --noEmit`: 0 lỗi.
+    - `npm run lint`: 0 lỗi, 0 warnings.
+    - `npm test -- --run`: **568/568 passed (71 suites)**.
+  - **Ghi chú cho AI tiếp theo:** Sẵn sàng cho Task **5.2-assembly-store** (Tạo Zustand store `src/store/useAssemblyStore.ts` quản lý Case, Switch, Keycap, các ô socket và quy tắc chỉ cho lắp keycap khi ô đã có switch).
+- **[Task 5.1b-blender-keycap-models] Hoàn thành ngày 24/11/2026:**
+  - **Mô tả:** Chủ dự án muốn phím giống ngoài đời (~40%) theo hướng dùng model `.glb` thật nhưng không biết Blender. Blender 4.2.23 LTS portable (đã kiểm SHA256) cài ở `%LOCALAPPDATA%\keycraft-tools` và được điều khiển bằng script: `npm run models:keycaps` = `export-keycap-specs.ts` (xuất thông số `getKeycapShape` 1u ra JSON) + `blender -b -P build_keycaps.py` (dựng 20 keycap + `keycap_stem`, xuất `public/models/keycaps.glb`, 37.564 đỉnh, 1MB). Keycap: 9 vòng thành thuôn + phồng 0.22mm, bo mép trên cung tròn 0.6mm, mặt lõm theo đúng `keycapSurfaceY`, ruột rỗng (thành 1.2mm, nóc 1.4mm), trụ 5.5mm khoét chữ thập bằng boolean. Web: `useKeycapModels()` (drei `useGLTF(url, false, false)` — tắt Draco/Meshopt vì CSP không cho WebAssembly) đăng ký model; `createKeycapGeometry` dùng model nếu có (kéo giãn phần giữa cho phím dài bằng `stretchKeycap`, ghép trụ chữ thập co theo chiều cao ruột), không có thì dựng bằng code như cũ. `KeycapShape.stretch` + `dishDepthAt` tính lòng chảo theo kiểu kéo giãn để chữ in / gờ F-J khít mặt lưới (lệch < 0.06mm). Kèm: `KEYCAP_GAP` 0.028 -> 0.018 (0.9mm), `TAPER_X/Z` 0.03/0.036 -> 0.042/0.046, chữ in nét 600 + cỡ lớn + tự co chữ dài (`legendTexture.ts`), tone mapping AgX -> **Neutral** (AgX làm đen thành xám, đỏ ngả cam — đi ngược spec Chặng 5, lý do ghi ở doc 26), vỏ nhôm metalness 0.92 / roughness 0.38 / bỏ clearcoat.
+  - **File tạo:** `scripts/models/export-keycap-specs.ts`, `build_keycaps.py`, `build-keycaps.ts`, `preview_keycaps.py`, `keycap-specs.json`, `public/models/keycaps.glb`, `src/components/canvas/useKeycapModels.ts`, `src/components/canvas/geometry/keycapModels.test.ts`, `docs/theory/26-blender-keycap-models-glb.md`.
+  - **File sửa:** `src/components/canvas/geometry/keyboardGeometry.ts`, `legendTexture.ts`, `src/components/canvas/KeyboardModel.tsx`, `KeyboardScene.tsx`, `HeroKeyboard.tsx`, `package.json` (script `models:keycaps`), `PROGRESS.md`. (Commit này gồm cả phần task 5.1 của AI trước chưa commit.)
+  - **Biến môi trường mới:** `BLENDER_PATH` (tuỳ chọn, chỉ cho máy build model; web/Vercel không cần).
+  - **Kết quả xác thực:** `npx tsc --noEmit` 0 lỗi, `npm run lint` 0 lỗi, `npm test -- --run` 577/577, `npm run build` OK. Bản production: `keycaps.glb` tải 200 ở `/` và `/studio`, không lỗi console. Render kiểm tra Blender: dãy Cherry R1–R4 / MOA / SA, mặt dưới thấy ruột rỗng + lỗ chữ thập.
+  - **Ghi chú cho AI tiếp theo:** Bước tiếp theo nên làm vỏ (case) + switch bằng Blender (mép vát kim cương, tạ đáy phay). Vỏ khó hơn keycap vì 41 mẫu có kích thước/`shellStyle` riêng — gợi ý: xuất kích thước vỏ từng layout ra JSON như keycap. Lỗi "unmount a root while React was already rendering" thấy 1 lần trên `next dev` lúc hot-reload, không tái hiện ở 5 lần chạy dev và 3 lần production.

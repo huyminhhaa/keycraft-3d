@@ -58,10 +58,14 @@ export const SHELL_STYLES = [
 export type ShellStyle = (typeof SHELL_STYLES)[number];
 
 /**
- * Profile keycap: Cherry (thấp, lòng chảo trụ, nghiêng theo hàng), OEM (như Cherry nhưng cao hơn ~18%),
- * MOA (cao đều, bo tròn, lòng chảo cầu)
+ * Profile keycap:
+ *  - Cherry: thấp, lòng chảo trụ, nghiêng theo hàng R1–R4
+ *  - OEM: tương tự Cherry nhưng cao hơn ~18% và dốc hơn
+ *  - XDA: chiều cao đồng đều, mặt phím rộng, bo nhẹ
+ *  - MOA: cao đồng đều, bo tròn 4 góc cực mềm như viên kẹo, lòng chảo cầu
+ *  - SA: cao vút (+35% chiều cao), bo tròn cổ điển, lòng chảo cầu sâu
  */
-export const KEYCAP_PROFILES = ['cherry', 'oem', 'moa'] as const;
+export const KEYCAP_PROFILES = ['cherry', 'oem', 'xda', 'moa', 'sa'] as const;
 export type KeycapProfile = (typeof KEYCAP_PROFILES)[number];
 
 /** Màu thật của switch (lấy theo ảnh sản phẩm): vỏ trên, vỏ dưới, stem; độ đục vỏ trên (PC trong ~0.3, POM/nylon đục ~0.95) */

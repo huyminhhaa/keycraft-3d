@@ -67,12 +67,15 @@ export const SwitchLayer: React.FC<SwitchLayerProps> = ({
   const materials = useMemo(
     () => ({
       // Vỏ trên polycarbonate trong mờ: thấy lờ mờ lò xo và stem bên trong
-      // depthWrite tắt: 87 vỏ trong suốt chồng nhau không che mất stem/vỏ phía sau
+      // transmission 0.7 và ior 1.48 chuẩn khúc xạ nhựa PC quang học cao cấp
       top: new THREE.MeshPhysicalMaterial({
         color: '#f6f5f1',
-        roughness: 0.08,
+        roughness: 0.15,
+        transmission: 0.7,
+        ior: 1.48,
+        thickness: 0.25,
         transparent: true,
-        opacity: 0.32,
+        opacity: 0.35,
         clearcoat: 1,
         clearcoatRoughness: 0.05,
         specularIntensity: 1,
@@ -99,7 +102,9 @@ export const SwitchLayer: React.FC<SwitchLayerProps> = ({
       opacity: clear ? colors.topOpacity : 1,
       transparent: clear,
       depthWrite: !clear,
-      roughness: clear ? 0.08 : 0.38,
+      transmission: clear ? 0.7 : 0,
+      ior: 1.48,
+      roughness: clear ? 0.15 : 0.38,
     });
     // eslint-disable-next-line react-hooks/immutability -- đổi transparent cần biên dịch lại shader của vật liệu Three.js
     materials.top.needsUpdate = true;

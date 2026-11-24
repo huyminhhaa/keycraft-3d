@@ -1,14 +1,15 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { PlacedKey } from '@/lib/keyboard/layouts';
 import type { KeycapProfile } from '@/types/keyboard';
 
 /** 1u (một phím chữ, 19.05mm) quy ra đơn vị thế giới 3D */
 export const KEY_UNIT = 0.38;
-/** Khe hở giữa hai keycap cạnh nhau (đơn vị thế giới) */
-export const KEYCAP_GAP = 0.028;
+/** Khe hở giữa hai keycap cạnh nhau: ~0.9mm như keycap Cherry thật (đáy 18.15mm trên bước 19.05mm) */
+export const KEYCAP_GAP = 0.018;
 /** Độ vát mỗi bên từ đáy lên đỉnh keycap */
-const TAPER_X = 0.03;
-const TAPER_Z = 0.036;
+const TAPER_X = 0.042;
+const TAPER_Z = 0.046;
 /** Viền vỏ bao quanh vùng phím */
 export const CASE_BEZEL = 0.22;
 
@@ -37,7 +38,15 @@ export interface KeycapShape {
   /** Bo góc viền đáy / viền mặt trên */
   cornerBottom: number;
   cornerTop: number;
+  /**
+   * Phím dài hơn 1u = keycap 1u bị "kéo giãn phần giữa" mỗi bên một đoạn `stretch`
+   * (góc bo, mép và lòng chảo ở hai đầu giữ nguyên như keycap thật). 0 với phím 1u.
+   */
+  stretch: number;
 }
+
+/** Đoạn kéo giãn mỗi bên của phím rộng `widthU` so với keycap 1u */
+export const keycapStretch = (widthU: number): number => Math.max(0, ((widthU - 1) * KEY_UNIT) / 2);
 
 /** MOA: mọi hàng cao như nhau, không nghiêng, thân bầu và bo tròn hơn Cherry */
 const MOA = { height: 0.205, taperX: 0.048, taperZ: 0.052, cornerBottom: 0.05, cornerTop: 0.075 } as const;
@@ -60,6 +69,36 @@ export const getKeycapShape = (
       dish: 'spherical',
       cornerBottom: MOA.cornerBottom,
       cornerTop: MOA.cornerTop,
+      stretch: keycapStretch(widthU),
+    };
+  }
+  if (profile === 'xda') {
+    return {
+      bottomWidth,
+      bottomDepth,
+      topWidth: bottomWidth - 2 * 0.038,
+      topDepth: bottomDepth - 2 * 0.038,
+      height: 0.17,
+      tilt: 0,
+      dish: 'spherical',
+      cornerBottom: 0.04,
+      cornerTop: 0.05,
+      stretch: keycapStretch(widthU),
+    };
+  }
+  if (profile === 'sa') {
+    const { height, tilt } = KEYCAP_PROFILE[row];
+    return {
+      bottomWidth,
+      bottomDepth,
+      topWidth: bottomWidth - 2 * 0.045,
+      topDepth: bottomDepth - 2 * 0.045,
+      height: height * 1.35,
+      tilt: tilt * 0.8,
+      dish: 'spherical',
+      cornerBottom: 0.035,
+      cornerTop: 0.045,
+      stretch: keycapStretch(widthU),
     };
   }
   const { height, tilt } = KEYCAP_PROFILE[row];
@@ -75,6 +114,7 @@ export const getKeycapShape = (
     dish: 'cylindrical',
     cornerBottom: 0.028,
     cornerTop: 0.04,
+    stretch: keycapStretch(widthU),
   };
 };
 
@@ -88,18 +128,112 @@ const CORNER_SEGMENTS = 5;
 /**
  * Độ sâu lòng chảo tại (x, z), sâu nhất ở tâm:
  *  - trụ (Cherry): chỉ phụ thuộc x, bằng 0 ở mép trái/phải, mép trước/sau cong xuống theo lòng chảo;
- *  - cầu (MOA): phụ thuộc cả x và z (phím dài dùng bán kính theo chiều sâu để lòng chảo tròn đều).
+ *  - cầu (MOA): phụ thuộc cả x và z.
+ * Phím dài: lòng chảo của keycap 1u bị kéo giãn ở giữa (đoạn giữa phẳng, hai đầu cong như 1u) —
+ * đúng cách model .glb được kéo giãn, nên chữ in đặt theo công thức này nằm khít mặt phím.
  */
-export const dishDepthAt = (x: number, shape: Pick<KeycapShape, 'topWidth' | 'topDepth' | 'dish'>, z = 0): number => {
+export const dishDepthAt = (
+  x: number,
+  shape: Pick<KeycapShape, 'topWidth' | 'topDepth' | 'dish'> & { stretch?: number },
+  z = 0
+): number => {
+  const stretch = shape.stretch ?? 0;
+  const unitTopWidth = shape.topWidth - 2 * stretch;
+  const ux = Math.sign(x) * Math.max(0, Math.abs(x) - stretch);
   if (shape.dish === 'spherical') {
-    const r = Math.min(shape.topWidth, shape.topDepth) / 2;
-    const span = Math.max(0, Math.abs(x) - (shape.topWidth / 2 - r));
+    const r = Math.min(unitTopWidth, shape.topDepth) / 2;
+    const span = Math.max(0, Math.abs(ux) - (unitTopWidth / 2 - r));
     const u = span / r;
     const v = z / (shape.topDepth / 2);
     return DISH_DEPTH * Math.max(0, 1 - u * u - v * v);
   }
-  const u = x / (shape.topWidth / 2);
+  const u = ux / (unitTopWidth / 2);
   return DISH_DEPTH * Math.max(0, 1 - u * u);
+};
+
+/* -------------------------------------------------------------------------- */
+/* Keycap dựng bằng Blender (public/models/keycaps.glb)                       */
+/* -------------------------------------------------------------------------- */
+
+/** Độ dày nóc keycap trong model Blender (scripts/models/build_keycaps.py: ROOF = 1.4mm) */
+const KEYCAP_ROOF = (1.4 * KEY_UNIT) / 19.05;
+/** Đáy trụ chữ thập cao hơn vành đáy keycap một chút */
+const KEYCAP_STEM_BOTTOM = (1.2 * KEY_UNIT) / 19.05;
+
+interface KeycapModels {
+  /** `keycap_<profile>_r<hàng>` -> keycap 1u */
+  bases: Map<string, THREE.BufferGeometry>;
+  /** Trụ chữ thập cao 1 đơn vị */
+  stem: THREE.BufferGeometry;
+}
+
+let keycapModels: KeycapModels | null = null;
+
+/**
+ * Nạp model keycap Blender (gọi từ hook useKeycapModels sau khi .glb tải xong). Từ đó
+ * createKeycapGeometry dùng model thật thay cho mesh dựng bằng code.
+ */
+export const registerKeycapModels = (bases: Map<string, THREE.BufferGeometry>, stem: THREE.BufferGeometry): void => {
+  if (keycapModels && keycapModels.bases === bases) return;
+  keycapModels = { bases, stem };
+};
+
+export const hasKeycapModels = (): boolean => keycapModels !== null;
+
+/** Tên model trong keycaps.glb của một keycap 1u */
+export const keycapModelName = (profile: KeycapProfile, row: PlacedKey['profileRow']): string =>
+  `keycap_${profile}_r${row}`;
+
+/**
+ * Kéo giãn keycap 1u thành phím rộng: đỉnh có x > 0 dời sang phải `stretch`, x < 0 dời sang trái,
+ * đỉnh đúng trục giữa đứng yên. Góc bo và mép giữ nguyên hình dạng; pháp tuyến không đổi.
+ */
+export const stretchKeycap = (base: THREE.BufferGeometry, stretch: number): THREE.BufferGeometry => {
+  const geometry = base.clone();
+  const pos = geometry.attributes.position as THREE.BufferAttribute;
+  if (stretch > 0) {
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i);
+      if (x > 1e-6) pos.setX(i, x + stretch);
+      else if (x < -1e-6) pos.setX(i, x - stretch);
+    }
+    pos.needsUpdate = true;
+  }
+  return geometry;
+};
+
+/** UV theo toạ độ thế giới: hạt nhựa PBT có cùng kích thước trên phím 1u lẫn phím cách */
+const setWorldUv = (geometry: THREE.BufferGeometry): void => {
+  const pos = geometry.attributes.position as THREE.BufferAttribute;
+  const uv = new Float32Array(pos.count * 2);
+  for (let i = 0; i < pos.count; i++) {
+    uv[i * 2] = pos.getX(i) / KEY_UNIT + 0.5;
+    uv[i * 2 + 1] = pos.getZ(i) / KEY_UNIT + 0.5;
+  }
+  geometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+};
+
+const buildModelKeycap = (models: KeycapModels, base: THREE.BufferGeometry, shape: KeycapShape): THREE.BufferGeometry => {
+  const cap = stretchKeycap(base, shape.stretch);
+  // Trụ chữ thập: từ gần đáy lên tới nóc trong (nóc dày ROOF dưới mặt lõm ở tâm phím)
+  const stem = models.stem.clone();
+  const stemTop = keycapSurfaceY(shape, 0, 0) - KEYCAP_ROOF;
+  stem.scale(1, Math.max(0.01, stemTop - KEYCAP_STEM_BOTTOM), 1);
+  stem.translate(0, KEYCAP_STEM_BOTTOM, 0);
+
+  for (const part of [cap, stem]) {
+    setWorldUv(part);
+    // Model có thể mang thêm thuộc tính (màu đỉnh, tangent): chỉ giữ đúng 3 thuộc tính dùng chung
+    Object.keys(part.attributes).forEach((name) => {
+      if (!['position', 'normal', 'uv'].includes(name)) part.deleteAttribute(name);
+    });
+  }
+  const merged = mergeGeometries([cap.index ? cap : cap.toNonIndexed(), stem.index ? stem : stem.toNonIndexed()]) ?? cap;
+  merged.computeBoundingBox();
+  merged.computeBoundingSphere();
+  cap.dispose();
+  stem.dispose();
+  return merged;
 };
 
 /** Độ cao mặt phím tại (x, z): nghiêng theo hàng profile, trừ lòng chảo. */
@@ -135,11 +269,19 @@ export const createKeycapGeometry = (
   row: PlacedKey['profileRow'],
   profile: KeycapProfile = 'cherry'
 ): THREE.BufferGeometry => {
-  const cacheKey = `${profile}-${widthU}-${row}`;
+  const base = keycapModels?.bases.get(keycapModelName(profile, row));
+  const cacheKey = `${base ? 'model' : 'code'}-${profile}-${widthU}-${row}`;
   const cached = keycapCache.get(cacheKey);
   if (cached) return cached;
 
   const shape = getKeycapShape(widthU, row, profile);
+  // Có model Blender: dùng keycap thật (bo mép, ruột rỗng, trụ chữ thập), kéo giãn cho phím dài
+  if (base && keycapModels && widthU >= 1) {
+    const geometry = buildModelKeycap(keycapModels, base, shape);
+    keycapCache.set(cacheKey, geometry);
+    return geometry;
+  }
+
   const slope = Math.tan(shape.tilt);
   const positions: number[] = [];
   const uvs: number[] = [];

@@ -197,15 +197,15 @@ const DisplayPlinth: React.FC<{ highQuality: boolean }> = ({ highQuality }) => {
 /** Hiệu ứng hậu kỳ; ambient occlusion chỉ chạy khi máy đủ khoẻ. */
 const PostEffects: React.FC<{ highQuality: boolean }> = ({ highQuality }) =>
   highQuality ? (
-    <EffectComposer>
-      {/* Bóng tối ở khe giữa các phím và chân keycap: thêm chiều sâu như ảnh chụp thật */}
-      <N8AO halfRes aoRadius={0.35} distanceFalloff={0.5} intensity={1.6} quality="performance" />
+    <EffectComposer multisampling={4}>
+      {/* Bóng tối ở khe giữa các phím và chân keycap: thêm chiều sâu tự nhiên chuẩn photorealistic */}
+      <N8AO halfRes aoRadius={0.45} distanceFalloff={0.7} intensity={2.0} quality="performance" />
       {/* Chỉ dải LED vượt ngưỡng sáng mới toả glow */}
-      <Bloom luminanceThreshold={1} luminanceSmoothing={0.2} intensity={0.55} mipmapBlur />
+      <Bloom luminanceThreshold={1.15} luminanceSmoothing={0.2} intensity={0.35} mipmapBlur />
     </EffectComposer>
   ) : (
     <EffectComposer>
-      <Bloom luminanceThreshold={1} luminanceSmoothing={0.2} intensity={0.55} mipmapBlur />
+      <Bloom luminanceThreshold={1.15} luminanceSmoothing={0.2} intensity={0.35} mipmapBlur />
     </EffectComposer>
   );
 
@@ -219,7 +219,7 @@ export const KeyboardScene: React.FC = () => {
       shadows={{ type: THREE.PCFShadowMap }}
       dpr={[1, 2]}
       camera={{ position: CAMERA_POSITIONS.perspective, fov: CAMERA_FOV }}
-      gl={{ antialias: true, alpha: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1 }}
+      gl={{ antialias: true, alpha: true, toneMapping: THREE.NeutralToneMapping, toneMappingExposure: 1 }}
     >
       <CameraFraming />
       <KeyboardListener />
@@ -231,7 +231,7 @@ export const KeyboardScene: React.FC = () => {
         <ActiveKeyboard />
         <Hotspots />
         <DisplayPlinth highQuality={highQuality} />
-        <ContactShadows position={[0, FLOOR_Y + 0.004, 0]} opacity={0.6} scale={16} blur={2.4} far={2.5} resolution={1024} color="#000000" />
+        <ContactShadows position={[0, FLOOR_Y + 0.004, 0]} opacity={0.5} scale={16} blur={2.0} far={2.5} resolution={1024} color="#000000" />
         <CameraController />
         <PostEffects highQuality={highQuality} />
       </Suspense>

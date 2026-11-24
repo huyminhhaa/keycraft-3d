@@ -136,12 +136,12 @@ const HeroKeyboard: React.FC<HeroKeyboardProps> = ({ cycling = true }) => {
         frameloop={visible ? 'always' : 'never'}
         dpr={[1, 1.75]}
         camera={{ position: [0, 3.4, 5.6], fov: CAMERA_FOV }}
-        gl={{ antialias: true, alpha: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1 }}
+        gl={{ antialias: true, alpha: true, toneMapping: THREE.NeutralToneMapping, toneMappingExposure: 1 }}
       >
         <Suspense fallback={null}>
           <StudioLighting shadows={false} />
           <Showcase cycling={cycling} reduced={reduced} />
-          <ContactShadows position={[0, STAGE_FLOOR_Y, 0]} opacity={0.55} scale={14} blur={2.6} far={2.5} resolution={256} />
+          <ContactShadows position={[0, STAGE_FLOOR_Y, 0]} opacity={0.5} scale={14} blur={2.0} far={2.5} resolution={256} />
         </Suspense>
       </Canvas>
     </div>

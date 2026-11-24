@@ -30,6 +30,7 @@ import {
   keyCenter,
   keycapSurfaceY,
 } from './geometry/keyboardGeometry';
+import { useKeycapModels } from './useKeycapModels';
 import { getForgedCarbonTexture, getSurfaceTexture, getWoodColorTexture } from './geometry/proceduralTextures';
 import { TYPING_ANGLE } from './geometry/caseGeometry';
 import { BottomCaseBody } from './parts/CaseParts';
@@ -137,8 +138,9 @@ export const getCaseMaterialProps = (material: CaseMaterial, color: string): Phy
       return { color: '#6b4226', roughness: 0.72, metalness: 0, clearcoat: 0.25, clearcoatRoughness: 0.6 };
     case 'aluminum':
     default:
-      // Nhôm anodized: kim loại có màu, hơi nhám, phủ lớp bóng mỏng để bắt highlight của đèn studio
-      return { color, roughness: 0.34, metalness: 0.75, clearcoat: 0.35, clearcoatRoughness: 0.25 };
+      // Nhôm anodized phun cát: kim loại gần như hoàn toàn, nhám mịn, KHÔNG phủ lớp bóng (clearcoat
+      // làm vỏ trông như nhựa sơn bóng). Màu sâu đến từ phản chiếu softbox lên kim loại có màu.
+      return { color, roughness: 0.38, metalness: 0.92, clearcoat: 0, clearcoatRoughness: 0.5 };
   }
 };
 
@@ -376,6 +378,8 @@ interface KeyboardModelProps {
 }
 
 export const KeyboardModel: React.FC<KeyboardModelProps> = ({ showLabels = true }) => {
+  // Keycap thật dựng bằng Blender: phải nạp xong trước khi dựng keycap bên dưới
+  useKeycapModels();
   const layoutId = useKeyboardStore((s) => s.layout);
   const isExploded = useKeyboardStore((s) => s.isExploded);
   const explosionOffset = useKeyboardStore((s) => s.explosionOffset);
