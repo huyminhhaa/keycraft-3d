@@ -29,3 +29,6 @@
    - **Tại sao chọn cách này (Trade-offs):** So sánh ngắn gọn với cách làm thông thường.
    - **Thử thách tự tay sửa code (5 phút):** Đưa ra 1–2 gợi ý cụ thể (chỉ rõ tên file và dòng code) để chủ dự án tự sửa thử thông số và thấy kết quả thay đổi trên web.
    - **3 câu hỏi phỏng vấn thực chiến** kèm đáp án súc tích xoay quanh đoạn code vừa viết.
+
+## 4. Đặc tả tính năng nâng cấp (Feature References)
+- Khi thực hiện các task thuộc **Chặng 5 (Photorealistic 3D & /assembly Mode)**, BẮT BUỘC đọc kỹ file .claude/references/keycapy-assembly-spec.md trước khi viết code.

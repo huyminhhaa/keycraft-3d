@@ -34,6 +34,13 @@
 - [x] **4.4-sound-audit-my-builds-pentest2:** Dò tiếng lạ (giọng nói / tiếng bíp) trong 41 gói âm thanh bằng độ tuần hoàn + bộ lọc tự động + test quét chặn tái phát; trang "Bản build của tôi" (`/my-builds`); pentest vòng 2 (CSP nonce bỏ `'unsafe-inline'`, bỏ Bearer + chặn CSRF theo Origin, CAPTCHA Proof-of-Work).
 
 ---
+
+## Chặng 5: Nâng cấp Đồ họa Siêu thực & Trang tự build /assembly (Chuẩn KeyCapy)
+- [ ] **5.1-photorealistic-pbr:** Đọc .claude/references/keycapy-assembly-spec.md. Tạo src/lib/textures.ts (procedural roughness/bump maps cho nhựa sần PBT, nhôm CNC, vải deskmat) và src/lib/keycapGeometry.ts (bộ sinh hình học 3D chuẩn 5 profile: Cherry, OEM, XDA, MOA, SA có độ lõm mặt phím). Nâng cấp ánh sáng studio ấm, AgXToneMapping, <ContactShadows> và <N8AO> để loại bỏ hoàn toàn cảm giác "nhựa" trên toàn bộ model 3D.
+- [ ] **5.2-assembly-store:** Tạo Zustand store src/store/useAssemblyStore.ts quản lý danh sách Case, Switch (phân loại Linear, Clacky, Thocky, Tactile, Silent), Keycap (màu + profile Cherry/OEM/XDA/MOA/SA), trạng thái từng ô socket (hasSwitch, switchId, hasKeycap, keycapProfile, keycapColor) và quy tắc chỉ cho lắp keycap khi ô đã có switch. Viết unit test Vitest đầy đủ.
+- [ ] **5.3-assembly-page-dragdrop:** Tạo route src/app/assembly/page.tsx (kèm nút chuyển đổi Studio / Assembly trên Header) với không gian bàn làm việc Cozy Deskmat + khay linh kiện 3D. Lập trình cơ chế **Drag & Drop** và **Paint-Drag (quét chuột)** để kéo Switch lắp vào socket và kéo Keycap lắp đè lên Switch với hiệu ứng nảy lò xo (spring damping), kèm nút Auto-fill từng bước.
+- [ ] **5.4-realistic-acoustics:** Nâng cấp src/lib/soundEngine.ts để tổng hợp âm thanh gõ phím chân thực kết hợp giữa chất liệu Case + đặc tính Switch (Clacky đanh cao, Thocky trầm ấm, Silent triệt tiêu tiếng đáy) + độ vang khoang keycap (SA/MOA trầm ấm hơn Cherry/OEM), kèm âm thanh ASMR khi cắm switch/ấn keycap và unit test kiểm chứng.
+
 ## Handoff Log (Nhật ký bàn giao giữa các AI)
 - **[Task 1.0-blueprint] Hoàn thành ngày 14/11/2026:**
   - **Mô tả:** Đã hoàn thành bản vẽ thiết kế kiến trúc toàn diện cho KeyCraft 3D và chuẩn bị file mẫu biến môi trường.
