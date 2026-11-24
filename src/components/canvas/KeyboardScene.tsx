@@ -226,7 +226,8 @@ export const KeyboardScene: React.FC = () => {
       <ExportSceneHandle />
       {/* FPS tụt dưới ngưỡng → tắt hẳn hiệu ứng nặng (không bật lại để tránh nhấp nháy) */}
       <PerformanceMonitor onDecline={() => setHighQuality(false)} onFallback={() => setHighQuality(false)} />
-      <Suspense fallback={<CanvasLoader />}>
+      {/* Fallback rỗng: lớp "Đang tải" là DOM thường bên ngoài Canvas (xem CanvasLoader) */}
+      <Suspense fallback={null}>
         <StudioLighting />
         <ActiveKeyboard />
         <Hotspots />
@@ -236,6 +237,7 @@ export const KeyboardScene: React.FC = () => {
         <PostEffects highQuality={highQuality} />
       </Suspense>
     </Canvas>
+    <CanvasLoader />
   </div>
   );
 };
