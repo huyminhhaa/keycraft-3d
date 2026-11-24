@@ -7,7 +7,7 @@ import type { PlacedKey } from '@/lib/keyboard/layouts';
 import type { SwitchColors } from '@/types/keyboard';
 import { keyCenter } from '../geometry/keyboardGeometry';
 import { stabilizerPositions } from '../geometry/plateGeometry';
-import { STAB_WIRE, createStabilizerGeometries, createSwitchGeometries } from '../geometry/switchGeometry';
+import { STAB_WIRE, createStabilizerGeometries, createSwitchGeometries, hasSwitchModels } from '../geometry/switchGeometry';
 import { StaticInstances, composeMatrix } from './StaticInstances';
 
 interface SwitchLayerProps {
@@ -23,11 +23,17 @@ interface SwitchLayerProps {
   getKeyOffset: (code: string) => number;
 }
 
-/** Hình học dùng chung cho mọi bàn phím: tạo một lần */
-let sharedGeometries: { switch: ReturnType<typeof createSwitchGeometries>; stab: ReturnType<typeof createStabilizerGeometries> } | null =
-  null;
+/** Hình học dùng chung cho mọi bàn phím: tạo một lần (tạo lại một lần nữa khi model Blender vừa nạp xong) */
+let sharedGeometries: {
+  fromModels: boolean;
+  switch: ReturnType<typeof createSwitchGeometries>;
+  stab: ReturnType<typeof createStabilizerGeometries>;
+} | null = null;
 const geometries = () => {
-  sharedGeometries ??= { switch: createSwitchGeometries(), stab: createStabilizerGeometries() };
+  const fromModels = hasSwitchModels();
+  if (!sharedGeometries || sharedGeometries.fromModels !== fromModels) {
+    sharedGeometries = { fromModels, switch: createSwitchGeometries(), stab: createStabilizerGeometries() };
+  }
   return sharedGeometries;
 };
 
@@ -84,6 +90,8 @@ export const SwitchLayer: React.FC<SwitchLayerProps> = ({
       lens: new THREE.MeshPhysicalMaterial({ color: '#ffffff', roughness: 0.2, transparent: true, opacity: 0.7, depthWrite: false }),
       bottom: new THREE.MeshPhysicalMaterial({ color: '#232326', roughness: 0.42, clearcoat: 0.3, clearcoatRoughness: 0.4 }),
       gold: new THREE.MeshStandardMaterial({ color: '#d6ab4b', roughness: 0.22, metalness: 1 }),
+      // Lò xo thép mạ: thấy lấp lánh qua vỏ trên trong suốt
+      spring: new THREE.MeshStandardMaterial({ color: '#d4d6da', roughness: 0.28, metalness: 1 }),
       // Màu stem đặt trong useEffect bên dưới: đổi switch không phải tạo lại cả bộ vật liệu
       stem: new THREE.MeshStandardMaterial({ roughness: 0.42 }),
       stabHousing: new THREE.MeshStandardMaterial({ color: '#141416', roughness: 0.48 }),
@@ -148,6 +156,9 @@ export const SwitchLayer: React.FC<SwitchLayerProps> = ({
       <StaticInstances name="Detail_SwitchLens" geometry={sw.lens} material={materials.lens} matrices={matrices} />
       <StaticInstances name="Detail_SwitchBottomHousing" geometry={sw.bottomHousing} material={materials.bottom} matrices={matrices} castShadow />
       <StaticInstances name="Detail_SwitchPins" geometry={sw.pins} material={materials.gold} matrices={matrices} />
+      {sw.spring && (
+        <StaticInstances name="Detail_SwitchSpring" geometry={sw.spring} material={materials.spring} matrices={matrices} />
+      )}
       <StaticInstances name="Detail_SwitchStem" geometry={sw.stem} material={materials.stem} matrices={matrices} meshRef={stemRef} castShadow />
       <StaticInstances name="Detail_StabHousing" geometry={stab.housing} material={materials.stabHousing} matrices={stabs.housings} castShadow />
       <StaticInstances name="Detail_StabWire" geometry={stab.wire} material={materials.wire} matrices={stabs.wires} />

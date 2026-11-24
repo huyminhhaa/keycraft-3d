@@ -1,0 +1,10 @@
+{
+  "outerHalf": 2,
+  "holeHalf": 1,
+  "height": 1,
+  "outerRadius": 0.19,
+  "holeRadius": 0.05,
+  "topChamfer": 0.016,
+  "holeChamfer": 0.012,
+  "bottomFillet": 0.008
+}

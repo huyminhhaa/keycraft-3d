@@ -30,7 +30,7 @@ import {
   keyCenter,
   keycapSurfaceY,
 } from './geometry/keyboardGeometry';
-import { useKeycapModels } from './useKeycapModels';
+import { useKeyboardModels } from './useKeyboardModels';
 import { getForgedCarbonTexture, getSurfaceTexture, getWoodColorTexture } from './geometry/proceduralTextures';
 import { TYPING_ANGLE } from './geometry/caseGeometry';
 import { BottomCaseBody } from './parts/CaseParts';
@@ -378,8 +378,8 @@ interface KeyboardModelProps {
 }
 
 export const KeyboardModel: React.FC<KeyboardModelProps> = ({ showLabels = true }) => {
-  // Keycap thật dựng bằng Blender: phải nạp xong trước khi dựng keycap bên dưới
-  useKeycapModels();
+  // Keycap, switch và vỏ dựng bằng Blender: phải nạp xong trước khi dựng các lớp bên dưới
+  useKeyboardModels();
   const layoutId = useKeyboardStore((s) => s.layout);
   const isExploded = useKeyboardStore((s) => s.isExploded);
   const explosionOffset = useKeyboardStore((s) => s.explosionOffset);

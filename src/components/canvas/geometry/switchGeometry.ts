@@ -60,9 +60,44 @@ export interface SwitchGeometries {
   pins: THREE.BufferGeometry;
   /** Stem chữ thập MX + vách chống bụi */
   stem: THREE.BufferGeometry;
+  /** Lò xo xoắn (chỉ có khi đã nạp model Blender) */
+  spring?: THREE.BufferGeometry;
 }
 
-export const createSwitchGeometries = (): SwitchGeometries => ({
+/** Switch dựng bằng Blender (public/models/switch.glb): vỏ trên rỗng, vỏ dưới, stem, lò xo */
+export interface SwitchModels {
+  top: THREE.BufferGeometry;
+  bottom: THREE.BufferGeometry;
+  stem: THREE.BufferGeometry;
+  spring: THREE.BufferGeometry;
+}
+
+let switchModels: SwitchModels | null = null;
+
+export const registerSwitchModels = (models: SwitchModels): void => {
+  switchModels = models;
+};
+
+export const hasSwitchModels = (): boolean => switchModels !== null;
+
+/**
+ * Hình học switch: dùng model Blender nếu đã nạp (vỏ trên rỗng bo mép, lẫy bám plate, stem vát đầu,
+ * lò xo), không thì dựng bằng code. Cửa sổ LED và chân đồng luôn dựng bằng code.
+ */
+export const createSwitchGeometries = (): SwitchGeometries => {
+  const procedural = createProceduralSwitchGeometries();
+  if (!switchModels) return procedural;
+  [procedural.topHousing, procedural.bottomHousing, procedural.stem].forEach((g) => g.dispose());
+  return {
+    ...procedural,
+    topHousing: switchModels.top,
+    bottomHousing: switchModels.bottom,
+    stem: switchModels.stem,
+    spring: switchModels.spring,
+  };
+};
+
+const createProceduralSwitchGeometries = (): SwitchGeometries => ({
   topHousing: merge([
     taperedBox(mm(15.6), mm(15.6), mm(11.2), mm(11.6), TOP_HOUSING_HEIGHT),
     // Ngàm kẹp hai bên (2 mỗi bên) giữ vỏ trên vào vỏ dưới

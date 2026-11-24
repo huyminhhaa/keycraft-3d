@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { fitCaseTemplate, getCaseTemplate } from './caseModel';
 import type { PlacedKey } from '@/lib/keyboard/layouts';
 import type { KeycapProfile } from '@/types/keyboard';
 
@@ -426,7 +427,13 @@ export const createCaseGeometry = (
   yBottom: number,
   hole?: { width: number; depth: number },
   cornerRadius = CASE_CORNER_RADIUS
-): THREE.ExtrudeGeometry => {
+): THREE.BufferGeometry => {
+  // Có vỏ mẫu Blender (mép vát kim cương, bo đáy, vát miệng khoang): nắn theo kích thước này
+  const template = getCaseTemplate();
+  if (template && hole) {
+    return fitCaseTemplate(template, { width, depth, height, yBottom, hole, cornerRadius, bevel: CASE_BEVEL });
+  }
+
   const shape = roundedRectPath(new THREE.Shape(), width, depth, cornerRadius);
   if (hole) shape.holes.push(roundedRectPath(new THREE.Path(), hole.width, hole.depth, 0.05));
 

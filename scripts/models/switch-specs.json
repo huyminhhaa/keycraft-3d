@@ -1,0 +1,16 @@
+{
+  "mm": 0.01994750656167979,
+  "plateToPcbMm": 6.25,
+  "topHousingHeightMm": 4.5,
+  "stemTopMm": 8.4,
+  "pegsMm": [
+    [
+      -5.08,
+      0
+    ],
+    [
+      5.08,
+      0
+    ]
+  ]
+}

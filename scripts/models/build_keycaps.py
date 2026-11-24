@@ -217,6 +217,11 @@ def main():
     shade(stem, 35)
     built.append(stem)
 
+    # Nướng vị trí object vào lưới: web chỉ đọc geometry (trụ chữ thập được tạo ở location z = 0.5)
+    bpy.ops.object.select_all(action="SELECT")
+    bpy.context.view_layer.objects.active = stem
+    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.export_scene.gltf(
         filepath=OUT_PATH,

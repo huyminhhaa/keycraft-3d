@@ -75,6 +75,12 @@ describe('keycaps.glb (dựng bằng Blender)', () => {
     expect(meshes.has('keycap_stem')).toBe(true);
   });
 
+  it('trụ chữ thập cao đúng 1 đơn vị từ y = 0 (vị trí đã nướng vào lưới, không nằm ở transform node)', () => {
+    const box = bounds(meshes.get('keycap_stem') as THREE.BufferGeometry);
+    expect(box.min.y).toBeCloseTo(0, 4);
+    expect(box.max.y).toBeCloseTo(1, 4);
+  });
+
   it('đáy keycap 1u đúng kích thước của web, đáy nằm ở y = 0', () => {
     const shape = getKeycapShape(1, 3, 'cherry');
     const box = bounds(meshes.get('keycap_cherry_r3') as THREE.BufferGeometry);
@@ -93,7 +99,7 @@ describe('keycaps.glb (dựng bằng Blender)', () => {
     }
   });
 
-  it('thông số đã xuất cho Blender khớp code web (quên chạy `npm run models:keycaps` sau khi đổi kích thước là đỏ)', () => {
+  it('thông số đã xuất cho Blender khớp code web (quên chạy `npm run models` sau khi đổi kích thước là đỏ)', () => {
     const specs = JSON.parse(readFileSync(join(ROOT, 'scripts', 'models', 'keycap-specs.json'), 'utf8')) as {
       keycaps: Array<{ name: string; bottomWidth: number; topWidth: number; height: number; tilt: number }>;
     };

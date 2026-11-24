@@ -10,7 +10,7 @@
     "test": "vitest",
     "sounds": "tsx scripts/sounds/make-pack.ts",
     "sounds:audit": "tsx scripts/sounds/audit-sources.ts",
-    "models:keycaps": "tsx scripts/models/build-keycaps.ts",
+    "models": "tsx scripts/models/build-models.ts",
     "photos": "tsx scripts/builds/sync-photos.ts"
   },
   "dependencies": {
